@@ -282,7 +282,7 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 void
 CMatrix::RotateX(float x)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_x(x);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -312,7 +312,7 @@ CMatrix::RotateX(float x)
 void
 CMatrix::RotateY(float y)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_y(y);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -342,7 +342,7 @@ CMatrix::RotateY(float y)
 void
 CMatrix::RotateZ(float z)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_z(z);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -372,7 +372,7 @@ CMatrix::RotateZ(float z)
 void
 CMatrix::Rotate(float x, float y, float z)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate(x, y, z);
 	mat_store(reinterpret_cast<matrix_t *>(this));
