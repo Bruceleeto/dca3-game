@@ -166,8 +166,12 @@ struct sfx_bank {
 std::map<int, sfx_bank> sfx_banks;
 
 int nPedSlotSfx[MAX_PEDSFX];
+uint32 nPedSlotSfxReqId[MAX_PEDSFX];
 uintptr_t nPedSlotSfxAddr[MAX_PEDSFX];
 uint8_t nCurrentPedSlot;
+file_t fdPedSfx;
+volatile uint32 nPedSfxReqReadId = 1;
+volatile uint32 nPedSfxReqNextId = 1;
 
 struct WavHeader {
     // RIFF Header
@@ -442,14 +446,21 @@ cSampleManager::Initialise(void)
 		}
 	});
 	
+	nPedSfxReqNextId = 1;
+	nPedSfxReqReadId = 1;
 	for ( int32 i = 0; i < MAX_PEDSFX; i++ )
 	{
 		nPedSlotSfx[i]     = -1;
+		nPedSlotSfxReqId[i] = 0;
 		nPedSlotSfxAddr[i] = snd_mem_malloc(PED_BLOCKSIZE_ADPCM);
 		debugf("PedSlot %d buffer: %p\n", i, (void*)nPedSlotSfxAddr[i]);
 	}
 	
 	nCurrentPedSlot = 0;
+
+	fdPedSfx = fs_open(SampleBankDataFilename, O_RDONLY);
+
+	assert(fdPedSfx >= 0);
 
 	_dcAudioInitialized = true;
 	return TRUE;
@@ -458,7 +469,7 @@ cSampleManager::Initialise(void)
 void
 cSampleManager::Terminate(void)
 {
-
+	fs_close(fdPedSfx);
 }
 
 bool8 cSampleManager::CheckForAnAudioFileOnCD(void)
@@ -637,7 +648,7 @@ cSampleManager::IsPedCommentLoaded(uint32 nComment)
 			slot += ARRAY_SIZE(nPedSlotSfx);
 #endif
 		if ( nComment == nPedSlotSfx[slot] )
-			return LOADING_STATUS_LOADED;
+			return nPedSlotSfxReqId[slot] <= nPedSfxReqReadId ? LOADING_STATUS_LOADED : LOADING_STATUS_LOADING;
 	}
 	
 	return LOADING_STATUS_NOT_LOADED;
@@ -698,27 +709,28 @@ cSampleManager::LoadPedComment(uint32 nComment)
 
 	assert(m_aSamples[nComment].nByteSize < PED_BLOCKSIZE_ADPCM);
 
-	file_t fd = fs_open(SampleBankDataFilename, O_RDONLY);
-
-	assert(fd >= 0);
-	debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
-	fs_seek(fd, m_aSamples[nComment].nFileOffset, SEEK_SET);
+	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
+		debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
+		fs_seek(fdPedSfx, cmd->seek, SEEK_SET);
 
 
-	// TODO: When we can dma directly to AICA, we can use this instead
-	// fs_read(fd, SPU_BASE_U8 + nPedSlotSfxAddr[nCurrentPedSlot], sizeof(nPedSlotSfxAddr));
+		// TODO: When we can dma directly to AICA, we can use this instead
+		// fs_read(fdPedSfx, SPU_BASE_U8 + (uintptr_t)cmd->dest, cmd->size);
 
-	void* stagingBuffer = memalign(32, m_aSamples[nComment].nByteSize);
-	assert(stagingBuffer != 0);
-	debugf("Allocated %d bytes at %p\n", m_aSamples[nComment].nByteSize, stagingBuffer);
-	int rs = fs_read(fd, stagingBuffer, m_aSamples[nComment].nByteSize);
-	debugf("Read %d bytes, expected %d\n", rs, m_aSamples[nComment].nByteSize);
-	assert(rs == m_aSamples[nComment].nByteSize);
+		void* stagingBuffer = memalign(32, cmd->size);
+		assert(stagingBuffer != 0);
+		debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
+		int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
+		debugf("Read %d bytes, expected %d\n", rs, cmd->size);
+		assert(rs == cmd->size);
 
-	fs_close(fd);
+		spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
+		free(stagingBuffer);
+		nPedSfxReqReadId = nPedSfxReqReadId + 1;
+	});
 
-	spu_memload(nPedSlotSfxAddr[nCurrentPedSlot], stagingBuffer, m_aSamples[nComment].nByteSize);
-	free(stagingBuffer);
+	nPedSlotSfxReqId[nCurrentPedSlot] = ++nPedSfxReqNextId;
+	
 	nPedSlotSfx[nCurrentPedSlot] = nComment;
 
 	if ( ++nCurrentPedSlot >= MAX_PEDSFX )

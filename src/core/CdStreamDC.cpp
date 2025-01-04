@@ -26,12 +26,6 @@
 #include "CdStream.h"
 #include "rwcore.h"
 #include "MemoryMgr.h"
-struct AudioReadCmd {
-	void* dest;
-	int fd;
-	size_t size;
-	size_t seek;
-};
 
 #define CDDEBUG(f, ...)   debug ("%s: " f "\n", "cdvd_stream", ## __VA_ARGS__)
 #define CDTRACE(f, ...)   printf("%s: " f "\n", "cdvd_stream", ## __VA_ARGS__)
@@ -489,8 +483,16 @@ std::vector<AudioReadCmd> pendingAudioReads;
 std::mutex pendingAudioReadsMutex;
 #endif
 // Will replace a previous read request for the same file descriptor
-void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek) {
+void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek, std::function<void(AudioReadCmd*)> callback) {
 	AudioReadCmd cmd = { pBuffer, fd, bytes, seek};
+	if (!callback) {
+		cmd.callback = [](AudioReadCmd* cmd){
+			lseek(cmd->fd, cmd->seek, SEEK_SET);
+			read(cmd->fd, cmd->dest, cmd->size);
+		};
+	} else {
+		cmd.callback = callback;
+	}
 	{
 		#if !defined(DC_SH4)
 		std::lock_guard<std::mutex> lock(pendingAudioReadsMutex);
@@ -513,6 +515,7 @@ void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek) {
 	}
 	sem_post(gCdStreamSema);
 }
+
 
 void CdStreamDiscardAudioRead(int fd) {
 	#if !defined(DC_SH4)
@@ -564,8 +567,7 @@ int read_loop(int fd, void* pBuffer, size_t bytes) {
 		total_read += read_bytes;
 		auto cmd = CdStreamNextAudioRead();
 		while (cmd.fd != -1) {
-			lseek(cmd.fd, cmd.seek, SEEK_SET);
-			read(cmd.fd, cmd.dest, cmd.size);
+			cmd.callback(&cmd);
 			cmd = CdStreamNextAudioRead();
 		}
 	}
@@ -581,8 +583,7 @@ void *CdStreamThread(void *param)
 
 		auto cmd = CdStreamNextAudioRead();
 		while (cmd.fd != -1) {
-			lseek(cmd.fd, cmd.seek, SEEK_SET);
-			read(cmd.fd, cmd.dest, cmd.size);
+			cmd.callback(&cmd);
 			cmd = CdStreamNextAudioRead();
 		}
 
