@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 
 #define CDSTREAM_SECTOR_SIZE 2048
 
@@ -43,7 +44,14 @@ char *CdStreamGetImageName(int32 cd);
 void CdStreamRemoveImages(void);
 int32 CdStreamGetNumImages(void);
 
-void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek);
+struct AudioReadCmd {
+	void* dest;
+	int fd;
+	size_t size;
+	size_t seek;
+	std::function<void(AudioReadCmd*)> callback;
+};
+void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek, std::function<void(AudioReadCmd*)> callback = nullptr);
 void CdStreamDiscardAudioRead(int fd);
 
 #ifdef FLUSHABLE_STREAMING

@@ -6302,7 +6302,7 @@ cPedComments::Process()
 		{
 		case LOADING_STATUS_NOT_LOADED:
 			SampleManager.LoadPedComment(sampleIndex);
-#ifdef GTA_PS2 // on PC ped comment is loaded at once
+#if defined(GTA_PS2) || defined(RW_DC) // on PC ped comment is loaded at once
 			break;
 #endif
 		case LOADING_STATUS_LOADED:
