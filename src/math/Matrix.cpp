@@ -404,18 +404,31 @@ CMatrix::Rotate(float x, float y, float z)
 	float z2 = sZ * sY - (cZ * sX) * cY;
 	float z3 = cX * cY;
 
-	this->rx = x1 * rx + y1 * ry + z1 * rz;
-	this->ry = x2 * rx + y2 * ry + z2 * rz;
-	this->rz = x3 * rx + y3 * ry + z3 * rz;
-	this->fx = x1 * ux + y1 * uy + z1 * uz;
-	this->fy = x2 * ux + y2 * uy + z2 * uz;
-	this->fz = x3 * ux + y3 * uy + z3 * uz;
-	this->ux = x1 * ax + y1 * ay + z1 * az;
-	this->uy = x2 * ax + y2 * ay + z2 * az;
-	this->uz = x3 * ax + y3 * ay + z3 * az;
-	this->px = x1 * px + y1 * py + z1 * pz;
-	this->py = x2 * px + y2 * py + z2 * pz;
-	this->pz = x3 * px + y3 * py + z3 * pz;
+	this->rx = fipr(x1, y1, z1, 0,  rx, ry, rz, 0);
+	this->ry = fipr(x2, y2, z2, 0,  rx, ry, rz, 0);
+	this->rz = fipr(x3, y3, z3, 0,  rx, ry, rz, 0);
+	this->fx = fipr(x1, y1, z1, 0,  ux, uy, uz, 0);
+	this->fy = fipr(x2, y2, z2, 0,  ux, uy, uz, 0);
+	this->fz = fipr(x3, y3, z3, 0,  ux, uy, uz, 0);
+	this->ux = fipr(x1, y1, z1, 0,  ax, ay, az, 0);
+	this->uy = fipr(x2, y2, z2, 0,  ax, ay, az, 0);
+	this->uz = fipr(x3, y3, z3, 0,  ax, ay, az, 0);
+	this->px = fipr(x1, y1, z1, 0,  px, py, pz, 0);
+	this->py = fipr(x2, y2, z2, 0,  px, py, pz, 0);
+	this->pz = fipr(x3, y3, z3, 0,  px, py, pz, 0);
+
+	// this->rx = x1 * rx + y1 * ry + z1 * rz;
+	// this->ry = x2 * rx + y2 * ry + z2 * rz;
+	// this->rz = x3 * rx + y3 * ry + z3 * rz;
+	// this->fx = x1 * ux + y1 * uy + z1 * uz;
+	// this->fy = x2 * ux + y2 * uy + z2 * uz;
+	// this->fz = x3 * ux + y3 * uy + z3 * uz;
+	// this->ux = x1 * ax + y1 * ay + z1 * az;
+	// this->uy = x2 * ax + y2 * ay + z2 * az;
+	// this->uz = x3 * ax + y3 * ay + z3 * az;
+	// this->px = x1 * px + y1 * py + z1 * pz;
+	// this->py = x2 * px + y2 * py + z2 * pz;
+	// this->pz = x3 * px + y3 * py + z3 * pz;
 #endif
 }
 
