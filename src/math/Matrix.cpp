@@ -282,7 +282,7 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 void
 CMatrix::RotateX(float x)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_x(x);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -312,7 +312,7 @@ CMatrix::RotateX(float x)
 void
 CMatrix::RotateY(float y)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_y(y);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -342,7 +342,7 @@ CMatrix::RotateY(float y)
 void
 CMatrix::RotateZ(float z)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_z(z);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -372,7 +372,7 @@ CMatrix::RotateZ(float z)
 void
 CMatrix::Rotate(float x, float y, float z)
 {
-#ifdef DC_SH4
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate(x, y, z);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -404,6 +404,20 @@ CMatrix::Rotate(float x, float y, float z)
 	float z2 = sZ * sY - (cZ * sX) * cY;
 	float z3 = cX * cY;
 
+	#if !defined(DC_TEXCONV) && !defined(DC_SIM)
+	this->rx = fipr(x1, y1, z1, 0,  rx, ry, rz, 0);
+	this->ry = fipr(x2, y2, z2, 0,  rx, ry, rz, 0);
+	this->rz = fipr(x3, y3, z3, 0,  rx, ry, rz, 0);
+	this->fx = fipr(x1, y1, z1, 0,  ux, uy, uz, 0);
+	this->fy = fipr(x2, y2, z2, 0,  ux, uy, uz, 0);
+	this->fz = fipr(x3, y3, z3, 0,  ux, uy, uz, 0);
+	this->ux = fipr(x1, y1, z1, 0,  ax, ay, az, 0);
+	this->uy = fipr(x2, y2, z2, 0,  ax, ay, az, 0);
+	this->uz = fipr(x3, y3, z3, 0,  ax, ay, az, 0);
+	this->px = fipr(x1, y1, z1, 0,  px, py, pz, 0);
+	this->py = fipr(x2, y2, z2, 0,  px, py, pz, 0);
+	this->pz = fipr(x3, y3, z3, 0,  px, py, pz, 0);
+	#else
 	this->rx = x1 * rx + y1 * ry + z1 * rz;
 	this->ry = x2 * rx + y2 * ry + z2 * rz;
 	this->rz = x3 * rx + y3 * ry + z3 * rz;
@@ -416,6 +430,7 @@ CMatrix::Rotate(float x, float y, float z)
 	this->px = x1 * px + y1 * py + z1 * pz;
 	this->py = x2 * px + y2 * py + z2 * pz;
 	this->pz = x3 * px + y3 * py + z3 * pz;
+	#endif
 #endif
 }
 
