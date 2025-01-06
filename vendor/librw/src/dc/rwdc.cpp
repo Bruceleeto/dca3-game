@@ -3294,6 +3294,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 	for (int16_t n = 0; n < numMeshes; n++) {
 		bool doBlend = meshes[n].material->color.alpha != 255; // TODO: check all vertexes for alpha?
+		bool doBlendMaterial = doBlend;
+
 		bool textured = geo->numTexCoordSets && meshes[n].material->texture;
 		if (textured) {
 			doBlend |= Raster::formatHasAlpha(meshes[n].material->texture->raster->format);
@@ -3343,7 +3345,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		pvr_poly_cxt_t cxt;
 		int pvrList;
 		if (doBlend || isMatFX) {
-			if (doAlphaTest) {
+			if (doAlphaTest && !doBlendMaterial) {
 				pvrList = PVR_LIST_PT_POLY;
 			} else {
 				pvrList = PVR_LIST_TR_POLY;
@@ -3709,7 +3711,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		};
 
 		if (doBlend || isMatFX) {
-			if (doAlphaTest) {
+			if (doAlphaTest && !doBlendMaterial) {
 				ptCallbacks.emplace_back(std::move(renderCB));
 			} else {
 				blendCallbacks.emplace_back(std::move(renderCB));
