@@ -1479,7 +1479,8 @@ CWaterLevel::AllocateBoatWakeArray()
 			apGeomArray[geom] = RpGeometryCreate(9*9, 8*8*2, rpGEOMETRYTRISTRIP
 															| rpGEOMETRYPRELIT
 															| rpGEOMETRYMODULATEMATERIALCOLOR
-															| rpGEOMETRYTEXTURED);
+															| rpGEOMETRYTEXTURED
+															| rw::Geometry::HAS_TRIANGLES/* RW_DC specific */);
 			ASSERT(apGeomArray[geom] != nil);
 
 			RpTriangle *geomTriangles = RpGeometryGetTriangles(apGeomArray[geom]);
