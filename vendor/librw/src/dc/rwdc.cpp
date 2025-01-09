@@ -3887,19 +3887,19 @@ imageFindRasterFormat(Image *img, int32 type,
 		;
 
     if(downsampleMode >= HALF) {
-        if(height / 2 >= 16) {
+        if(height / 2 >= 64) {
             height /= 2;
         }
-        if(width / 2 >= 16) {
+        if(width / 2 >= 64) {
             width /= 2;
         }
     }
 
     if(downsampleMode >= QUARTER) {
-        if(height / 2 >= 16) {
+        if(height / 2 >= 32) {
             height /= 2;
         }
-        if(width / 2 >= 16) {
+        if(width / 2 >= 32) {
             width /= 2;
         }
     }
