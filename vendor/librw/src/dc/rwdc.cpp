@@ -29,6 +29,7 @@ extern const char* currentFile;
 #include "rwdc.h"
 #include "vq.h"
 #include "tex-util.h"
+#include "common.h"
 
 #include <vector>
 #include <set>
@@ -55,6 +56,12 @@ bool doEnvironmentMaps = true;
 
 #define fclamp0_1(n) ((n) > 1.0f ? 1.0f : n < 0.0f ? 0.0f : n)
 #define fclamp1(n) ((n) > 1.0f ? 1.0f : n)
+
+const unsigned short VIDEO_MODES = 2;
+unsigned short VIDEO_MODE = 0;
+rw::VideoMode videoModes[VIDEO_MODES];
+float SCREEN_WIDTH = 640;
+float SCREEN_HEIGHT = 480;
 
 struct alignas(32) pvr_vertex16_t {
 	uint32_t flags;			/**< \brief TA command (vertex flags) */
@@ -176,8 +183,6 @@ static pvr_dr_state_t drState;
 #if !defined(DC_TEXCONV) && !defined(DC_SIM)
 #include <kos.h>
 
-#define VIDEO_MODE_WIDTH  vid_mode->width
-#define VIDEO_MODE_HEIGHT vid_mode->height
 
 #define mat_trans_nodiv_nomod(x, y, z, x2, y2, z2, w2) do { \
         register float __x __asm__("fr12") = (x); \
@@ -288,8 +293,6 @@ void rw_mat_load_4x4(rw::Matrix* mtx) {
 }
 
 #include <dc/matrix.h>
-#define VIDEO_MODE_WIDTH		640
-#define VIDEO_MODE_HEIGHT 		480
 #define frsqrt(a) 				(1.0f/sqrt(a))
 #define dcache_pref_block(a)	__builtin_prefetch(a)
 
@@ -483,7 +486,7 @@ void DCE_MatrixViewport(float x, float y, float width, float height) {
     DCE_MAT_SCREENVIEW[1][1] = height * 0.5f;
     DCE_MAT_SCREENVIEW[2][2] = 1;
     DCE_MAT_SCREENVIEW[3][0] = -DCE_MAT_SCREENVIEW[0][0] + x;
-    DCE_MAT_SCREENVIEW[3][1] = VIDEO_MODE_HEIGHT - (DCE_MAT_SCREENVIEW[1][1] + y); 
+    DCE_MAT_SCREENVIEW[3][1] = height - (DCE_MAT_SCREENVIEW[1][1] + y); 
 }
 
 void DCE_InitMatrices() {
@@ -492,7 +495,7 @@ void DCE_InitMatrices() {
 	
 	mat_store(&DCE_MAT_SCREENVIEW);
 	
-	DCE_MatrixViewport(0, 0, VIDEO_MODE_WIDTH, VIDEO_MODE_HEIGHT);
+	DCE_MatrixViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 }
@@ -820,7 +823,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 			pvr_poly_compile(hdr, &cxt);
 			pvr_dr_commit(hdr);
 		}
-		for (int x = 0; x < 320; x+=2) {
+		for (int x = 0; x < SCREEN_WIDTH / 2; x+=2) {
 			doquad(x, 0, 2, 480, x*2 + (is_bank1 ? 2 : 0), 0, 2, 480);
 		}
 		{
@@ -842,7 +845,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 			pvr_poly_compile(hdr, &cxt);
 			pvr_dr_commit(hdr);
 		}
-		for (int x = 0; x < 320; x+=2) {
+		for (int x = 0; x < SCREEN_WIDTH / 2; x+=2) {
 			doquad(320+x, 0, 2, 480, x*2 + (is_bank1 ? 2 : 0), 0, 2, 480);
 		}
 	});
@@ -921,7 +924,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 1e6f, 640.0f, 480.0f,
+		doquad(0.0f, 0.0f, 1e6f, SCREEN_WIDTH, 480.0f,
 		       0.0f, 640.0f / 8.0f, 0.0f, 480.0f / 8.0f, mask_col);
 
 		pvr_poly_cxt_txr(&cxt, PVR_LIST_TR_POLY,
@@ -940,10 +943,10 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 2e6f, 320.0f, 480.0f,
+		doquad(0.0f, 0.0f, 2e6f, SCREEN_WIDTH / 2, 480.0f,
 		       0.0f, 640.0f / 1024.0f,
 		       0.0f, 960.0f / 1024.0f, col);
-		doquad(320.0f, 0.0f, 2e6f, 320.0f, 480.0f,
+		doquad(320.0f, 0.0f, 2e6f, SCREEN_WIDTH / 2, 480.0f,
 		       0.0f, 640.0f / 1024.0f,
 		       1.0f / 1024.0f, 961.0f / 1024.0f, col);
 
@@ -954,10 +957,10 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 3e6f, 320.0f, 480.0f,
+		doquad(0.0f, 0.0f, 3e6f, SCREEN_WIDTH / 2, 480.0f,
 		       -1.0f / 1024.0f, 639.0f / 1024.0f,
 		       0.0f, 960.0f / 1024.0f, col);
-		doquad(320.0f, 0.0f, 3e6f, 320.0f, 480.0f,
+		doquad(320.0f, 0.0f, 3e6f, SCREEN_WIDTH / 2, 480.0f,
 		       -1.0f / 1024.0f, 639.0f / 1024.0f,
 		       1.0f / 1024.0f, 961.0f / 1024.0f, col);
 
@@ -973,7 +976,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 4e6f, 640.0f, 480.0f,
+		doquad(0.0f, 0.0f, 4e6f, SCREEN_WIDTH, 480.0f,
 		       0.0f, 640.0f / 8.0f, 0.0f, 480.0f / 8.0f, 0xffffffff);
 
 		cxt.blend.src = PVR_BLEND_ONE;
@@ -983,7 +986,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 4e6f, 640.0f, 480.0f,
+		doquad(0.0f, 0.0f, 4e6f, SCREEN_WIDTH, 480.0f,
 		       0.0f, 640.0f / 8.0f, 0.0f, 480.0f / 8.0f, 0x000f0f0f);
 
 		cxt.blend.src = PVR_BLEND_INVDESTCOLOR;
@@ -993,7 +996,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 4e6f, 640.0f, 480.0f,
+		doquad(0.0f, 0.0f, 4e6f, SCREEN_WIDTH, 480.0f,
 		       0.0f, 640.0f / 8.0f, 0.0f, 480.0f / 8.0f, 0xffffffff);
 
 		cxt.blend.dst_enable = PVR_BLEND_DISABLE;
@@ -1005,7 +1008,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 4e6f, 640.0f, 480.0f,
+		doquad(0.0f, 0.0f, 4e6f, SCREEN_WIDTH, 480.0f,
 		       0.0f, 640.0f / 8.0f, 0.0f, 480.0f / 8.0f, 0xffffffff);
 	});
 }
@@ -4248,6 +4251,32 @@ rasterToImage(Raster*)
 	return nil;
 }
 
+static pvr_init_params_t pvr_params = {
+	.opb_sizes = {
+				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
+				PVR_BINSIZE_8
+	},
+	.vertex_buf_size = (1024 + 1024) * 1024,
+	.dma_enabled = 0,
+	.fsaa_enabled = 0,
+	.autosort_disabled = true,
+	.opb_overflow_count = 7 // 268800 bytes
+};
+
+static void makeVideoModeList() {
+	videoModes[0].width = 640;
+	videoModes[0].height = 480;
+	videoModes[0].depth = 16;
+	videoModes[0].flags = VIDEOMODEEXCLUSIVE;
+
+	videoModes[1].width = 1280;
+	videoModes[1].height = 480;
+	videoModes[1].depth = 16;
+	videoModes[1].flags = VIDEOMODEEXCLUSIVE;	
+
+
+}
+
 int
 deviceSystem(DeviceReq req, void *arg0, int32 n)
 {
@@ -4276,14 +4305,14 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 	// TODO: implement subsystems
 
 	case DEVICEGETVIDEOMODEINFO:{
+		makeVideoModeList(); // On startup this is not yet called
 		auto rwmode = (VideoMode*)arg0;
-		rwmode->width = 640;
-		rwmode->height = 480;
-		rwmode->depth = 16;
-		rwmode->flags = VIDEOMODEEXCLUSIVE;
+		rwmode->width = videoModes[n].width;
+		rwmode->height = videoModes[n].height;
+		rwmode->depth = videoModes[n].depth;
+		rwmode->flags = videoModes[n].flags;
 		return 1;
-	}
-		
+	}		
 
 	case DEVICEGETMAXMULTISAMPLINGLEVELS:
 		{
@@ -4296,11 +4325,21 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 	case DEVICESETSUBSYSTEM:
 		return 1;
 	case DEVICEGETNUMVIDEOMODES:
-		return 1;
+		return VIDEO_MODES;
 	case DEVICEGETCURRENTVIDEOMODE:
-		return 0;
+		return VIDEO_MODE;
 	case DEVICESETVIDEOMODE:
-		return 1;
+		{
+			makeVideoModeList(); // On startup this is called before driverOpen
+			
+			VIDEO_MODE = n;
+			SCREEN_WIDTH = videoModes[VIDEO_MODE].width;
+			SCREEN_HEIGHT = videoModes[VIDEO_MODE].height;
+			pvr_params.fsaa_enabled = n;
+
+			return 1;
+		}
+		
 	default:
 		assert(0 && "not implemented");
 		return 0;
@@ -4328,15 +4367,7 @@ Device renderdevice = {
 	deviceSystem
 };
 
-static pvr_init_params_t pvr_params = {
-	.opb_sizes = {
-				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
-				PVR_BINSIZE_8
-	},
-	.vertex_buf_size = (1024 + 1024) * 1024,
-	.autosort_disabled = true,
-	.opb_overflow_count = 7 // 268800 bytes
-};
+
 
 void defaultInstance(ObjPipeline *pipe, Atomic *atomic) {
 	#if defined(DC_TEXCONV)
@@ -4362,6 +4393,8 @@ ObjPipeline* makeDefaultPipeline(void)
 static void*
 driverOpen(void *o, int32, int32)
 {
+	makeVideoModeList();
+
     pvr_init(&pvr_params);
 
 	fake_tex = pvr_mem_malloc(sizeof(fake_tex_data));
@@ -4396,6 +4429,8 @@ static void*
 driverClose(void *o, int32, int32)
 {
 	pvr_mem_free(fake_tex);
+
+	pvr_shutdown();
 
 	return o;
 }

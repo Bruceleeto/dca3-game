@@ -187,8 +187,8 @@ __always_inline uint32 ldb(uint32 p, uint32 s, uint32 w)
 		#define SCREEN_HEIGHT ((float)448)
 	#endif
 #else
-#define SCREEN_WIDTH  ((float)640)
-#define SCREEN_HEIGHT ((float)480)
+extern float SCREEN_WIDTH;
+extern float SCREEN_HEIGHT;
 #endif
 
 #define SCREEN_HEIGHT_PAL ((float)512)
