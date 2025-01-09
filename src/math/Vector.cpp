@@ -27,7 +27,7 @@ CrossProduct(const CVector &v1, const CVector &v2)
 CVector
 Multiply3x3(const CMatrix &mat, const CVector &vec)
 {
-#ifdef DC_SH4
+#if defined(DC_SH4) && 0
     register float __x __asm__("fr12") = vec.x;
     register float __y __asm__("fr13") = vec.y;
     register float __z __asm__("fr14") = vec.z;
@@ -58,7 +58,7 @@ Multiply3x3(const CVector &vec, const CMatrix &mat)
 CVector
 operator*(const CMatrix &mat, const CVector &vec)
 {
-#ifdef DC_SH4
+#if defined(DC_SH4) && 0
 	CVector out;
 	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
 	mat_trans_single3_nodiv_nomod(vec.x, vec.y, vec.z, out.x, out.y, out.z);

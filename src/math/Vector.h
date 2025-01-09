@@ -20,7 +20,7 @@ public:
   // (0,1,0) means no rotation. So get right vector and its atan
   __always_inline float Heading(void) const { return Atan2(-x, y); }
   __always_inline float Magnitude(void) const { 
-#ifdef DC_SH4
+#if defined(DC_SH4) && 0
     float w;
     vec3f_length(x, y, z, w);
     return w;
@@ -29,7 +29,7 @@ public:
 #endif
 }
   __always_inline float MagnitudeSqr(void) const { 
-#ifdef DC_SH4
+#if defined(DC_SH4) && 0
     return fipr_magnitude_sqr(x, y,z, 0.0f); 
 #else
     return x*x + y*y + z*z;
@@ -118,7 +118,7 @@ inline CVector operator/(const CVector &left, float right)
 __always_inline float
 DotProduct(const CVector &v1, const CVector &v2)
 {
-#ifdef DC_SH4
+#if defined(DC_SH4) && 0
   return fipr(v1.x, v1.y, v1.z, 0.0f, v2.x, v2.y, v2.z, 0.0f);
 #else
   return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
@@ -131,7 +131,7 @@ inline float
 Distance(const CVector &v1, const CVector &v2)
 {
   float w;
-#ifdef DC_SH4
+#if defined(DC_SH4) && 0
   vec3f_distance(v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, w);
   return w;
 #else
