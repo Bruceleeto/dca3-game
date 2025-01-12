@@ -59,7 +59,7 @@ CPhysical::CPhysical(void)
 	bInfiniteMass = false;
 	bIsInWater = false;
 	bHitByTrain = false;
-	bSkipLineCol = false;
+	bSkipLineCol = IsFence();
 
 	m_fDistanceTravelled = 0.0f;
 	m_treadable[PATH_CAR] = nil;
@@ -1461,6 +1461,10 @@ CPhysical::ProcessCollisionSectorList(CPtrList *lists)
 			skipCollision = false;
 			altcollision = false;
 
+			if(A->IsFence() && B->IsFence()) {
+				skipCollision = true;
+				A->bSkipLineCol = true;
+			}
 			if(B->IsBuilding())
 				skipCollision = false;
 			else if(IsStreetLight(A->GetModelIndex()) &&
@@ -1922,12 +1926,12 @@ CPhysical::ProcessCollision(void)
 				n = NUMSTEPS(0.09f);
 				step = savedTimeStep / n;
 			}
-		}else if(responsecase == COLLRESPONSE_SMALLBOX || responsecase == COLLRESPONSE_FENCEPART){
+		}else if(responsecase == COLLRESPONSE_SMALLBOX){
 			if(distSq >= sq(0.15f)){
 				n = NUMSTEPS(0.15f);
 				step = savedTimeStep / n;
 			}
-		}else{
+		}else if(responsecase != COLLRESPONSE_FENCEPART){
 			if(distSq >= sq(0.3f)){
 				n = NUMSTEPS(0.3f);
 				step = savedTimeStep / n;

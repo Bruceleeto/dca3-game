@@ -83,6 +83,11 @@ CEntity::~CEntity(void)
 	ResolveReferences();
 }
 
+bool
+CEntity::IsFence(void) {
+	return IsObject() && ::IsFence(static_cast<CObject *>(this)->GetModelIndex());
+}
+
 void
 CEntity::SetModelIndex(uint32 id)
 {
