@@ -1768,18 +1768,16 @@ static_assert(sizeof(MeshInfo) == 8);
 
 struct MeshletInfo {
 	RwSphere boundingSphere;
-	uint16_t flags;
-	int8_t pad;
+	uint8_t flags;
+	uint8_t clusterCount;
 	int8_t vertexSize;
-	uint16_t vertexCount;
-	uint16_t indexCount;
+	uint8_t vertexCount;
 	uint32_t vertexOffset;
 	uint32_t indexOffset;
-	V3d coneNormal;
 	uint32_t skinIndexOffset;
 	uint32_t skinWeightOffset;
 };
-static_assert(sizeof(MeshletInfo) == 52); // or 44 if !skin
+static_assert(sizeof(MeshletInfo) == 36); // or 28 if !skin
 
 
  inline __attribute__((always_inline))  void setLights(Atomic *atomic, WorldLights *lightData, UniformObject &uniformObject)
@@ -3532,12 +3530,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					auto meshlet = (const MeshletInfo*)meshletInfoBytes;
 					meshletInfoBytes += sizeof(MeshletInfo) - (skin ? 0 : 8);
 
-					float costheta = dot(acp->cameraDir, meshlet->coneNormal);
-					if (costheta < acp->cosPhi) {
-						// printf("CONE CULL, %f %f, %f %f %f\n", costheta, acp->cosPhi, meshlet->coneNormal.x, meshlet->coneNormal.y, meshlet->coneNormal.z);
-						continue;
-					}
-
 					unsigned clippingRequired = 0;
 
 					if (!global_needsNoClip) {
@@ -3686,9 +3678,37 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					auto indexData = (int8_t*)&dcModel->data[meshlet->indexOffset];
 
 					if (!clippingRequired) {
-						submitMeshletSelector[textured](OCR_SPACE, indexData, meshlet->indexCount);
+						unsigned numClusters = meshlet->clusterCount;
+						auto currentIndexData = indexData;
+						do {
+							V3d coneNormal = { currentIndexData[0] / 127.f, currentIndexData[1] / 127.f, currentIndexData[2] / 127.f };
+							float costheta = dot(acp->cameraDir, coneNormal);
+							unsigned indexCount = (uint8_t&)currentIndexData[3];
+
+							currentIndexData += 4;
+							if (costheta >= acp->cosPhi) {
+								submitMeshletSelector[textured](OCR_SPACE, currentIndexData, indexCount);
+							} else {
+								// printf("CONE CULL, %f %f, %f %f %f\n", costheta, acp->cosPhi, meshlet->coneNormal.x, meshlet->coneNormal.y, meshlet->coneNormal.z);
+							}
+							currentIndexData += indexCount;
+						} while(--numClusters != 0);
 					} else {
-						clipAndsubmitMeshletSelector[textured](OCR_SPACE, indexData, meshlet->indexCount);
+						unsigned numClusters = meshlet->clusterCount;
+						auto currentIndexData = indexData;
+						do {
+							V3d coneNormal = { currentIndexData[0] / 127.f, currentIndexData[1] / 127.f, currentIndexData[2] / 127.f };
+							float costheta = dot(acp->cameraDir, coneNormal);
+							unsigned indexCount = (uint8_t&)currentIndexData[3];
+
+							currentIndexData += 4;
+							if (costheta >= acp->cosPhi) {
+								clipAndsubmitMeshletSelector[textured](OCR_SPACE, currentIndexData, indexCount);
+							} else {
+								// printf("CONE CULL, %f %f, %f %f %f\n", costheta, acp->cosPhi, meshlet->coneNormal.x, meshlet->coneNormal.y, meshlet->coneNormal.z);
+							}
+							currentIndexData += indexCount;
+						} while(--numClusters != 0);
 					}
 
 					if (meshContext->matfxContextOffset != SIZE_MAX) {
@@ -3712,9 +3732,37 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						tnlMeshletEnvMap(OCR_SPACE, &dcModel->data[meshlet->vertexOffset] + normalOffset, meshlet->vertexCount, meshlet->vertexSize, &matfxContext->mtx, matfxContext->coefficient);
 
 						if (!clippingRequired) {
-							submitMeshletSelector[true](OCR_SPACE, indexData, meshlet->indexCount);
+							unsigned numClusters = meshlet->clusterCount;
+							auto currentIndexData = indexData;
+							do {
+								V3d coneNormal = { currentIndexData[0] / 127.f, currentIndexData[1] / 127.f, currentIndexData[2] / 127.f };
+								float costheta = dot(acp->cameraDir, coneNormal);
+								unsigned indexCount = (uint8_t&)currentIndexData[3];
+
+								currentIndexData += 4;
+								if (costheta >= acp->cosPhi) {
+									submitMeshletSelector[true](OCR_SPACE, currentIndexData, indexCount);
+								} else {
+									// printf("CONE CULL, %f %f, %f %f %f\n", costheta, acp->cosPhi, meshlet->coneNormal.x, meshlet->coneNormal.y, meshlet->coneNormal.z);
+								}
+								currentIndexData += indexCount;
+							} while(--numClusters != 0);
 						} else {
-							clipAndsubmitMeshletSelector[true](OCR_SPACE, indexData, meshlet->indexCount);
+							unsigned numClusters = meshlet->clusterCount;
+							auto currentIndexData = indexData;
+							do {
+								V3d coneNormal = { currentIndexData[0] / 127.f, currentIndexData[1] / 127.f, currentIndexData[2] / 127.f };
+								float costheta = dot(acp->cameraDir, coneNormal);
+								unsigned indexCount = (uint8_t&)currentIndexData[3];
+
+								currentIndexData += 4;
+								if (costheta >= acp->cosPhi) {
+									clipAndsubmitMeshletSelector[true](OCR_SPACE, currentIndexData, indexCount);
+								} else {
+									// printf("CONE CULL, %f %f, %f %f %f\n", costheta, acp->cosPhi, meshlet->coneNormal.x, meshlet->coneNormal.y, meshlet->coneNormal.z);
+								}
+								currentIndexData += indexCount;
+							} while(--numClusters != 0);
 						}
 					}
 				}
@@ -5101,10 +5149,16 @@ RwSphere calculateBoundingSphere(V3d* vertexData, size_t count) {
 
 	return sphere;
 }
+
+struct ConeClusterStrip {
+	triangle_stripper::primitive_group* strip;
+	ConeCluster* cluster;
+};
+
 struct meshlet {
 	std::set<uint16_t> vertices;
 	std::map<uint16_t, uint8_t> vertexToLocalIndex;
-	std::vector<triangle_stripper::primitive_group*> strips;
+	std::vector<ConeClusterStrip*> strips;
 	size_t vertexDataOffset;
 	size_t indexDataOffset;
 	size_t skinIndexDataOffset;
@@ -5113,7 +5167,6 @@ struct meshlet {
 	size_t rewriteOffsetIDO;
 	size_t rewriteOffsetSIDO;
 	size_t rewriteOffsetSWDO;
-	V3d coneNormal;
 
 	bool isOfBigVertex(V3d* vertexData, Sphere* volume) {
 		for (auto v : vertices) {
@@ -5327,25 +5380,34 @@ void processGeom(Geometry *geo) {
 	size_t meshVerticesCount = 0;
 	size_t meshletIndexesCount = 0;
 	size_t meshletVerticesCount = 0;
+
+	std::vector<std::vector<ConeClusterStrip>> meshConeClusterStrips(pvecs.size());
+
 	for (int pvn = 0; pvn < pvecs.size(); pvn++) {
 		auto &&prims2 = pvecs[pvn];
 
+		std::set<uint16_t> meshletVertices;
+		std::list<ConeClusterStrip*> strips;
+		std::vector<ConeClusterStrip*> meshletStrips;
+
 		for (int cvn = 0; cvn < prims2.size(); cvn++) {
 			auto&& prims = prims2[cvn];
-			std::set<uint16_t> meshletVertices;
-			std::vector<primitive_group*> meshletStrips;
 
-			std::list<primitive_group*> strips;
+			std::list<ConeClusterStrip> strips;
 			for (auto &&strip: prims) {
-				strips.push_back(&strip);
+				meshConeClusterStrips[pvn].push_back({&strip, &pclus[pvn][cvn]});
 			}
-			#undef printf
+		}
 
-			while(strips.size()) {
-				for(;;) {
-					// pluck strip with fewest new indices
+		for (auto&& ccs: meshConeClusterStrips[pvn]) {
+			strips.push_back(&ccs);
+		}
 
-					primitive_group* bestStrip = nullptr;
+		while(strips.size()) {
+			for(;;) {
+				// pluck strip with fewest new indices
+
+				ConeClusterStrip* bestStrip = nullptr;
 
 				size_t remainingVertices = 128 - meshletVertices.size();
 				size_t bestSharedVertices = 0;
@@ -5354,7 +5416,7 @@ void processGeom(Geometry *geo) {
 					auto &&strip = *strip_ptr;
 					std::set<uint16_t> newVertices;
 					size_t sharedVertices = 0;
-					for (auto &&idx: strip.Indices) {
+					for (auto &&idx: strip.strip->Indices) {
 						if (meshletVertices.find(idx) == meshletVertices.end()) {
 							newVertices.insert(idx);
 						} else {
@@ -5371,49 +5433,50 @@ void processGeom(Geometry *geo) {
 					}
 				}
 
-					if (bestStrip == nullptr) {
-						break;
-					}
-
-					// add strip to meshlet
-					meshletStrips.push_back(bestStrip);
-					for (auto &&idx: bestStrip->Indices) {
-						meshletVertices.insert(idx);
-					}
-					strips.remove(bestStrip);
+				if (bestStrip == nullptr) {
+					break;
 				}
 
-				assert(meshletStrips.size() != 0);
-
-				// printf("Meshlet constructed, %ld strips, %zu vertices\n", meshletStrips.size(), meshletVertices.size());
-				for (auto &&strip: meshletStrips) {
-					meshletIndexesCount += strip->Indices.size();
+				// add strip to meshlet
+				meshletStrips.push_back(bestStrip);
+				for (auto &&idx: bestStrip->strip->Indices) {
+					meshletVertices.insert(idx);
 				}
-				meshletVerticesCount += meshletVertices.size();
-
-				meshMeshlets[pvn].push_back(meshlet{meshletVertices, {}, meshletStrips, 0, 0});
-				meshMeshlets[pvn].back().coneNormal = pclus[pvn][cvn].normal;
-
-				uint8_t localIndex = 0;
-				for (auto &&idx: meshletVertices) {
-					meshMeshlets[pvn].back().vertexToLocalIndex[idx] = localIndex++;
-				}
-
-				assert(localIndex <= 128);
-
-				meshletStrips.clear();
-				meshletVertices.clear();
+				strips.remove(bestStrip);
 			}
 
-			std::set<uint16_t> meshVertices;
+			assert(meshletStrips.size() != 0);
+
+			// printf("Meshlet constructed, %ld strips, %zu vertices\n", meshletStrips.size(), meshletVertices.size());
+			for (auto &&strip: meshletStrips) {
+				meshletIndexesCount += strip->strip->Indices.size();
+			}
+			meshletVerticesCount += meshletVertices.size();
+
+			meshMeshlets[pvn].push_back(meshlet{meshletVertices, {}, meshletStrips, 0, 0});
+
+			uint8_t localIndex = 0;
+			for (auto &&idx: meshletVertices) {
+				meshMeshlets[pvn].back().vertexToLocalIndex[idx] = localIndex++;
+			}
+
+			assert(localIndex <= 128);
+
+			meshletStrips.clear();
+			meshletVertices.clear();
+		}
+
+		std::set<uint16_t> meshVertices;
+		for (int cvn = 0; cvn < prims2.size(); cvn++) {
+			auto&& prims = prims2[cvn];
 			for (auto &&strip: prims) {
 				meshIndexesCount += strip.Indices.size();
 				for (auto &&idx: strip.Indices) {
 					meshVertices.insert(idx);
 				}
 			}
-			meshVerticesCount += meshVertices.size();
 		}
+		meshVerticesCount += meshVertices.size();
 	}
 	texconvf("%s: %zu; %.2f; Meshlets complete %zu vertices %zu indexes from %zu vertices %zu indexes\n", currentFile, meshletVerticesCount - meshVerticesCount, (float)(meshletVerticesCount - meshVerticesCount)/meshVerticesCount, meshletVerticesCount, meshletIndexesCount, meshVerticesCount, meshIndexesCount);
 
@@ -5436,10 +5499,6 @@ void processGeom(Geometry *geo) {
 		for (auto && meshlet: mesh) {
 			auto boundingSphere = meshlet.calculateBoundingSphere(vertices);
 
-			uint32_t totalIndexes = 0;
-			for(auto&& strip: meshlet.strips) {
-				totalIndexes += strip->Indices.size();
-			}
 
 			// write out vertex data
 
@@ -5462,18 +5521,50 @@ void processGeom(Geometry *geo) {
 			// write out index data
 			meshlet.indexDataOffset = indexData.size();
 			
-			for(auto&& strip: meshlet.strips) {
-				if (strip->Type == TRIANGLES) {
-					for (size_t i = 0; i < strip->Indices.size(); i+=3) {
-						indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i]]);
-						indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i+1]]);
-						indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i+2]] | 128);
+			std::map<ConeCluster*, std::vector<triangle_stripper::primitive_group*>> groupedStrips;
+			for(auto&& clusterStrip: meshlet.strips) {
+				groupedStrips[clusterStrip->cluster].push_back(clusterStrip->strip);
+			}
+
+			size_t clusterCount = 0;
+			
+			for(auto&& stripGroup: groupedStrips) {
+				uint32_t totalIndexes = 256;	// force a new cluster
+				size_t totalIndexPatchPoint = 0;
+
+				for (auto&& strip: stripGroup.second) {
+					if (totalIndexes + strip->Indices.size() > 255) {
+						if (totalIndexPatchPoint) {
+							assert(totalIndexes != 0);
+							assert(totalIndexes <= 255);
+							indexData[totalIndexPatchPoint] = totalIndexes;
+						}
+						totalIndexes = 0;
+						clusterCount++;
+
+						indexData.write<int8_t>(stripGroup.first->normal.x * 127);
+						indexData.write<int8_t>(stripGroup.first->normal.y * 127);
+						indexData.write<int8_t>(stripGroup.first->normal.z * 127);
+						totalIndexPatchPoint = indexData.size();
+						indexData.write<uint8_t>(0);
 					}
-				} else {
-					for (size_t i = 0; i < strip->Indices.size(); i++) {
-						indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i]] | ((i + 1) == strip->Indices.size() ? 128 : 0));
+					totalIndexes += strip->Indices.size();
+					if (strip->Type == TRIANGLES) {
+						for (size_t i = 0; i < strip->Indices.size(); i+=3) {
+							indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i]]);
+							indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i+1]]);
+							indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i+2]] | 128);
+						}
+					} else {
+						for (size_t i = 0; i < strip->Indices.size(); i++) {
+							indexData.write<uint8_t>(meshlet.vertexToLocalIndex[strip->Indices[i]] | ((i + 1) == strip->Indices.size() ? 128 : 0));
+						}
 					}
 				}
+				assert(totalIndexPatchPoint != 0);
+				assert(totalIndexes != 0);
+				assert(totalIndexes <= 255);
+				indexData[totalIndexPatchPoint] = totalIndexes;
 			}
 
 			// write out skinning data
@@ -5624,23 +5715,18 @@ void processGeom(Geometry *geo) {
 			// write out meshlet data
 			meshletData.write(boundingSphere);
 			//isTextured, isNormaled, isColored, small_xyz, pad_xyz, small_uv
-			uint16_t flags = texcoorded | (normaled << 1) | (colored << 2) | (!big_vertex << 3) | (pad_xyz << 4) | (!big_uv << 5);
-			meshletData.write<uint16_t>(flags);
-			meshletData.write<uint8_t>(0);
-			//bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz
+			uint8_t flags = texcoorded | (normaled << 1) | (colored << 2) | (!big_vertex << 3) | (pad_xyz << 4) | (!big_uv << 5);
+			meshletData.write<uint8_t>(flags);
+			assert(clusterCount <= 255);
+			meshletData.write<uint8_t>(clusterCount);
 			meshletData.write<uint8_t>(vertexSize);
-			assert(meshlet.vertices.size() <= 65535);
-			meshletData.write<uint16_t>(meshlet.vertices.size());
-			assert(totalIndexes <= 65535);
-			meshletData.write<uint16_t>(totalIndexes);
+			//bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz
+			assert(meshlet.vertices.size() <= 255);
+			meshletData.write<uint8_t>(meshlet.vertices.size());
 			meshlet.rewriteOffsetVDO = meshletData.size();
 			meshletData.write<uint32_t>(meshlet.vertexDataOffset); // will be patched
 			meshlet.rewriteOffsetIDO = meshletData.size();
 			meshletData.write<uint32_t>(meshlet.indexDataOffset); // will be patched
-
-			meshletData.write<float>(meshlet.coneNormal.x);
-			meshletData.write<float>(meshlet.coneNormal.y);
-			meshletData.write<float>(meshlet.coneNormal.z);
 
 			if (skin) {
 				meshlet.rewriteOffsetSIDO = meshletData.size();
