@@ -83,24 +83,25 @@ OBJS_TEXCONV += \
 # Add compilation units to this list to explicity compile them with
 # -O3 optimizations, while the rest get the default (-Os) treatment
 # to conserve RAM.
-OBJS_O3 = \
-	../vendor/librw/src/dc/rwdc.o \
-	../src/core/World.o \
-	../src/collision/Collision.o \
-	../src/math/math.o \
-	../src/math/Matrix.o \
-	../src/math/Quaternion.o \
-	../src/math/Rect.o \
-	../src/math/Vector.o \
-	../vendor/librw/src/base.o \
-	../src/renderer/Shadows.o
+OBJS_O3 = 
+# \
+# 	../vendor/librw/src/dc/rwdc.o \
+# 	../src/core/World.o \
+# 	../src/collision/Collision.o \
+# 	../src/math/math.o \
+# 	../src/math/Matrix.o \
+# 	../src/math/Quaternion.o \
+# 	../src/math/Rect.o \
+# 	../src/math/Vector.o \
+# 	../vendor/librw/src/base.o \
+# 	../src/renderer/Shadows.o
 
 OBJS_NO_FAST_MATH = \
 	../src/core/Cam.o \
 	../src/core/Camera.o
 
-KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
-	-mfsrra -mfsca
+KOS_CPPFLAGS += -mfsrra -mfsca  -fbuiltin #-ffast-math -ffp-contract=fast \
+	
 
 ifdef KOS_BASE
 include $(KOS_BASE)/Makefile.rules
@@ -113,9 +114,9 @@ DEPS = $(OBJS:.o=.d) $(OBJS_TEXCONV:.o:.d)
 CXXFLAGS += $(if $(WITH_32MB),-O3,-Os) \
 	$(if $(WITH_IDE),-DWITH_IDE) \
 	$(if $(WITH_PROF),-DWITH_PROF=\"$(WITH_PROF)\") \
-	-MMD -MP -ffunction-sections -fdata-sections -ffast-math \
+	-MMD -MP -ffunction-sections -fdata-sections \
 	-fmerge-all-constants -fomit-frame-pointer -ml -std=gnu++20 \
-	-fno-exceptions -fno-rtti -flto=auto -fipa-pta -Wno-write-strings \
+	-fno-exceptions -fno-rtti  -fipa-pta -Wno-write-strings \
 	-Wno-deprecated-enum-enum-conversion -Wno-deprecated-enum-float-conversion \
 	-Wno-multichar -Wno-unused-value -Wno-char-subscripts -Wno-reorder \
 	-Wno-unused-function -Wno-class-memaccess -fno-permissive \
@@ -155,7 +156,7 @@ $(OBJS_NO_FAST_MATH): %.o: %.cpp
 
 $(TARGET): $(OBJS)
 	kos-c++ -o $(TARGET) $(OBJS) -Wl,--gc-sections -Wl,--as-needed -Wl,-Map,output.map \
-		-flto=auto $(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 
+		 $(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 
 	@echo && echo && echo "*** Build Completed Successfully ***" && echo && echo
 
 run: $(TARGET)
