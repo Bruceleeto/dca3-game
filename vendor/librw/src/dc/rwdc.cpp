@@ -2462,8 +2462,7 @@ void* interpolateAndSubmit(void* dst, const void* src1, const void* src2, uint32
 		float16 v_u = v1_u + t * (v2_u - v1_u);
 		float16 v_v = v1_v + t * (v2_v - v1_v);
 
-		v->u = v_u.raw;
-		v->v = v_v.raw;
+		v->uv = v_v.raw | (v_u.raw << 16);
 
 		pvr_dr_commit(v);
 		v ++;
