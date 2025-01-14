@@ -55,7 +55,7 @@ CRoadBlocks::GenerateRoadBlockCopsForCar(CVehicle* pVehicle, int32 roadBlockType
 	float fRadius = pVehicle->GetBoundRadius() / pPoliceColModel->boundingSphere.radius;
 	for (int32 i = 0; i < 2; i++) {
 		const int32 roadBlockIndex = i + 2 * roadBlockType;
-		CVector posForZ = pVehicle->GetMatrix() * (fRadius * vecRoadBlockOffets[roadBlockIndex]);
+		CVector posForZ = pVehicle->GetMatrix().r() * (fRadius * vecRoadBlockOffets[roadBlockIndex]);
 		int32 modelInfoId = MI_COP;
 		eCopType copType = COP_STREET;
 		switch (pVehicle->GetModelIndex())
@@ -151,7 +151,7 @@ CRoadBlocks::GenerateRoadBlocks(void)
 							offsetMatrix.GetPosition() = CVector(0.0f, i * fModelRadius - fOffset, 0.6f);
 						else
 							offsetMatrix.GetPosition() = CVector(i * fModelRadius - fOffset, 0.0f, 0.6f);
-						CMatrix vehicleMatrix = mapObject->GetMatrix() * offsetMatrix;
+						CMatrix vehicleMatrix = mapObject->GetMatrix().r() * offsetMatrix;
 						float fModelRadius = CModelInfo::GetColModel(vehicleId)->boundingSphere.radius - 0.25f;
 						int16 colliding = 0;
 						CWorld::FindObjectsKindaColliding(vehicleMatrix.GetPosition(), fModelRadius, 0, &colliding, 2, nil, false, true, true, false, false);
@@ -163,7 +163,7 @@ CRoadBlocks::GenerateRoadBlocks(void)
 							pVehicle->SetMatrix(vehicleMatrix);
 							pVehicle->PlaceOnRoadProperly();
 							pVehicle->SetIsStatic(false);
-							pVehicle->GetMatrix().UpdateRW();
+							pVehicle->GetMatrix()->UpdateRW();
 							pVehicle->m_nDoorLock = CARLOCK_UNLOCKED;
 							CCarCtrl::JoinCarWithRoadSystem(pVehicle);
 							pVehicle->bIsLocked = false;

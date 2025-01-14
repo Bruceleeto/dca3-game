@@ -1,4 +1,5 @@
 #pragma once
+#include "../../vendor/librw/src/rwbase.h"
 #include "common.h"
 
 #include "World.h"
@@ -63,7 +64,7 @@ public:
 	bool GoTowardsTarget(float fAngleToTarget, float fDistanceToTarget, float fTargetHeight, float fSpeedMultiplier = 1.0f);
 	bool GoTowardsHeightTarget(float fTargetHeight, float fSpeedMultiplier = 1.0f);
 	void FindParametersForTarget(float X, float Y, float Z, float* pAngle, float* pDistance, float* pHeight);
-	void CalcHookCoordinates(float* pX, float* pY, float* pZ);
+	void CalcHookCoordinates(rw::float32W* pX, float* pY, float* pZ);
 	void SetHookMatrix(void);
 
 	float GetHeightToPickup() { return 4.0f + m_fPickupHeight + (m_bIsCrusher ? 4.5f : 0.0f); };

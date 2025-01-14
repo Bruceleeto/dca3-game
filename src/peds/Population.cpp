@@ -893,8 +893,8 @@ CPopulation::MoveCarsAndPedsOutOfAbandonedZones()
 								default:
 									break;
 							}
-							veh->GetMatrix().GetPosition().z += (movedVehicleCount / 4) * 7.0f;
-							veh->GetMatrix().GetForward() = RegenerationFront;
+							veh->GetMatrix()->GetPosition().z += (movedVehicleCount / 4) * 7.0f;
+							veh->GetMatrix()->GetForward() = RegenerationFront;
 							((CAutomobile*)veh)->PlaceOnRoadProperly();
 							CCarCtrl::JoinCarWithRoadSystem(veh);
 							CTheScripts::ClearSpaceForMissionEntity(veh->GetPosition(), veh);
@@ -930,7 +930,7 @@ CPopulation::MoveCarsAndPedsOutOfAbandonedZones()
 							ped->GetPosition().z + 2.0f, &foundGround);
 
 						if (foundGround) {
-							ped->GetMatrix().GetPosition().z = 1.0f + groundZ;
+							ped->GetMatrix()->GetPosition().z = 1.0f + groundZ;
 							//ped->GetPosition().z += 0.0f;
 							CTheScripts::ClearSpaceForMissionEntity(ped->GetPosition(), ped);
 						}
@@ -983,8 +983,8 @@ CPopulation::ConvertToDummyObject(CObject *obj)
 {
 	CDummyObject *dummy = new CDummyObject(obj);
 
-	dummy->GetMatrix() = obj->m_objectMatrix;
-	dummy->GetMatrix().UpdateRW();
+	dummy->GetMatrix().r() = obj->m_objectMatrix;
+	dummy->GetMatrix()->UpdateRW();
 	dummy->UpdateRwFrame();
 
 	if (IsGlass(obj->GetModelIndex()))

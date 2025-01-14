@@ -349,7 +349,7 @@ INITSAVEBUF
 			CopyToBuf(buf, pObject->m_modelIndex);
 			int32 ref = GetObjectRef(pObject);
 			CopyToBuf(buf, ref);
-			tmp.CompressFromFullMatrix(pObject->GetMatrix());
+			tmp.CompressFromFullMatrix(pObject->GetMatrix().r());
 			CopyToBuf(buf, tmp);
 			CopyToBuf(buf, pObject->m_fUprootLimit);
 			tmp.CompressFromFullMatrix(pObject->m_objectMatrix);
@@ -391,7 +391,7 @@ INITSAVEBUF
 		CObject* pBufferObject = (CObject*)obuf;
 		CCompressedMatrix tmp;
 		CopyFromBuf(buf, tmp);
-		tmp.DecompressIntoFullMatrix(pBufferObject->GetMatrix());
+		tmp.DecompressIntoFullMatrix(pBufferObject->GetMatrix().r());
 		CopyFromBuf(buf, pBufferObject->m_fUprootLimit);
 		CopyFromBuf(buf, tmp);
 		tmp.DecompressIntoFullMatrix(pBufferObject->m_objectMatrix);

@@ -458,7 +458,7 @@ CPed::RunToReportCrime(eCrimeType crimeToReport)
 #endif
 
 	bRunningToPhone = true;
-	SetSeek(phone->m_pEntity->GetMatrix() * -phone->m_pEntity->GetForward(), 1.0f); // original: phone.m_vecPos, 0.3f
+	SetSeek(phone->m_pEntity->GetMatrix().r() * -phone->m_pEntity->GetForward(), 1.0f); // original: phone.m_vecPos, 0.3f
 	SetMoveState(PEDMOVE_RUN);
 	bIsRunning = true; // not there in original
 	m_phoneId = phoneId;

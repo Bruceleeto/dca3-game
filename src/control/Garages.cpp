@@ -1195,7 +1195,7 @@ bool CGarage::IsEntityEntirelyInside(CEntity * pEntity)
 		return false;
 	CColModel* pColModel = pEntity->GetColModel();
 	for (int i = 0; i < pColModel->numSpheres; i++) {
-		CVector pos = pEntity->GetMatrix() * pColModel->spheres[i].center;
+		CVector pos = pEntity->GetMatrix().r() * pColModel->spheres[i].center;
 		float radius = pColModel->spheres[i].radius;
 		if (pos.x - radius < m_fX1 || pos.x + radius > m_fX2 ||
 			pos.y - radius < m_fY1 || pos.y + radius > m_fY2)
@@ -1212,7 +1212,7 @@ bool CGarage::IsEntityEntirelyInside3D(CEntity * pEntity, float fMargin)
 		return false;
 	CColModel* pColModel = pEntity->GetColModel();
 	for (int i = 0; i < pColModel->numSpheres; i++) {
-		CVector pos = pEntity->GetMatrix() * pColModel->spheres[i].center;
+		CVector pos = pEntity->GetMatrix().r() * pColModel->spheres[i].center;
 		float radius = pColModel->spheres[i].radius;
 		if (pos.x + radius < m_fX1 - fMargin || pos.x - radius > m_fX2 + fMargin ||
 			pos.y + radius < m_fY1 - fMargin || pos.y - radius > m_fY2 + fMargin ||
@@ -1229,7 +1229,7 @@ bool CGarage::IsEntityEntirelyOutside(CEntity * pEntity, float fMargin)
 		return false;
 	CColModel* pColModel = pEntity->GetColModel();
 	for (int i = 0; i < pColModel->numSpheres; i++) {
-		CVector pos = pEntity->GetMatrix() * pColModel->spheres[i].center;
+		CVector pos = pEntity->GetMatrix().r() * pColModel->spheres[i].center;
 		float radius = pColModel->spheres[i].radius;
 		if (pos.x + radius > m_fX1 - fMargin && pos.x - radius < m_fX2 + fMargin &&
 			pos.y + radius > m_fY1 - fMargin && pos.y - radius < m_fY2 + fMargin)
@@ -1261,7 +1261,7 @@ bool CGarage::IsEntityTouching3D(CEntity * pEntity)
 		return false;
 	CColModel* pColModel = pEntity->GetColModel();
 	for (int i = 0; i < pColModel->numSpheres; i++) {
-		CVector pos = pEntity->GetMatrix() * pColModel->spheres[i].center;
+		CVector pos = pEntity->GetMatrix().r() * pColModel->spheres[i].center;
 		radius = pColModel->spheres[i].radius;
 		if (pos.x + radius > m_fX1 && pos.x - radius < m_fX2 &&
 			pos.y + radius > m_fY1 && pos.y - radius < m_fY2 &&
@@ -1275,7 +1275,7 @@ bool CGarage::EntityHasASphereWayOutsideGarage(CEntity * pEntity, float fMargin)
 {
 	CColModel* pColModel = pEntity->GetColModel();
 	for (int i = 0; i < pColModel->numSpheres; i++) {
-		CVector pos = pEntity->GetMatrix() * pColModel->spheres[i].center;
+		CVector pos = pEntity->GetMatrix().r() * pColModel->spheres[i].center;
 		float radius = pColModel->spheres[i].radius;
 		if (pos.x + radius + fMargin < m_fX1 || pos.x - radius - fMargin > m_fX2 ||
 			pos.y + radius + fMargin < m_fY1 || pos.y - radius - fMargin > m_fY2 ||
@@ -1296,7 +1296,7 @@ bool CGarage::IsAnyOtherCarTouchingGarage(CVehicle * pException)
 			continue;
 		CColModel* pColModel = pVehicle->GetColModel();
 		for (int i = 0; i < pColModel->numSpheres; i++) {
-			CVector pos = pVehicle->GetMatrix() * pColModel->spheres[i].center;
+			CVector pos = pVehicle->GetMatrix().r() * pColModel->spheres[i].center;
 			float radius = pColModel->spheres[i].radius;
 			if (pos.x + radius > m_fX1 && pos.x - radius < m_fX2 &&
 				pos.y + radius > m_fY1 && pos.y - radius < m_fY2 &&
@@ -1318,7 +1318,7 @@ bool CGarage::IsAnyOtherPedTouchingGarage(CPed * pException)
 			continue;
 		CColModel* pColModel = pException->GetColModel();
 		for (int i = 0; i < pColModel->numSpheres; i++) {
-			CVector pos = pPed->GetMatrix() * pColModel->spheres[i].center;
+			CVector pos = pPed->GetMatrix().r() * pColModel->spheres[i].center;
 			float radius = pColModel->spheres[i].radius;
 			if (pos.x + radius > m_fX1 && pos.x - radius < m_fX2 &&
 				pos.y + radius > m_fY1 && pos.y - radius < m_fY2 &&
@@ -1340,7 +1340,7 @@ bool CGarage::IsAnyCarBlockingDoor()
 			continue;
 		CColModel* pColModel = pVehicle->GetColModel();
 		for (int i = 0; i < pColModel->numSpheres; i++) {
-			CVector pos = pVehicle->GetMatrix() * pColModel->spheres[i].center;
+			CVector pos = pVehicle->GetMatrix().r() * pColModel->spheres[i].center;
 			float radius = pColModel->spheres[i].radius;
 			if (pos.x + radius < m_fX1 || pos.x - radius > m_fX2 ||
 				pos.y + radius < m_fY1 || pos.y - radius > m_fY2 ||
@@ -1481,17 +1481,17 @@ void CGarage::UpdateDoorsHeight()
 {
 	RefreshDoorPointers(false);
 	if (m_pDoor1) {
-		m_pDoor1->GetMatrix().GetPosition().z = m_fDoorPos + m_fDoor1Z;
+		m_pDoor1->GetMatrix()->GetPosition().z = m_fDoorPos + m_fDoor1Z;
 		if (m_bRotatedDoor)
 			BuildRotatedDoorMatrix(m_pDoor1, m_fDoorPos / m_fDoorHeight);
-		m_pDoor1->GetMatrix().UpdateRW();
+		m_pDoor1->GetMatrix()->UpdateRW();
 		m_pDoor1->UpdateRwFrame();
 	}
 	if (m_pDoor2) {
-		m_pDoor2->GetMatrix().GetPosition().z = m_fDoorPos + m_fDoor2Z;
+		m_pDoor2->GetMatrix()->GetPosition().z = m_fDoorPos + m_fDoor2Z;
 		if (m_bRotatedDoor)
 			BuildRotatedDoorMatrix(m_pDoor2, m_fDoorPos / m_fDoorHeight);
-		m_pDoor2->GetMatrix().UpdateRW();
+		m_pDoor2->GetMatrix()->UpdateRW();
 		m_pDoor2->UpdateRwFrame();
 	}
 }
@@ -1507,26 +1507,26 @@ void CGarage::BuildRotatedDoorMatrix(CEntity * pDoor, float fPosition)
 void CGarage::UpdateCrusherAngle()
 {
 	RefreshDoorPointers(false);
-	m_pDoor2->GetMatrix().SetRotateXOnly(TWOPI - m_fDoorPos);
-	m_pDoor2->GetMatrix().UpdateRW();
+	m_pDoor2->GetMatrix()->SetRotateXOnly(TWOPI - m_fDoorPos);
+	m_pDoor2->GetMatrix()->UpdateRW();
 	m_pDoor2->UpdateRwFrame();
 }
 
 void CGarage::UpdateCrusherShake(float X, float Y)
 {
 	RefreshDoorPointers(false);
-	m_pDoor1->GetMatrix().GetPosition().x += X;
-	m_pDoor1->GetMatrix().GetPosition().y += Y;
-	m_pDoor1->GetMatrix().UpdateRW();
+	m_pDoor1->GetMatrix()->GetPosition().x += X;
+	m_pDoor1->GetMatrix()->GetPosition().y += Y;
+	m_pDoor1->GetMatrix()->UpdateRW();
 	m_pDoor1->UpdateRwFrame();
-	m_pDoor1->GetMatrix().GetPosition().x -= X;
-	m_pDoor1->GetMatrix().GetPosition().y -= Y;
-	m_pDoor2->GetMatrix().GetPosition().x += X;
-	m_pDoor2->GetMatrix().GetPosition().y += Y;
-	m_pDoor2->GetMatrix().UpdateRW();
+	m_pDoor1->GetMatrix()->GetPosition().x -= X;
+	m_pDoor1->GetMatrix()->GetPosition().y -= Y;
+	m_pDoor2->GetMatrix()->GetPosition().x += X;
+	m_pDoor2->GetMatrix()->GetPosition().y += Y;
+	m_pDoor2->GetMatrix()->UpdateRW();
 	m_pDoor2->UpdateRwFrame();
-	m_pDoor2->GetMatrix().GetPosition().x -= X;
-	m_pDoor2->GetMatrix().GetPosition().y -= Y;
+	m_pDoor2->GetMatrix()->GetPosition().x -= X;
+	m_pDoor2->GetMatrix()->GetPosition().y -= Y;
 }
 
 void CGarage::RefreshDoorPointers(bool bCreate)
@@ -2065,7 +2065,7 @@ void CGarage::TidyUpGarageClose()
 		if (m_eGarageState != GS_FULLYCLOSED) {
 			CColModel* pColModel = pVehicle->GetColModel();
 			for (int i = 0; i < pColModel->numSpheres; i++) {
-				CVector pos = pVehicle->GetMatrix() * pColModel->spheres[i].center;
+				CVector pos = pVehicle->GetMatrix().r() * pColModel->spheres[i].center;
 				float radius = pColModel->spheres[i].radius;
 				if (pos.x + radius < m_fX1 || pos.x - radius > m_fX2 ||
 					pos.y + radius < m_fY1 || pos.y - radius > m_fY2 ||
@@ -2158,12 +2158,12 @@ void CGarage::CenterCarInGarage(CVehicle* pVehicle)
 	float offsetZ = pos.z - pos.z;
 	float distance = CVector(offsetX, offsetY, offsetZ).Magnitude();
 	if (distance < RESPRAY_CENTERING_COEFFICIENT) {
-		pVehicle->GetMatrix().GetPosition().x = GetGarageCenterX();
-		pVehicle->GetMatrix().GetPosition().y = GetGarageCenterY();
+		pVehicle->GetMatrix()->GetPosition().x = GetGarageCenterX();
+		pVehicle->GetMatrix()->GetPosition().y = GetGarageCenterY();
 	}
 	else {
-		pVehicle->GetMatrix().GetPosition().x += offsetX * RESPRAY_CENTERING_COEFFICIENT / distance;
-		pVehicle->GetMatrix().GetPosition().y += offsetY * RESPRAY_CENTERING_COEFFICIENT / distance;
+		pVehicle->GetMatrix()->GetPosition().x += offsetX * RESPRAY_CENTERING_COEFFICIENT / distance;
+		pVehicle->GetMatrix()->GetPosition().y += offsetY * RESPRAY_CENTERING_COEFFICIENT / distance;
 	}
 	if (!IsEntityEntirelyInside3D(pVehicle, 0.1f))
 		pVehicle->SetPosition(pos);
@@ -2277,21 +2277,21 @@ void CGarages::SetAllDoorsBackToOriginalHeight()
 		default:
 			aGarages[i].RefreshDoorPointers(true);
 			if (aGarages[i].m_pDoor1) {
-				aGarages[i].m_pDoor1->GetMatrix().GetPosition().z = aGarages[i].m_fDoor1Z;
+				aGarages[i].m_pDoor1->GetMatrix()->GetPosition().z = aGarages[i].m_fDoor1Z;
 				if (aGarages[i].m_pDoor1->IsObject())
 					((CObject*)aGarages[i].m_pDoor1)->m_objectMatrix.GetPosition().z = aGarages[i].m_fDoor1Z;
 				if (aGarages[i].m_bRotatedDoor)
 					aGarages[i].BuildRotatedDoorMatrix(aGarages[i].m_pDoor1, 0.0f);
-				aGarages[i].m_pDoor1->GetMatrix().UpdateRW();
+				aGarages[i].m_pDoor1->GetMatrix()->UpdateRW();
 				aGarages[i].m_pDoor1->UpdateRwFrame();
 			}
 			if (aGarages[i].m_pDoor2) {
-				aGarages[i].m_pDoor2->GetMatrix().GetPosition().z = aGarages[i].m_fDoor2Z;
+				aGarages[i].m_pDoor2->GetMatrix()->GetPosition().z = aGarages[i].m_fDoor2Z;
 				if (aGarages[i].m_pDoor2->IsObject())
 					((CObject*)aGarages[i].m_pDoor2)->m_objectMatrix.GetPosition().z = aGarages[i].m_fDoor2Z;
 				if (aGarages[i].m_bRotatedDoor)
 					aGarages[i].BuildRotatedDoorMatrix(aGarages[i].m_pDoor2, 0.0f);
-				aGarages[i].m_pDoor2->GetMatrix().UpdateRW();
+				aGarages[i].m_pDoor2->GetMatrix()->UpdateRW();
 				aGarages[i].m_pDoor2->UpdateRwFrame();
 			}
 		}

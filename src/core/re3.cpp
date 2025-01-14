@@ -746,7 +746,7 @@ SpawnCar(int id)
 		else
 			v->SetPosition(ThePaths.m_pathNodes[node].GetPosition());
 
-		v->GetMatrix().GetPosition().z += 4.0f;
+		v->GetMatrix()->GetPosition().z += 4.0f;
 		v->SetOrientation(0.0f, 0.0f, 3.49f);
 		v->SetStatus(STATUS_ABANDONED);
 		v->m_nDoorLock = CARLOCK_UNLOCKED;

@@ -77,14 +77,14 @@ CCutsceneHead::ProcessControl(void)
 		int idx = RpHAnimIDGetIndex(hier, BONE_head);
 		RwMatrix *mat = &RpHAnimHierarchyGetMatrixArray(hier)[idx];
 		if(RwV3dLength(&mat->pos) > 100.0f){
-			m_matrix.SetRotateY(PI/2);
-			m_matrix = CMatrix(mat) * m_matrix;
+			m_matrixPlaceable.SetRotateY(PI/2);
+			SetMatrix(CMatrix(mat) * m_matrixPlaceable);
 		}
 	}else
 #endif
 	{
-		m_matrix.SetRotateY(PI/2);
-		m_matrix = CMatrix(RwFrameGetLTM(m_pHeadNode)) * m_matrix;
+		m_matrixPlaceable.SetRotateY(PI/2);
+		SetMatrix(CMatrix(RwFrameGetLTM(m_pHeadNode)) * m_matrixPlaceable);
 	}
 
 	assert(RwObjectGetType(m_rwObject) == rpCLUMP);
@@ -111,8 +111,8 @@ CCutsceneHead::Render(void)
 		int idx = RpHAnimIDGetIndex(hier, BONE_head);
 		RwMatrix *mat = &RpHAnimHierarchyGetMatrixArray(hier)[idx];
 		if(RwV3dLength(&mat->pos) > 100.0f){
-			m_matrix.SetRotateY(PI/2);
-			m_matrix = CMatrix(mat) * m_matrix;
+			m_matrixPlaceable.SetRotateY(PI/2);
+			SetMatrix(CMatrix(mat) * m_matrixPlaceable);
 		}
 		// This is head...it has no limbs
 #ifndef FIX_BUGS
@@ -122,8 +122,8 @@ CCutsceneHead::Render(void)
 	}else
 #endif
 	{
-		m_matrix.SetRotateY(PI/2);
-		m_matrix = CMatrix(RwFrameGetLTM(m_pHeadNode)) * m_matrix;
+		m_matrixPlaceable.SetRotateY(PI/2);
+		SetMatrix(CMatrix(RwFrameGetLTM(m_pHeadNode)) * m_matrixPlaceable);
 	}
 
 	UpdateRwFrame();

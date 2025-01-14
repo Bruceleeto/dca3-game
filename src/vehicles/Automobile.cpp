@@ -3168,7 +3168,7 @@ CAutomobile::RcbanditCheck1CarWheels(CPtrList &list)
 						CColSphere sph;
 						mi->GetWheelPosn(i, wheelPos);
 						matW2B = Invert(GetMatrix());
-						sph.center = matW2B * (car->GetMatrix() * wheelPos);
+						sph.center = matW2B * (car->GetMatrix().r() * wheelPos);
 						sph.radius = mi->m_wheelScale*0.25f;
 						if(CCollision::TestSphereBox(sph, colModel->boundingBox))
 							return 1;
@@ -3219,10 +3219,10 @@ CAutomobile::PlaceOnRoadProperly(void)
 	float c = Cos(angle);
 	float s = Sin(angle);
 
-	GetMatrix().GetRight() = CVector((front.y - rear.y) / len, -(front.x - rear.x) / len, 0.0f);
-	GetMatrix().GetForward() = CVector(-c * GetRight().y, c * GetRight().x, s);
-	GetMatrix().GetUp() = CrossProduct(GetRight(), GetForward());
-	GetMatrix().GetPosition() = CVector((front.x + rear.x) / 2.0f, (front.y + rear.y) / 2.0f, (frontZ + rearZ) / 2.0f + GetHeightAboveRoad());
+	GetMatrix()->GetRight() = CVector((front.y - rear.y) / len, -(front.x - rear.x) / len, 0.0f);
+	GetMatrix()->GetForward() = CVector(-c * GetRight().y, c * GetRight().x, s);
+	GetMatrix()->GetUp() = CrossProduct(GetRight(), GetForward());
+	GetMatrix()->GetPosition() = CVector((front.x + rear.x) / 2.0f, (front.y + rear.y) / 2.0f, (frontZ + rearZ) / 2.0f + GetHeightAboveRoad());
 }
 
 void
@@ -4264,7 +4264,7 @@ CPed::MakeTyresMuddySectorList(CPtrList &list)
 							}
 
 							// I hope so
-							CVector wheelPos = veh->GetMatrix() * approxWheelOffset;
+							CVector wheelPos = veh->GetMatrix().r() * approxWheelOffset;
 							if (Abs(wheelPos.z - GetPosition().z) < 2.0f) {
 
 								if ((wheelPos - GetPosition()).MagnitudeSqr2D() < 1.0f) {
@@ -4532,7 +4532,7 @@ CAutomobile::SpawnFlyingComponent(int32 component, uint32 type)
 		if(GetUp().z > 0.0f){
 			// simulate fast upward movement if going fast
 			float speed = CVector2D(m_vecMoveSpeed).Magnitude();
-			obj->GetMatrix().Translate(GetUp()*speed);
+			obj->GetMatrix()->Translate(GetUp()*speed);
 		}
 	}
 	obj->ApplyMoveForce(dist);

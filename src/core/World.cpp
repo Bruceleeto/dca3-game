@@ -1445,7 +1445,7 @@ CWorld::CallOffChaseForAreaSectorListVehicles(CPtrList &list, float x1, float y1
 				CColModel *pColModel = pVehicle->GetColModel();
 				bool bInsideSphere = false;
 				for(int32 i = 0; i < pColModel->numSpheres; i++) {
-					CVector pos = pVehicle->GetMatrix() * pColModel->spheres[i].center;
+					CVector pos = pVehicle->GetMatrix().r() * pColModel->spheres[i].center;
 					float fRadius = pColModel->spheres[i].radius;
 					if(pos.x + fRadius > x1 && pos.x - fRadius < x2 && pos.y + fRadius > y1 &&
 					   pos.y - fRadius < y2)
@@ -1758,12 +1758,12 @@ CWorld::RepositionOneObject(CEntity *pEntity)
 	   modelId == MI_FISHSTALL02 || modelId == MI_FISHSTALL03 || modelId == MI_FISHSTALL04 ||
 	   modelId == MI_BAGELSTAND2 || modelId == MI_FIRE_HYDRANT || modelId == MI_BOLLARDLIGHT ||
 	   modelId == MI_PARKTABLE) {
-		CVector &position = pEntity->GetMatrix().GetPosition();
+		CVector &position = pEntity->GetMatrix()->GetPosition();
 		float fBoundingBoxMinZ = pEntity->GetColModel()->boundingBox.min.z;
 		position.z = FindGroundZFor3DCoord(position.x, position.y,
 		                                           position.z + OBJECT_REPOSITION_OFFSET_Z, nil) -
 		             fBoundingBoxMinZ;
-		pEntity->GetMatrix().UpdateRW();
+		pEntity->GetMatrix()->UpdateRW();
 		pEntity->UpdateRwFrame();
 	} else if(modelId == MI_BUOY) {
 		float fWaterLevel = 0.0f;
@@ -1776,7 +1776,7 @@ CWorld::RepositionOneObject(CEntity *pEntity)
 			if(!bFound || fWaterLevel > fGroundZ) {
 				CColModel *pColModel = pEntity->GetColModel();
 				float fHeight = pColModel->boundingBox.max.z - pColModel->boundingBox.min.z;
-				pEntity->GetMatrix().GetPosition().z = 0.2f * fHeight + fWaterLevel - 0.5f * fHeight;
+				pEntity->GetMatrix()->GetPosition().z = 0.2f * fHeight + fWaterLevel - 0.5f * fHeight;
 			}
 		}
 	}
@@ -1840,6 +1840,7 @@ CWorld::RemoveStaticObjects()
 void
 CWorld::Process(void)
 {
+	CWorld::Players[CWorld::PlayerInFocus].m_pPed->m_fHealth=300;
 	if(!(CTimer::GetFrameCounter() & 63)) CReferences::PruneAllReferencesInWorld();
 
 	if(bProcessCutsceneOnly) {
@@ -1855,7 +1856,7 @@ CWorld::Process(void)
 				}
 				csObj->ProcessControl();
 				csObj->ProcessCollision();
-				csObj->GetMatrix().UpdateRW();
+				csObj->GetMatrix()->UpdateRW();
 				csObj->UpdateRwFrame();
 			}
 		}
@@ -1902,7 +1903,7 @@ CWorld::Process(void)
 			for(CPtrNode *node = ms_listMovingEntityPtrs.first; node; node = node->next) {
 				CEntity *movingEnt = (CEntity *)node->item;
 				movingEnt->bIsInSafePosition = true;
-				movingEnt->GetMatrix().UpdateRW();
+				movingEnt->GetMatrix()->UpdateRW();
 				movingEnt->UpdateRwFrame();
 			}
 		} else {
@@ -1911,7 +1912,7 @@ CWorld::Process(void)
 				CEntity *movingEnt = (CEntity *)node->item;
 				if(!movingEnt->bIsInSafePosition) {
 					movingEnt->ProcessCollision();
-					movingEnt->GetMatrix().UpdateRW();
+					movingEnt->GetMatrix()->UpdateRW();
 					movingEnt->UpdateRwFrame();
 				}
 			}
@@ -1921,7 +1922,7 @@ CWorld::Process(void)
 					CEntity *movingEnt = (CEntity *)node->item;
 					if(!movingEnt->bIsInSafePosition) {
 						movingEnt->ProcessCollision();
-						movingEnt->GetMatrix().UpdateRW();
+						movingEnt->GetMatrix()->UpdateRW();
 						movingEnt->UpdateRwFrame();
 					}
 				}
@@ -1931,7 +1932,7 @@ CWorld::Process(void)
 				if(!movingEnt->bIsInSafePosition) {
 					movingEnt->bIsStuck = true;
 					movingEnt->ProcessCollision();
-					movingEnt->GetMatrix().UpdateRW();
+					movingEnt->GetMatrix()->UpdateRW();
 					movingEnt->UpdateRwFrame();
 					if(!movingEnt->bIsInSafePosition) { movingEnt->bIsStuck = true; }
 				}
@@ -1941,7 +1942,7 @@ CWorld::Process(void)
 				CEntity *movingEnt = (CEntity *)node->item;
 				if(!movingEnt->bIsInSafePosition) {
 					movingEnt->ProcessShift();
-					movingEnt->GetMatrix().UpdateRW();
+					movingEnt->GetMatrix()->UpdateRW();
 					movingEnt->UpdateRwFrame();
 					if(!movingEnt->bIsInSafePosition) { movingEnt->bIsStuck = true; }
 				}
@@ -1951,7 +1952,7 @@ CWorld::Process(void)
 				CPhysical *movingEnt = (CPhysical *)node->item;
 				if(!movingEnt->bIsInSafePosition) {
 					movingEnt->ProcessShift();
-					movingEnt->GetMatrix().UpdateRW();
+					movingEnt->GetMatrix()->UpdateRW();
 					movingEnt->UpdateRwFrame();
 					if(!movingEnt->bIsInSafePosition) {
 						movingEnt->bIsStuck = true;
@@ -1989,7 +1990,7 @@ CWorld::Process(void)
 							default: movingPed->SetPedPositionInCar(); break;
 							}
 						}
-						movingPed->GetMatrix().UpdateRW();
+						movingPed->GetMatrix()->UpdateRW();
 						movingPed->UpdateRwFrame();
 					} else {
 						movingPed->bInVehicle = false;

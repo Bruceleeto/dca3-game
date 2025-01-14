@@ -1,5 +1,7 @@
 #pragma once
 
+#define float32 float
+
 #include "Lists.h"
 #include "Timer.h"
 #include "Entity.h"

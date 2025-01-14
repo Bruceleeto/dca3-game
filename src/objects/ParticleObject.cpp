@@ -1127,9 +1127,9 @@ SaveOneParticle(CParticleObject *p, uint8 *&buffer)
 	// CPlaceable
 	{
 		ZeroBuf(buffer, 4);
-		CopyToBuf(buffer, p->GetMatrix().f);
+		CopyToBuf(buffer, p->GetMatrix()->f);
 		ZeroBuf(buffer, 4);
-		CopyToBuf(buffer, p->GetMatrix().m_hasRwMatrix);
+		CopyToBuf(buffer, p->GetMatrix()->m_hasRwMatrix);
 		ZeroBuf(buffer, 3);
 	}
 

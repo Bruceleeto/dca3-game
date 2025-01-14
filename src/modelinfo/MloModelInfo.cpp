@@ -13,7 +13,7 @@ CMloModelInfo::ConstructClump()
 
 	for (int i = firstInstance; i < lastInstance; i++) {
 		int modelId = CModelInfo::GetMloInstanceStore().store[i].m_modelIndex;
-		RwMatrix *attMat = CModelInfo::GetMloInstanceStore().store[i].GetMatrix().m_attachment;
+		RwMatrix *attMat = CModelInfo::GetMloInstanceStore().store[i].GetMatrix()->m_attachment;
 		CSimpleModelInfo *minfo = (CSimpleModelInfo*)CModelInfo::GetModelInfo(modelId);
 
 		if (minfo->m_atomics[0] != nil) {

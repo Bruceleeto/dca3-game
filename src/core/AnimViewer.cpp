@@ -297,9 +297,9 @@ CAnimViewer::Update(void)
 		}
 #ifdef FIX_BUGS
 		// so we don't end up in the water
-		pTarget->GetMatrix().GetPosition().z = 10.0f;
+		pTarget->GetMatrix()->GetPosition().z = 10.0f;
 #else
-		pTarget->GetMatrix().GetPosition().z = 0.0f;
+		pTarget->GetMatrix()->GetPosition().z = 0.0f;
 
 #endif
 

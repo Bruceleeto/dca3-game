@@ -42,12 +42,22 @@ CCutsceneObject::SetModelIndex(uint32 id)
 void
 CCutsceneObject::ProcessControl(void)
 {
+	if (std::isnan(m_vecMoveSpeed.x)) {
+		fprintf(stderr, "CCutsceneObject::ProcessControl: m_vecMoveSpeed.x is NaN\n");
+	}
 	CPhysical::ProcessControl();
+	if (std::isnan(m_vecMoveSpeed.x)) {
+		fprintf(stderr, "CCutsceneObject::ProcessControl: m_vecMoveSpeed.x is NaN2\n");
+	}
 
 	if(CTimer::GetTimeStep() < 1/100.0f)
 		m_vecMoveSpeed *= 100.0f;
 	else
 		m_vecMoveSpeed *= 1.0f/CTimer::GetTimeStep();
+
+	if (std::isnan(m_vecMoveSpeed.x)) {
+		fprintf(stderr, "CCutsceneObject::ProcessControl: m_vecMoveSpeed.x is NaN3\n");
+	}
 
 	ApplyMoveSpeed();
 

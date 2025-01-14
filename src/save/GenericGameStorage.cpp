@@ -278,9 +278,9 @@ GenericLoad()
 	qs = saveSize >> 24;
 #endif
 	ReadDataFromBufferPointer(buf, CGame::currLevel);
-	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix().GetPosition().x);
-	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix().GetPosition().y);
-	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix().GetPosition().z);
+	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix()->GetPosition().x);
+	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix()->GetPosition().y);
+	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix()->GetPosition().z);
 	ReadDataFromBufferPointer(buf, CClock::ms_nMillisecondsPerGameMinute);
 	ReadDataFromBufferPointer(buf, CClock::ms_nLastClockTick);
 	ReadDataFromBufferPointer(buf, CClock::ms_nGameClockHours);
@@ -574,9 +574,9 @@ RestoreForStartLoad()
 	} else {
 		uint8 *_buf = buf + sizeof(wchar[24]) + sizeof(SYSTEMTIME) + sizeof(SIZE_OF_ONE_GAME_IN_BYTES);
 		ReadDataFromBufferPointer(_buf, CGame::currLevel);
-		ReadDataFromBufferPointer(_buf, TheCamera.GetMatrix().GetPosition().x);
-		ReadDataFromBufferPointer(_buf, TheCamera.GetMatrix().GetPosition().y);
-		ReadDataFromBufferPointer(_buf, TheCamera.GetMatrix().GetPosition().z);
+		ReadDataFromBufferPointer(_buf, TheCamera.GetMatrix()->GetPosition().x);
+		ReadDataFromBufferPointer(_buf, TheCamera.GetMatrix()->GetPosition().y);
+		ReadDataFromBufferPointer(_buf, TheCamera.GetMatrix()->GetPosition().z);
 		ISLAND_LOADING_IS(LOW)
 		{
 			CStreaming::RemoveUnusedBigBuildings(CGame::currLevel);

@@ -505,8 +505,8 @@ void CReplay::ProcessPedUpdate(CPed *ped, float interpolation, CAddressInReplayB
 	ped->m_fRotationDest = pp->heading * PI / 128.0f;
 	CMatrix ped_matrix;
 	pp->matrix.DecompressIntoFullMatrix(ped_matrix);
-	ped->GetMatrix() = ped->GetMatrix() * CMatrix(1.0f - interpolation);
-	ped->GetMatrix().GetPosition() *= (1.0f - interpolation);
+	ped->GetMatrix() = ped->GetMatrix().r() * CMatrix(1.0f - interpolation);
+	ped->GetMatrix()->GetPosition() *= (1.0f - interpolation);
 	ped->GetMatrix() += CMatrix(interpolation) * ped_matrix;
 	if (pp->vehicle_index) {
 		ped->m_pMyVehicle = CPools::GetVehiclePool()->GetSlot(pp->vehicle_index - 1);
@@ -730,8 +730,8 @@ void CReplay::ProcessCarUpdate(CVehicle *vehicle, float interpolation, CAddressI
 	}
 	CMatrix vehicle_matrix;
 	vp->matrix.DecompressIntoFullMatrix(vehicle_matrix);
-	vehicle->GetMatrix() = vehicle->GetMatrix() * CMatrix(1.0f - interpolation);
-	vehicle->GetMatrix().GetPosition() *= (1.0f - interpolation);
+	vehicle->GetMatrix() = vehicle->GetMatrix().r() * CMatrix(1.0f - interpolation);
+	vehicle->GetMatrix()->GetPosition() *= (1.0f - interpolation);
 	vehicle->GetMatrix() += CMatrix(interpolation) * vehicle_matrix;
 	vehicle->m_vecTurnSpeed = CVector(0.0f, 0.0f, 0.0f);
 	vehicle->m_fHealth = 4 * vp->health;
@@ -884,7 +884,7 @@ bool CReplay::PlayBackThisFrameInterpolation(CAddressInReplayBuffer *buffer, flo
 				else {
 					CPed* new_p = new(ph->index << 8) CCivilianPed((ePedType)ph->pedtype, ph->mi);
 					new_p->SetStatus(STATUS_PLAYER_PLAYBACKFROMBUFFER);
-					new_p->GetMatrix().SetUnity();
+					new_p->GetMatrix()->SetUnity();
 					CWorld::Add(new_p);
 				}
 			}
@@ -910,7 +910,7 @@ bool CReplay::PlayBackThisFrameInterpolation(CAddressInReplayBuffer *buffer, flo
 		{
 			tGeneralPacket* pg = (tGeneralPacket*)&ptr[offset];
 			TheCamera.GetMatrix() = TheCamera.GetMatrix() * CMatrix(split);
-			TheCamera.GetMatrix().GetPosition() *= split;
+			TheCamera.GetMatrix()->GetPosition() *= split;
 			TheCamera.GetMatrix() += CMatrix(interpolation) * pg->camera_pos;
 			RwMatrix* pm = RwFrameGetMatrix(RwCameraGetFrame(TheCamera.m_pRwCamera));
 			pm->pos = TheCamera.GetPosition();
@@ -1046,27 +1046,27 @@ void CReplay::ProcessReplayCamera(void)
 	}
 	case REPLAYCAMMODE_FIXED:
 	{
-		TheCamera.GetMatrix().GetPosition() = CVector(CameraFixedX, CameraFixedY, CameraFixedZ);
+		TheCamera.GetMatrix()->GetPosition() = CVector(CameraFixedX, CameraFixedY, CameraFixedZ);
 		CVector forward(CameraFocusX - CameraFixedX, CameraFocusY - CameraFixedY, CameraFocusZ - CameraFixedZ);
 		forward.Normalise();
 		CVector right = CrossProduct(CVector(0.0f, 0.0f, 1.0f), forward);
 		right.Normalise();
 		CVector up = CrossProduct(forward, right);
 		up.Normalise();
-		TheCamera.GetMatrix().GetForward() = forward;
-		TheCamera.GetMatrix().GetUp() = up;
-		TheCamera.GetMatrix().GetRight() = right;
+		TheCamera.GetMatrix()->GetForward() = forward;
+		TheCamera.GetMatrix()->GetUp() = up;
+		TheCamera.GetMatrix()->GetRight() = right;
 		RwMatrix* pm = RwFrameGetMatrix(RwCameraGetFrame(TheCamera.m_pRwCamera));
-		pm->pos = TheCamera.GetMatrix().GetPosition();
-		pm->at = TheCamera.GetMatrix().GetForward();
-		pm->up = TheCamera.GetMatrix().GetUp();
-		pm->right = TheCamera.GetMatrix().GetRight();
+		pm->pos = TheCamera.GetMatrix()->GetPosition();
+		pm->at = TheCamera.GetMatrix()->GetForward();
+		pm->up = TheCamera.GetMatrix()->GetUp();
+		pm->right = TheCamera.GetMatrix()->GetRight();
 		break;
 	}
 	default:
 		break;
 	}
-	TheCamera.m_vecGameCamPos = TheCamera.GetMatrix().GetPosition();
+	TheCamera.m_vecGameCamPos = TheCamera.GetMatrix()->GetPosition();
 	TheCamera.CalculateDerivedValues();
 	RwMatrixUpdate(RwFrameGetMatrix(RwCameraGetFrame(TheCamera.m_pRwCamera)));
 	RwFrameUpdateObjects(RwCameraGetFrame(TheCamera.m_pRwCamera));
@@ -1275,7 +1275,7 @@ void CReplay::RestoreStuffFromMem(void)
 		if ((mi == MI_AIRTRAIN || mi == MI_DEADDODO) && vehicle->m_rwObject){
 			CVehicleModelInfo* info = (CVehicleModelInfo*)CModelInfo::GetModelInfo(mi);
 			if (RwObjectGetType(vehicle->m_rwObject) == rpATOMIC){
-				vehicle->GetMatrix().Detach();
+				vehicle->GetMatrix()->Detach();
 				if (vehicle->m_rwObject){
 					if (RwObjectGetType(vehicle->m_rwObject) == rpATOMIC){
 						RwFrame* frame = RpAtomicGetFrame((RpAtomic*)vehicle->m_rwObject);
@@ -1289,7 +1289,7 @@ void CReplay::RestoreStuffFromMem(void)
 				int model_id = info->m_wheelId;
 				if (model_id != -1){
 					if ((vehicle->m_rwObject = CModelInfo::GetModelInfo(model_id)->CreateInstance())){
-						vehicle->GetMatrix().AttachRW(RwFrameGetMatrix(RpClumpGetFrame((RpClump*)vehicle->m_rwObject)), false);
+						vehicle->GetMatrix()->AttachRW(RwFrameGetMatrix(RpClumpGetFrame((RpClump*)vehicle->m_rwObject)), false);
 					}
 				}
 			}
@@ -1307,9 +1307,9 @@ void CReplay::RestoreStuffFromMem(void)
 		object->m_rwObject = nil;
 		object->m_modelIndex = -1;
 		object->SetModelIndex(mi);
-		object->GetMatrix().m_attachment = nil;
+		object->GetMatrix()->m_attachment = nil;
 		if (RwObjectGetType(object->m_rwObject) == rpATOMIC)
-			object->GetMatrix().AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic*)object->m_rwObject)), false);
+			object->GetMatrix()->AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic*)object->m_rwObject)), false);
 	}
 	i = CPools::GetDummyPool()->GetSize();
 	while (--i >= 0) {
@@ -1322,9 +1322,9 @@ void CReplay::RestoreStuffFromMem(void)
 		dummy->m_rwObject = nil;
 		dummy->m_modelIndex = -1;
 		dummy->SetModelIndex(mi);
-		dummy->GetMatrix().m_attachment = nil;
+		dummy->GetMatrix()->m_attachment = nil;
 		if (RwObjectGetType(dummy->m_rwObject) == rpATOMIC)
-			dummy->GetMatrix().AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic*)dummy->m_rwObject)), false);
+			dummy->GetMatrix()->AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic*)dummy->m_rwObject)), false);
 	}
 	CTimer::SetTimeInMilliseconds(Time1);
 	CTimer::SetTimeInMillisecondsNonClipped(Time2);

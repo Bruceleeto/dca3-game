@@ -201,8 +201,8 @@ CPedPath::AddBlockade(CEntity *pEntity, CPedPathNode(*pathNodes)[40], CVector *p
 	const float fBoundMaxY = boundingBox.max.y + 0.3f;
 	const float fBoundMinY = boundingBox.min.y - 0.3f;
 	const float fBoundMaxX = boundingBox.max.x + 0.3f;
-	const float fDistanceX = pPosition->x - pEntity->GetMatrix().GetPosition().x;
-	const float fDistanceY = pPosition->y - pEntity->GetMatrix().GetPosition().y;
+	const float fDistanceX = pPosition->x - pEntity->GetMatrix()->GetPosition().x;
+	const float fDistanceY = pPosition->y - pEntity->GetMatrix()->GetPosition().y;
 	const float fBoundRadius = pEntity->GetBoundRadius();
 	CVector vecBoundCentre;
 	pEntity->GetBoundCentre(vecBoundCentre);
@@ -216,8 +216,8 @@ CPedPath::AddBlockade(CEntity *pEntity, CPedPathNode(*pathNodes)[40], CVector *p
 				if (!pathNodes[x][y].bBlockade) {
 					const float pointY = y * 0.7f + fDistanceY;
 					CVector2D point(pointX, pointY);
-					if (fBoundMaxX > Abs(DotProduct2D(point, pEntity->GetMatrix().GetRight()))) {
-						float fDotProduct = DotProduct2D(point, pEntity->GetMatrix().GetForward());
+					if (fBoundMaxX > Abs(DotProduct2D(point, pEntity->GetMatrix()->GetRight()))) {
+						float fDotProduct = DotProduct2D(point, pEntity->GetMatrix()->GetForward());
 						if (fBoundMaxY > fDotProduct && fBoundMinY < fDotProduct)
 							pathNodes[x][y].bBlockade = true;
 					}
@@ -334,7 +334,7 @@ CPathFind::CalcNodeCoors(int16 x, int16 y, int16 z, int32 id, CVector *out)
 	pos.x = x / 16.0f;
 	pos.y = y / 16.0f;
 	pos.z = z / 16.0f;
-	*out = m_mapObjects[id]->GetMatrix() * pos;
+	*out = m_mapObjects[id]->GetMatrix().r() * pos;
 }
 
 bool

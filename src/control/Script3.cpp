@@ -1257,7 +1257,7 @@ int8 CRunningScript::ProcessCommands600To699(int32 command)
 			pos.z = CWorld::FindGroundZForCoord(pos.x, pos.y);
 		pObj->SetPosition(pos);
 		pObj->SetOrientation(0.0f, 0.0f, 0.0f);
-		pObj->GetMatrix().UpdateRW();
+		pObj->GetMatrix()->UpdateRW();
 		pObj->UpdateRwFrame();
 		CTheScripts::ClearSpaceForMissionEntity(pos, pObj);
 		CWorld::Add(pObj);

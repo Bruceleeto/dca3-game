@@ -134,8 +134,8 @@ void
 CObject::Teleport(CVector vecPos)
 { 
 	CWorld::Remove(this);
-	GetMatrix().GetPosition() = vecPos;
-	GetMatrix().UpdateRW();
+	GetMatrix()->GetPosition() = vecPos;
+	GetMatrix()->UpdateRW();
 	UpdateRwFrame();
 	CWorld::Add(this);
 }
@@ -192,7 +192,7 @@ CObject::ObjectDamage(float amount)
 		amount = 0.0f;
 	}
 	if ((amount * m_fCollisionDamageMultiplier > 150.0f || bBodyCastDamageEffect) && m_nCollisionDamageEffect) {
-		const CVector& vecPos = GetMatrix().GetPosition();
+		const CVector& vecPos = GetMatrix()->GetPosition();
 		const float fDirectionZ = 0.0002f * amount;
 		switch (m_nCollisionDamageEffect)
 		{
@@ -351,7 +351,7 @@ CObject::Init(void)
 	m_pCollidingEntity = nil;
 	CColPoint point;
 	CEntity* outEntity = nil;
-	const CVector& vecPos = GetMatrix().GetPosition();
+	const CVector& vecPos = GetMatrix()->GetPosition();
 	if (CWorld::ProcessVerticalLine(vecPos, vecPos.z - 10.0f, point, outEntity, true, false, false, false, false, false, nil))
 		m_pCurSurface = outEntity;
 	else

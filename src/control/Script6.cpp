@@ -622,7 +622,7 @@ int8 CRunningScript::ProcessCommands1000To1099(int32 command)
 		CollectParameters(&m_nIp, 1);
 		CObject* pObject = CPools::GetObjectPool()->GetAt(ScriptParams[0]);
 		script_assert(pObject);
-		CSpecialParticleStuff::UpdateBoatFoamAnimation(&pObject->GetMatrix());
+		CSpecialParticleStuff::UpdateBoatFoamAnimation(&pObject->GetMatrix().r());
 		return 0;
 	}
 	case COMMAND_SET_MUSIC_DOES_FADE:
@@ -857,7 +857,7 @@ int8 CRunningScript::ProcessCommands1100To1199(int32 command)
 			DEGTORAD(*(float*)&ScriptParams[1]),
 			DEGTORAD(*(float*)&ScriptParams[2]),
 			DEGTORAD(*(float*)&ScriptParams[3]));
-		pObject->GetMatrix().UpdateRW();
+		pObject->GetMatrix()->UpdateRW();
 		pObject->UpdateRwFrame();
 		CWorld::Add(pObject);
 		return 0;

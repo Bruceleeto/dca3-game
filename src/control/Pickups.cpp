@@ -88,7 +88,7 @@ CPickup::GiveUsAPickUpObject(int32 handle)
 	object->ObjectCreatedBy = MISSION_OBJECT;
 	object->SetPosition(m_vecPos);
 	object->SetOrientation(0.0f, 0.0f, -HALFPI);
-	object->GetMatrix().UpdateRW();
+	object->GetMatrix()->UpdateRW();
 	object->UpdateRwFrame();
 
 	object->bAffectedByGravity = false;
@@ -300,9 +300,9 @@ CPickup::Update(CPlayerPed *player, CVehicle *vehicle, int playerId)
 		case PICKUP_NAUTICAL_MINE_INACTIVE:
 		{
 			if (CWaterLevel::GetWaterLevel(m_pObject->GetPosition().x, m_pObject->GetPosition().y, m_pObject->GetPosition().z + 5.0f, &waterLevel, false))
-				m_pObject->GetMatrix().GetPosition().z = waterLevel + 0.6f;
+				m_pObject->GetMatrix()->GetPosition().z = waterLevel + 0.6f;
 
-			m_pObject->GetMatrix().UpdateRW();
+			m_pObject->GetMatrix()->UpdateRW();
 			m_pObject->UpdateRwFrame();
 
 			bool touched = false;
@@ -324,9 +324,9 @@ CPickup::Update(CPlayerPed *player, CVehicle *vehicle, int playerId)
 		}
 		case PICKUP_NAUTICAL_MINE_ARMED:
 			if (CWaterLevel::GetWaterLevel(m_pObject->GetPosition().x, m_pObject->GetPosition().y, m_pObject->GetPosition().z + 5.0f, &waterLevel, false))
-				m_pObject->GetMatrix().GetPosition().z = waterLevel + 0.6f;
+				m_pObject->GetMatrix()->GetPosition().z = waterLevel + 0.6f;
 
-			m_pObject->GetMatrix().UpdateRW();
+			m_pObject->GetMatrix()->UpdateRW();
 			m_pObject->UpdateRwFrame();
 			// no break here
 		case PICKUP_MINE_ARMED:
@@ -356,18 +356,18 @@ CPickup::Update(CPlayerPed *player, CVehicle *vehicle, int playerId)
 		}
 		case PICKUP_FLOATINGPACKAGE:
 			m_pObject->m_vecMoveSpeed.z -= 0.01f * CTimer::GetTimeStep();
-			m_pObject->GetMatrix().GetPosition() += m_pObject->GetMoveSpeed() * CTimer::GetTimeStep();
+			m_pObject->GetMatrix()->GetPosition() += m_pObject->GetMoveSpeed() * CTimer::GetTimeStep();
 
-			m_pObject->GetMatrix().UpdateRW();
+			m_pObject->GetMatrix()->UpdateRW();
 			m_pObject->UpdateRwFrame();
 			if (CWaterLevel::GetWaterLevel(m_pObject->GetPosition().x, m_pObject->GetPosition().y, m_pObject->GetPosition().z + 5.0f, &waterLevel, false) && waterLevel >= m_pObject->GetPosition().z)
 				m_eType = PICKUP_FLOATINGPACKAGE_FLOATING;
 			break;
 		case PICKUP_FLOATINGPACKAGE_FLOATING:
 			if (CWaterLevel::GetWaterLevel(m_pObject->GetPosition().x, m_pObject->GetPosition().y, m_pObject->GetPosition().z + 5.0f, &waterLevel, false))
-				m_pObject->GetMatrix().GetPosition().z = waterLevel;
+				m_pObject->GetMatrix()->GetPosition().z = waterLevel;
 
-			m_pObject->GetMatrix().UpdateRW();
+			m_pObject->GetMatrix()->UpdateRW();
 			m_pObject->UpdateRwFrame();
 			if (vehicle != nil && vehicle->IsSphereTouchingVehicle(m_pObject->GetPosition().x, m_pObject->GetPosition().y, m_pObject->GetPosition().z, 2.0f)) {
 				Remove();
@@ -760,15 +760,15 @@ CPickups::DoPickUpEffects(CEntity *entity)
 		float s = Sin(angle) * aWeaponScale[colorId];
 
 		// we know from SA they were setting each field manually like this
-		entity->GetMatrix().rx = c;
-		entity->GetMatrix().ry = s;
-		entity->GetMatrix().rz = 0.0f;
-		entity->GetMatrix().fx = -s;
-		entity->GetMatrix().fy = c;
-		entity->GetMatrix().fz = 0.0f;
-		entity->GetMatrix().ux = 0.0f;
-		entity->GetMatrix().uy = 0.0f;
-		entity->GetMatrix().uz = aWeaponScale[colorId];
+		entity->GetMatrix()->rx = c;
+		entity->GetMatrix()->ry = s;
+		entity->GetMatrix()->rz = 0.0f;
+		entity->GetMatrix()->fx = -s;
+		entity->GetMatrix()->fy = c;
+		entity->GetMatrix()->fz = 0.0f;
+		entity->GetMatrix()->ux = 0.0f;
+		entity->GetMatrix()->uy = 0.0f;
+		entity->GetMatrix()->uz = aWeaponScale[colorId];
 	}
 }
 
@@ -788,7 +788,7 @@ CPickups::DoMineEffects(CEntity *entity)
 		CCoronas::RegisterCorona((uintptr)entity, red, 0, 0, 255, pos, 0.6f, 60.0f, CCoronas::TYPE_RING, CCoronas::FLARE_NONE, CCoronas::REFLECTION_OFF, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_OFF, 0.0f);
 	}
 
-	entity->GetMatrix().SetRotateZOnly((float)(CTimer::GetTimeInMilliseconds() & 0x3FF) * DEGTORAD(360.0f / 0x400));
+	entity->GetMatrix()->SetRotateZOnly((float)(CTimer::GetTimeInMilliseconds() & 0x3FF) * DEGTORAD(360.0f / 0x400));
 }
 
 void
@@ -807,7 +807,7 @@ CPickups::DoMoneyEffects(CEntity *entity)
 		CCoronas::RegisterCorona((uintptr)entity, 0, green, 0, 255, pos, 0.4f, 40.0f, CCoronas::TYPE_RING, CCoronas::FLARE_NONE, CCoronas::REFLECTION_OFF, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_OFF, 0.0f);
 	}
 
-	entity->GetMatrix().SetRotateZOnly((float)(CTimer::GetTimeInMilliseconds() & 0x7FF) * DEGTORAD(360.0f / 0x800));
+	entity->GetMatrix()->SetRotateZOnly((float)(CTimer::GetTimeInMilliseconds() & 0x7FF) * DEGTORAD(360.0f / 0x800));
 }
 
 void
@@ -826,7 +826,7 @@ CPickups::DoCollectableEffects(CEntity *entity)
 		CCoronas::RegisterCorona((uintptr)entity, color, color, color, 255, pos, 0.6f, 40.0f, CCoronas::TYPE_RING, CCoronas::FLARE_NONE, CCoronas::REFLECTION_OFF, CCoronas::LOSCHECK_OFF, CCoronas::STREAK_OFF, 0.0f);
 	}
 
-	entity->GetMatrix().SetRotateZOnly((float)(CTimer::GetTimeInMilliseconds() & 0xFFF) * DEGTORAD(360.0f / 0x1000));
+	entity->GetMatrix()->SetRotateZOnly((float)(CTimer::GetTimeInMilliseconds() & 0xFFF) * DEGTORAD(360.0f / 0x1000));
 }
 
 void
@@ -1193,7 +1193,7 @@ CPacManPickups::GeneratePMPickUps(CVector pos, float scrambleMult, int16 count, 
 					obj->ObjectCreatedBy = MISSION_OBJECT;
 					obj->SetPosition(aPMPickUps[i].m_vecPosn);
 					obj->SetOrientation(0.0f, 0.0f, -HALFPI);
-					obj->GetMatrix().UpdateRW();
+					obj->GetMatrix()->UpdateRW();
 					obj->UpdateRwFrame();
 
 					obj->bAffectedByGravity = false;
@@ -1344,7 +1344,7 @@ CPacManPickups::GeneratePMPickUpsForRace(int32 race)
 
 				obj->SetPosition(aPMPickUps[i].m_vecPosn);
 				obj->SetOrientation(0.0f, 0.0f, -HALFPI);
-				obj->GetMatrix().UpdateRW();
+				obj->GetMatrix()->UpdateRW();
 				obj->UpdateRwFrame();
 
 				obj->bAffectedByGravity = false;
@@ -1392,8 +1392,8 @@ CPacManPickups::Render()
 		case PACMAN_RACE:
 			if (CSprite::CalcScreenCoors(aPMPickUps[i].m_vecPosn, &pos, &w, &h, true) && pos.z < 100.0f) {
 				if (aPMPickUps[i].m_pObject != nil) {
-					aPMPickUps[i].m_pObject->GetMatrix().SetRotateZOnly((CTimer::GetTimeInMilliseconds() % 1024) * TWOPI / 1024.0f);
-					aPMPickUps[i].m_pObject->GetMatrix().UpdateRW();
+					aPMPickUps[i].m_pObject->GetMatrix()->SetRotateZOnly((CTimer::GetTimeInMilliseconds() % 1024) * TWOPI / 1024.0f);
+					aPMPickUps[i].m_pObject->GetMatrix()->UpdateRW();
 					aPMPickUps[i].m_pObject->UpdateRwFrame();
 				}
 				float fsin = Sin((CTimer::GetTimeInMilliseconds() % 1024) * 6.28f / 1024.0f); // yes, it is 6.28f when it was TWOPI just now...

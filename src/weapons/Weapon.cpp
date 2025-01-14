@@ -134,7 +134,7 @@ CWeapon::Fire(CEntity *shooter, CVector *fireSource)
 
 	if (!fireSource)
 	{
-		fireOffset = shooter->GetMatrix() * fireOffset;
+		fireOffset = shooter->GetMatrix().r() * fireOffset;
 #ifdef FIX_BUGS
 		static CVector tmp;
 		tmp = fireOffset;
@@ -1722,24 +1722,24 @@ CWeapon::FireInstantHitFromCar(CAutomobile *shooter, bool left)
 	CVector source, target;
 	if ( left )
 	{
-		source = shooter->GetMatrix() * CVector(-shooter->GetColModel()->boundingBox.max.x + -0.2f,
+		source = shooter->GetMatrix().r() * CVector(-shooter->GetColModel()->boundingBox.max.x + -0.2f,
 												float(CGeneral::GetRandomNumber() & 255) * 0.001f + modelInfo->GetFrontSeatPosn().y,
 												modelInfo->GetFrontSeatPosn().z + 0.5f);
 		source += CTimer::GetTimeStep() * shooter->m_vecMoveSpeed;
 
 
-		target = shooter->GetMatrix() * CVector(-info->m_fRange,
+		target = shooter->GetMatrix().r() * CVector(-info->m_fRange,
 													modelInfo->GetFrontSeatPosn().y,
 													modelInfo->GetFrontSeatPosn().z + 0.5f);
 	}
 	else
 	{
-		source = shooter->GetMatrix() * CVector(shooter->GetColModel()->boundingBox.max.x + 0.2f,
+		source = shooter->GetMatrix().r() * CVector(shooter->GetColModel()->boundingBox.max.x + 0.2f,
 												float(CGeneral::GetRandomNumber() & 255) * 0.001f + modelInfo->GetFrontSeatPosn().y,
 												modelInfo->GetFrontSeatPosn().z + 0.5f);
 		source += CTimer::GetTimeStep() * shooter->m_vecMoveSpeed;
 
-		target = shooter->GetMatrix() * CVector(info->m_fRange,
+		target = shooter->GetMatrix().r() * CVector(info->m_fRange,
 													modelInfo->GetFrontSeatPosn().y,
 													modelInfo->GetFrontSeatPosn().z + 0.5f);
 	}
@@ -2302,7 +2302,7 @@ CWeapon::HitsGround(CEntity *holder, CVector *fireSource, CEntity *aimingTo)
 	if (fireSource)
 		source = *fireSource;
 	else
-		source = holder->GetMatrix() * adjustedOffset;
+		source = holder->GetMatrix().r() * adjustedOffset;
 
 	CEntity *aimEntity = aimingTo ? aimingTo : ((CPed*)holder)->m_pSeekTarget;
 	ASSERT(aimEntity!=nil);

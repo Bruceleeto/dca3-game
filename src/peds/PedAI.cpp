@@ -895,8 +895,8 @@ CPed::ProcessObjective(void)
 										int chosenModel = CCarCtrl::ChooseModel(&zoneInfo, &ourPos, &chosenCarClass);
 										CAutomobile *newVeh = new CAutomobile(chosenModel, RANDOM_VEHICLE);
 										if (newVeh) {
-										    newVeh->GetMatrix().GetPosition() = ThePaths.m_pathNodes[closestNode].GetPosition();
-										    newVeh->GetMatrix().GetPosition().z += 4.0f;
+										    newVeh->GetMatrix()->GetPosition() = ThePaths.m_pathNodes[closestNode].GetPosition();
+										    newVeh->GetMatrix()->GetPosition().z += 4.0f;
 											newVeh->SetHeading(DEGTORAD(200.0f));
 											newVeh->SetStatus(STATUS_ABANDONED);
 											newVeh->m_nDoorLock = CARLOCK_UNLOCKED;
@@ -3275,7 +3275,7 @@ CPed::LineUpPedWithCar(PedLineUpPhase phase)
 		CMatrix vehDoorMat(veh->GetMatrix());
 		vehDoorMat.GetPosition() += Multiply3x3(vehDoorMat, GetLocalPositionToOpenCarDoor(veh, m_vehDoor, 0.0f));
 		// VC couch anims are inverted, so they're fixing it here.
-		GetMatrix() = vehDoorMat;
+		GetMatrix().r() = vehDoorMat;
 	}
 
 }
@@ -3695,7 +3695,7 @@ CPed::SetExitBoat(CVehicle *boat)
 	CColModel* boatCol = boat->GetColModel();
 	if (boat->IsUpsideDown()) {
 		newPos = { 0.0f, 0.0f, boatCol->boundingBox.min.z };
-		newPos = boat->GetMatrix() * newPos;
+		newPos = boat->GetMatrix().r() * newPos;
 		newPos.z += 1.0f;
 		m_vehDoor = CAR_DOOR_RF;
 		PedSetOutCarCB(nil, this);
@@ -3950,7 +3950,7 @@ CPed::SetExitCar(CVehicle *veh, uint32 wantedDoorNode)
 			zForPed = Max(foundColZ, foundColZ2);
 
 			if (zForPed > -99.0f)
-				GetMatrix().GetPosition().z = FEET_OFFSET + zForPed;
+				GetMatrix()->GetPosition().z = FEET_OFFSET + zForPed;
 		} else {
 			if (veh->GetUp().z > -0.8f) {
 				bool addDoorSmoke = false;

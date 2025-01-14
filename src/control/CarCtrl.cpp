@@ -2040,7 +2040,7 @@ void CCarCtrl::DragCarToPoint(CVehicle* pVehicle, CVector* pPoint)
 	pVehicle->GetForward() = CVector(-cosZ * pVehicle->GetRight().y, cosZ * pVehicle->GetRight().x, sinZ);
 	pVehicle->GetUp() = CrossProduct(pVehicle->GetRight(), pVehicle->GetForward());
 	pVehicle->SetPosition((CVector(midPos.x, midPos.y, actualBehindZ) + CVector(posTarget.x, posTarget.y, actualAheadZ)) / 2);
-	pVehicle->GetMatrix().GetPosition().z += pVehicle->GetHeightAboveRoad();
+	pVehicle->GetMatrix()->GetPosition().z += pVehicle->GetHeightAboveRoad();
 }
 
 float CCarCtrl::FindSpeedMultiplier(float angleChange, float minAngle, float maxAngle, float coef)

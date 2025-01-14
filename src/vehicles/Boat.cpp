@@ -526,8 +526,8 @@ CBoat::ProcessControl(void)
 		}else{
 			// is this some inlined CPlaceable method?
 			CVector pos = GetPosition();
-			GetMatrix().RotateZ(m_fOrientation - GetForward().Heading());
-			GetMatrix().SetTranslateOnly(pos);
+			GetMatrix()->RotateZ(m_fOrientation - GetForward().Heading());
+			GetMatrix()->SetTranslateOnly(pos);
 		}
 	}
 
@@ -687,7 +687,7 @@ CBoat::BlowUpCar(CEntity *culprit)
 	dist.Normalise();
 	if(GetUp().z > 0.0f)
 		dist += GetUp();
-	obj->GetMatrix().GetPosition() += dist;
+	obj->GetMatrix()->GetPosition() += dist;
 
 	CWorld::Add(obj);
 
@@ -779,7 +779,7 @@ CBoat::RenderWaterOutPolys(void)
 	RwRenderStateSet(rwRENDERSTATESRCBLEND, (void*)rwBLENDZERO);
 	RwRenderStateSet(rwRENDERSTATEDESTBLEND, (void*)rwBLENDONE);
 }
-	if (!CVehicle::bWheelsOnlyCheat && RwIm3DTransform(KeepWaterOutVertices, 4, GetMatrix().m_attachment, rwIM3D_VERTEXUV)) {
+	if (!CVehicle::bWheelsOnlyCheat && RwIm3DTransform(KeepWaterOutVertices, 4, GetMatrix()->m_attachment, rwIM3D_VERTEXUV)) {
 		RwIm3DRenderIndexedPrimitive(rwPRIMTYPETRILIST, KeepWaterOutIndices, 6);
 		RwIm3DEnd();
 	}

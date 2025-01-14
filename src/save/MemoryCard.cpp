@@ -303,9 +303,9 @@ CMemoryCard::RestoreForStartLoad(void)
 	
 	uint8 *pBuf = buf + sizeof(uint32) + sizeof(uint32);
 	ReadDataFromBufferPointer(pBuf, CGame::currLevel);
-	ReadDataFromBufferPointer(pBuf, TheCamera.GetMatrix().GetPosition().x);
-	ReadDataFromBufferPointer(pBuf, TheCamera.GetMatrix().GetPosition().y);
-	ReadDataFromBufferPointer(pBuf, TheCamera.GetMatrix().GetPosition().z);
+	ReadDataFromBufferPointer(pBuf, TheCamera.GetMatrix()->GetPosition().x);
+	ReadDataFromBufferPointer(pBuf, TheCamera.GetMatrix()->GetPosition().y);
+	ReadDataFromBufferPointer(pBuf, TheCamera.GetMatrix()->GetPosition().z);
 	
 	if ( CGame::currLevel != LEVEL_INDUSTRIAL )
 		CStreaming::RemoveBigBuildings(LEVEL_INDUSTRIAL);
@@ -371,9 +371,9 @@ CMemoryCard::LoadSavedGame(void)
 	
 	ReadDataFromBufferPointer(buf, saveSize);
 	ReadDataFromBufferPointer(buf, CGame::currLevel);
-	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix().GetPosition().x);
-	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix().GetPosition().y);
-	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix().GetPosition().z);
+	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix()->GetPosition().x);
+	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix()->GetPosition().y);
+	ReadDataFromBufferPointer(buf, TheCamera.GetMatrix()->GetPosition().z);
 	ReadDataFromBufferPointer(buf, CClock::ms_nMillisecondsPerGameMinute);
 	ReadDataFromBufferPointer(buf, CClock::ms_nLastClockTick);
 	ReadDataFromBufferPointer(buf, CClock::ms_nGameClockHours);

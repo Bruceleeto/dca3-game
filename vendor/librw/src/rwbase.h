@@ -1,5 +1,7 @@
 #pragma once
 
+extern void stacktrace();
+
 #include "common_defines.h"
 
 #ifndef RW_PS2
@@ -238,9 +240,61 @@ inline V2d scale(const V2d &a, float32 r) { return makeV2d(a.x*r, a.y*r); }
 inline float32 length(const V2d &v) { return sqrtf(v.x*v.x + v.y*v.y); }
 inline V2d normalize(const V2d &v) { return scale(v, 1.0f/length(v)); }
 
+
+struct float32W {
+	float32 v;
+
+	operator float32() const { return v; }
+	float32W operator=(float32 f) { 
+		if (std::isnan(f)) {
+			fprintf(stderr, "float32W: f is NaN\n");
+			stacktrace();
+		}
+		v = f;
+		return *this;
+	}
+
+	//operastor+=(float32 f)
+	float32W operator+=(float32 f) {
+		if (std::isnan(f)) {
+			fprintf(stderr, "float32W: f is NaN1\n");
+			stacktrace();
+		}
+		v += f;
+		return *this;
+	}
+
+	float32W operator-=(float32 f) {
+		if (std::isnan(f)) {
+			fprintf(stderr, "float32W: f is NaN2\n");
+			stacktrace();
+		}
+		v -= f;
+		return *this;
+	}
+
+	float32W operator*=(float32 f) {
+		if (std::isnan(f)) {
+			fprintf(stderr, "float32W: f is NaN3\n");
+			stacktrace();
+		}
+		v *= f;
+		return *this;
+	}
+
+	float32W operator/=(float32 f) {
+		if (std::isnan(f)) {
+			fprintf(stderr, "float32W: f is NaN4\n");
+			stacktrace();
+		}
+		v /= f;
+		return *this;
+	}
+};
 struct V3d
 {
-	float32 x, y, z;
+	float32W x;
+	float32 y, z;
 	void set(float32 x, float32 y, float32 z){
 		this->x = x; this->y = y; this->z = z; }
 	static void transformPoints(V3d *out, const V3d *in, int32 n, const Matrix *m);

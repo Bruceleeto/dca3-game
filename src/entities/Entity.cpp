@@ -111,9 +111,9 @@ CEntity::CreateRwObject(void)
 		if(IsBuilding())
 			gBuildings++;
 		if(RwObjectGetType(m_rwObject) == rpATOMIC)
-			GetMatrix().AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic *)m_rwObject)), false);
+			GetMatrix()->AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic *)m_rwObject)), false);
 		else if(RwObjectGetType(m_rwObject) == rpCLUMP)
-			GetMatrix().AttachRW(RwFrameGetMatrix(RpClumpGetFrame((RpClump *)m_rwObject)), false);
+			GetMatrix()->AttachRW(RwFrameGetMatrix(RpClumpGetFrame((RpClump *)m_rwObject)), false);
 		mi->AddRef();
 	}
 }
@@ -124,9 +124,9 @@ CEntity::AttachToRwObject(RwObject *obj)
 	m_rwObject = obj;
 	if(m_rwObject){
 		if(RwObjectGetType(m_rwObject) == rpATOMIC)
-			GetMatrix().Attach(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic *)m_rwObject)), false);
+			GetMatrix()->Attach(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic *)m_rwObject)), false);
 		else if(RwObjectGetType(m_rwObject) == rpCLUMP)
-			GetMatrix().Attach(RwFrameGetMatrix(RpClumpGetFrame((RpClump *)m_rwObject)), false);
+			GetMatrix()->Attach(RwFrameGetMatrix(RpClumpGetFrame((RpClump *)m_rwObject)), false);
 		CModelInfo::GetModelInfo(m_modelIndex)->AddRef();
 	}
 }
@@ -137,7 +137,7 @@ CEntity::DetachFromRwObject(void)
 	if(m_rwObject)
 		CModelInfo::GetModelInfo(m_modelIndex)->RemoveRef();
 	m_rwObject = nil;
-	GetMatrix().Detach();
+	GetMatrix()->Detach();
 }
 
 #ifdef PED_SKIN
@@ -167,7 +167,7 @@ CEntity::DeleteRwObject(void)
 {
 	RwFrame *f;
 
-	GetMatrix().Detach();
+	GetMatrix()->Detach();
 	if(m_rwObject){
 		if(RwObjectGetType(m_rwObject) == rpATOMIC){
 			f = RpAtomicGetFrame((RpAtomic*)m_rwObject);
@@ -297,24 +297,24 @@ CEntity::PreRender(void)
 	case ENTITY_TYPE_OBJECT:
 		if(GetModelIndex() == MI_COLLECTABLE1){
 			CPickups::DoCollectableEffects(this);
-			GetMatrix().UpdateRW();
+			GetMatrix()->UpdateRW();
 			UpdateRwFrame();
 		}else if(GetModelIndex() == MI_MONEY){
 			CPickups::DoMoneyEffects(this);
-			GetMatrix().UpdateRW();
+			GetMatrix()->UpdateRW();
 			UpdateRwFrame();
 		}else if(GetModelIndex() == MI_NAUTICALMINE ||
 		         GetModelIndex() == MI_CARMINE ||
 		         GetModelIndex() == MI_BRIEFCASE){
 			if(((CObject*)this)->bIsPickup){
 				CPickups::DoMineEffects(this);
-				GetMatrix().UpdateRW();
+				GetMatrix()->UpdateRW();
 				UpdateRwFrame();
 			}
 		}else if(IsPickupModel(GetModelIndex())){
 			if(((CObject*)this)->bIsPickup){
 				CPickups::DoPickUpEffects(this);
-				GetMatrix().UpdateRW();
+				GetMatrix()->UpdateRW();
 				UpdateRwFrame();
 			}else if(GetModelIndex() == MI_GRENADE){
 				CMotionBlurStreaks::RegisterStreak((uintptr)this,
@@ -619,7 +619,7 @@ CEntity::ModifyMatrixForTreeInWind(void)
 	if(CTimer::GetIsPaused())
 		return;
 
-	CMatrix mat(GetMatrix().m_attachment);
+	CMatrix mat(GetMatrix()->m_attachment);
 
 	if(CWeather::Wind >= 0.5){
 		t = m_randomSeed + 16*CTimer::GetTimeInMilliseconds();
@@ -672,7 +672,7 @@ CEntity::ModifyMatrixForBannerInWind(void)
 	else
 		strength = 0.66f;
 
-	t = ((int)(GetMatrix().GetPosition().x + GetMatrix().GetPosition().y) << 10) + 16*CTimer::GetTimeInMilliseconds();
+	t = ((int)(GetMatrix()->GetPosition().x + GetMatrix()->GetPosition().y) << 10) + 16*CTimer::GetTimeInMilliseconds();
 	f = (t & 0x7FF)/(float)0x800;
 	flutter = f * BannerWindTabel[(t>>11)+1 & 0x1F] +
 		(1.0f - f) * BannerWindTabel[(t>>11) & 0x1F];
@@ -686,7 +686,7 @@ CEntity::ModifyMatrixForBannerInWind(void)
 	GetRight() = CrossProduct(GetForward(), up);
 	GetUp() = up;
 
-	GetMatrix().UpdateRW();
+	GetMatrix()->UpdateRW();
 	UpdateRwFrame();
 }
 

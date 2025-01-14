@@ -5,5 +5,5 @@
 void
 CInstance::Shutdown()
 {
-	GetMatrix().Detach();
+	GetMatrix()->Detach();
 }

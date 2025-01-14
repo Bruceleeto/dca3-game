@@ -93,17 +93,17 @@ void CBridge::Update()
 	// Move bridge part
 	if (liftHeight != OldLift)
 	{
-		pLiftPart->GetMatrix().GetPosition().z = DefaultZLiftPart + liftHeight;
-		pLiftPart->GetMatrix().UpdateRW();
+		pLiftPart->GetMatrix()->GetPosition().z = DefaultZLiftPart + liftHeight;
+		pLiftPart->GetMatrix()->UpdateRW();
 		pLiftPart->UpdateRwFrame();
 		if (pLiftRoad)
 		{
-			pLiftRoad->GetMatrix().GetPosition().z = DefaultZLiftRoad + liftHeight;
-			pLiftRoad->GetMatrix().UpdateRW();
+			pLiftRoad->GetMatrix()->GetPosition().z = DefaultZLiftRoad + liftHeight;
+			pLiftRoad->GetMatrix()->UpdateRW();
 			pLiftRoad->UpdateRwFrame();
 		}
-		pWeight->GetMatrix().GetPosition().z = DefaultZLiftWeight - liftHeight;
-		pWeight->GetMatrix().UpdateRW();
+		pWeight->GetMatrix()->GetPosition().z = DefaultZLiftWeight - liftHeight;
+		pWeight->GetMatrix()->UpdateRW();
 		pWeight->UpdateRwFrame();
 
 		OldLift = liftHeight;

@@ -502,7 +502,7 @@ int8 CRunningScript::ProcessCommands800To899(int32 command)
 			return 0;
 		}
 		pObject->SetHeading(DEGTORAD(newHeading));
-		pObject->GetMatrix().UpdateRW();
+		pObject->GetMatrix()->UpdateRW();
 		pObject->UpdateRwFrame();
 		UpdateCompareFlag(newHeading == headingTarget); // using direct comparasion here is fine
 		return 0;

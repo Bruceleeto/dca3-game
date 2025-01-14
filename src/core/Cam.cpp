@@ -1667,7 +1667,7 @@ CCam::Process_FollowPedWithMouse(const CVector &CameraTarget, float TargetOrient
 		((CPed*)TheCamera.pTargetEntity)->m_fRotationCur = Heading;
 		((CPed*)TheCamera.pTargetEntity)->m_fRotationDest = Heading;
 		TheCamera.pTargetEntity->SetHeading(Heading);
-		TheCamera.pTargetEntity->GetMatrix().UpdateRW();
+		TheCamera.pTargetEntity->GetMatrix()->UpdateRW();
 	}
 }
 
@@ -2858,7 +2858,7 @@ CCam::Process_1rstPersonPedOnPC(const CVector&, float TargetOrientation, float, 
 			m_vecBufferedPlayerBodyOffset.z =
 				TheCamera.m_fGaitSwayBuffer * m_vecBufferedPlayerBodyOffset.z +
 				(1.0f-TheCamera.m_fGaitSwayBuffer) * HeadPos.z;
-			HeadPos = (CamTargetEntity->GetMatrix() * m_vecBufferedPlayerBodyOffset);
+			HeadPos = (CamTargetEntity->GetMatrix().r() * m_vecBufferedPlayerBodyOffset);
 		}else{
 			float HeadDelta = (HeadPos - InitialHeadPos).Magnitude2D();
 			CVector Fwd = CamTargetEntity->GetForward();
@@ -2915,7 +2915,7 @@ CCam::Process_1rstPersonPedOnPC(const CVector&, float TargetOrientation, float, 
 		((CPed*)TheCamera.pTargetEntity)->m_fRotationCur = Heading;
 		((CPed*)TheCamera.pTargetEntity)->m_fRotationDest = Heading;
 		TheCamera.pTargetEntity->SetHeading(Heading);
-		TheCamera.pTargetEntity->GetMatrix().UpdateRW();
+		TheCamera.pTargetEntity->GetMatrix()->UpdateRW();
 
 		if(Mode == MODE_SNIPER_RUNABOUT){
 			// no mouse wheel FOV buffering here like in normal sniper mode
@@ -3683,7 +3683,7 @@ CCam::Process_Fixed(const CVector &CameraTarget, float, float, float)
 			((CPed*)TheCamera.pTargetEntity)->m_fRotationCur = Heading;
 			((CPed*)TheCamera.pTargetEntity)->m_fRotationDest = Heading;
 			TheCamera.pTargetEntity->SetHeading(Heading);
-			TheCamera.pTargetEntity->GetMatrix().UpdateRW();
+			TheCamera.pTargetEntity->GetMatrix()->UpdateRW();
 		}
 	}
 #endif

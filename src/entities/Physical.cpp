@@ -159,6 +159,22 @@ CPhysical::RemoveAndAdd(void)
 	ystart = CWorld::GetSectorIndexY(bounds.top);
 	yend   = CWorld::GetSectorIndexY(bounds.bottom);
 	ymid   = CWorld::GetSectorIndexY((bounds.top + bounds.bottom)/2.0f);
+	auto pos = GetBoundCentre();
+	if (std::isnan(bounds.left)) {
+
+		// print m_matrix
+		// fprintf(stderr, "m_matrix:\n");
+		// fprintf(stderr, "rx: %f ry: %f rz: %f rw: %f\n", m_matrix.rx, m_matrix.ry, m_matrix.rz, m_matrix.rw);
+		// fprintf(stderr, "fx: %f fy: %f fz: %f fw: %f\n", m_matrix.fx, m_matrix.fy, m_matrix.fz, m_matrix.fw);
+		// fprintf(stderr, "ux: %f uy: %f uz: %f uw: %f\n", m_matrix.ux, m_matrix.uy, m_matrix.uz, m_matrix.uw);
+		// fprintf(stderr, "px: %f py: %f pz: %f pw: %f\n", m_matrix.px, m_matrix.py, m_matrix.pz, m_matrix.pw);
+		
+		fprintf(stderr, "center x: %f y: %f z: %f, Radious: %f, m_modelIndex: %d (%s) %p\n", pos.x, pos.y, pos.z, GetBoundRadius(), m_modelIndex, CModelInfo::GetModelInfo(m_modelIndex)->GetModelName(), m_matrixPlaceable.m_attachment);
+		stacktrace();
+		// fprintf(stderr, "left: %f right: %f top: %f bottom: %f\n", bounds.left, bounds.right, bounds.top, bounds.bottom);
+	}
+	
+	// fprintf(stderr, "xstart %d xend %d xmid %d ystart %d yend %d ymid %d\n", xstart, xend, xmid, ystart, yend, ymid);
 	assert(xstart >= 0);
 	assert(xend < NUMSECTORS_X);
 	assert(ystart >= 0);
@@ -318,15 +334,15 @@ CPhysical::RemoveRefsToEntity(CEntity *ent)
 void
 CPhysical::PlacePhysicalRelativeToOtherPhysical(CPhysical *other, CPhysical *phys, CVector localPos)
 {
-	CVector worldPos = other->GetMatrix() * localPos;
+	CVector worldPos = other->GetMatrix().r() * localPos;
 	float step = 0.9f * CTimer::GetTimeStep();
 	CVector pos = other->m_vecMoveSpeed*step + worldPos;
 
 	CWorld::Remove(phys);
-	phys->GetMatrix() = other->GetMatrix();
+	phys->GetMatrix().r() = other->GetMatrix().r();
 	phys->SetPosition(pos);
 	phys->m_vecMoveSpeed = other->m_vecMoveSpeed;
-	phys->GetMatrix().UpdateRW();
+	phys->GetMatrix()->UpdateRW();
 	phys->UpdateRwFrame();
 	CWorld::Add(phys);
 }
@@ -419,7 +435,14 @@ CPhysical::GetSpeed(const CVector &r)
 void
 CPhysical::ApplyMoveSpeed(void)
 {
-	GetMatrix().Translate(m_vecMoveSpeed * CTimer::GetTimeStep());
+	if (std::isnan(m_vecMoveSpeed.x)) {
+		fprintf(stderr, "CCutsceneObject::ProcessControl: m_vecMoveSpeed.x is NaN4\n");
+	}
+
+	if (std::isnan(CTimer::GetTimeStep())) {
+		fprintf(stderr, "CTimer::GetTimeStep() is NaN\n");
+	}
+	GetMatrix()->Translate(m_vecMoveSpeed * CTimer::GetTimeStep());
 }
 
 void
@@ -1149,7 +1172,7 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 				}else if(Aobj->m_pCollidingEntity != B){
 					CMatrix inv;
 					CVector size = CModelInfo::GetColModel(A->GetModelIndex())->boundingBox.GetSize();
-					size = A->GetMatrix() * size;
+					size = A->GetMatrix().r() * size;
 					if(size.z < B->GetPosition().z ||
 					   (Invert(B->GetMatrix(), inv) * size).z < 0.0f){
 						skipShift = true;
@@ -1167,7 +1190,7 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 				}else if(Bobj->m_pCollidingEntity != A){
 					CMatrix inv;
 					CVector size = CModelInfo::GetColModel(B->GetModelIndex())->boundingBox.GetSize();
-					size = B->GetMatrix() * size;
+					size = B->GetMatrix().r() * size;
 					if(size.z < A->GetPosition().z ||
 					   (Invert(A->GetMatrix(), inv) * size).z < 0.0f)
 						skipShift = true;
@@ -1222,7 +1245,7 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 				float f = Min(Abs(dir.z), 0.9f);
 				dir.z = 0.0f;
 				dir.Normalise();
-				B->GetMatrix().Translate(dir * colpoints[mostColliding].GetDepth() / (1.0f - f));
+				B->GetMatrix()->Translate(dir * colpoints[mostColliding].GetDepth() / (1.0f - f));
 				// BUG? how can that ever happen? A is a Ped
 				if(B->IsVehicle())
 					B->ProcessEntityCollision(A, colpoints);
@@ -1239,7 +1262,7 @@ CPhysical::ProcessShiftSectorList(CPtrList *lists)
 
 	if(!doShift)
 		return false;
-	GetMatrix().Translate(shift);
+	GetMatrix()->Translate(shift);
 	if(boat)
 		ProcessEntityCollision(boat, colpoints);
 	return true;
@@ -1486,7 +1509,7 @@ CPhysical::ProcessCollisionSectorList(CPtrList *lists)
 					else{
 						CMatrix inv;
 						CVector size = CModelInfo::GetColModel(A->GetModelIndex())->boundingBox.GetSize();
-						size = A->GetMatrix() * size;
+						size = A->GetMatrix().r() * size;
 						if(size.z < B->GetPosition().z ||
 						   (Invert(B->GetMatrix(), inv) * size).z < 0.0f){
 							skipCollision = true;
@@ -1505,7 +1528,7 @@ CPhysical::ProcessCollisionSectorList(CPtrList *lists)
 					else{
 						CMatrix inv;
 						CVector size = CModelInfo::GetColModel(B->GetModelIndex())->boundingBox.GetSize();
-						size = B->GetMatrix() * size;
+						size = B->GetMatrix().r() * size;
 						if(size.z < A->GetPosition().z ||
 						   (Invert(A->GetMatrix(), inv) * size).z < 0.0f){
 							skipCollision = true;
@@ -1822,7 +1845,7 @@ CPhysical::ProcessShift(void)
 		CMatrix matrix(GetMatrix());
 		ApplyMoveSpeed();
 		ApplyTurnSpeed();
-		GetMatrix().Reorthogonalise();
+		GetMatrix()->Reorthogonalise();
 
 		CWorld::AdvanceCurrentScanCode();
 
@@ -1838,7 +1861,7 @@ CPhysical::ProcessShift(void)
 			CWorld::AdvanceCurrentScanCode();
 			for(node = m_entryInfoList.first; node; node = node->next)
 				if(ProcessCollisionSectorList(node->sector->m_lists)){
-					GetMatrix() = matrix;
+					GetMatrix().r() = matrix;
 					return;
 				}
 		}
@@ -1945,7 +1968,7 @@ CPhysical::ProcessCollision(void)
 			   !ped->bWasStanding &&
 			   ped->bIsStanding)
 				savedMatrix.GetPosition().z = GetPosition().z;
-			GetMatrix() = savedMatrix;
+			GetMatrix().r() = savedMatrix;
 			CTimer::SetTimeStep(savedTimeStep);
 			return;
 		}
@@ -1953,7 +1976,7 @@ CPhysical::ProcessCollision(void)
 		   !ped->bWasStanding &&
 		   ped->bIsStanding)
 			savedMatrix.GetPosition().z = GetPosition().z;
-		GetMatrix() = savedMatrix;
+		GetMatrix().r() = savedMatrix;
 		CTimer::SetTimeStep(savedTimeStep);
 		if(IsVehicle()){
 			CVehicle *veh = (CVehicle*)this;
@@ -1975,7 +1998,7 @@ CPhysical::ProcessCollision(void)
 	
 	ApplyMoveSpeed();
 	ApplyTurnSpeed();
-	GetMatrix().Reorthogonalise();
+	GetMatrix()->Reorthogonalise();
 	m_bIsVehicleBeingShifted = false;
 	bSkipLineCol = false;
 	if(!m_vecMoveSpeed.IsZero() ||

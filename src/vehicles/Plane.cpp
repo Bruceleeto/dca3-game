@@ -106,7 +106,7 @@ void
 CPlane::DeleteRwObject(void)
 {
 	if(m_rwObject && RwObjectGetType(m_rwObject) == rpATOMIC){
-		GetMatrix().Detach();
+		GetMatrix()->Detach();
 		if(RwObjectGetType(m_rwObject) == rpATOMIC){	// useless check
 			RwFrame *f = RpAtomicGetFrame((RpAtomic*)m_rwObject);
 			RpAtomicDestroy((RpAtomic*)m_rwObject);
@@ -365,8 +365,8 @@ CPlane::ProcessControl(void)
 			CVector posFront2 = (1.0f - f)*pPathNodes[curPathNodeFront2].p + f*pPathNodes[nextPathNodeFront2].p;
 
 			// Now set matrix
-			GetMatrix().SetTranslateOnly((posRear + posFront) / 2.0f);
-			GetMatrix().GetPosition().z += 4.3f;
+			GetMatrix()->SetTranslateOnly((posRear + posFront) / 2.0f);
+			GetMatrix()->GetPosition().z += 4.3f;
 			CVector fwd = posFront - posRear;
 			fwd.Normalise();
 			if(pitch != 0.0f){
@@ -381,9 +381,9 @@ CPlane::ProcessControl(void)
 				right.z += 3.0f*roll.z;
 			right.Normalise();
 			CVector up = CrossProduct(right, fwd);
-			GetMatrix().GetRight() = right;
-			GetMatrix().GetUp() = up;
-			GetMatrix().GetForward() = fwd;
+			GetMatrix()->GetRight() = right;
+			GetMatrix()->GetUp() = up;
+			GetMatrix()->GetForward() = fwd;
 
 			// Set speed
 			m_vecMoveSpeed = fwd*PlanePathSpeed[m_nPlaneId]/60.0f;
@@ -517,8 +517,8 @@ CPlane::ProcessControl(void)
 			CVector posFront2 = (1.0f - f)*pathNodes[curPathNodeFront2].p + f*pathNodes[nextPathNodeFront2].p;
 
 			// Now set matrix
-			GetMatrix().SetTranslateOnly((posRear + posFront) / 2.0f);
-			GetMatrix().GetPosition().z += 1.0f;
+			GetMatrix()->SetTranslateOnly((posRear + posFront) / 2.0f);
+			GetMatrix()->GetPosition().z += 1.0f;
 			CVector fwd = posFront - posRear;
 			fwd.Normalise();
 			CVector fwd2 = posFront2 - posRear;
@@ -528,9 +528,9 @@ CPlane::ProcessControl(void)
 			right.z += 3.0f*roll.z;
 			right.Normalise();
 			CVector up = CrossProduct(right, fwd);
-			GetMatrix().GetRight() = right;
-			GetMatrix().GetUp() = up;
-			GetMatrix().GetForward() = fwd;
+			GetMatrix()->GetRight() = right;
+			GetMatrix()->GetUp() = up;
+			GetMatrix()->GetForward() = fwd;
 
 			// Set speed
 			m_vecMoveSpeed = fwd*planePathSpeed/60.0f;
@@ -542,7 +542,7 @@ CPlane::ProcessControl(void)
 	}
 
 	bIsInSafePosition = true;
-	GetMatrix().UpdateRW();
+	GetMatrix()->UpdateRW();
 	UpdateRwFrame();
 
 	// Handle streaming and such
@@ -556,13 +556,13 @@ CPlane::ProcessControl(void)
 				m_rwObject = CModelInfo::GetModelInfo(mi->m_planeLodId)->CreateInstance();
 				POP_MEMID();
 				if(m_rwObject)
-					GetMatrix().AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic*)m_rwObject)));
+					GetMatrix()->AttachRW(RwFrameGetMatrix(RpAtomicGetFrame((RpAtomic*)m_rwObject)));
 			}
 		}
 	}else if(CStreaming::HasModelLoaded(GetModelIndex())){
 		if(m_rwObject && RwObjectGetType(m_rwObject) == rpATOMIC){
 			// Get rid of LOD model
-			GetMatrix().Detach();
+			GetMatrix()->Detach();
 			if(m_rwObject){	// useless check
 				if(RwObjectGetType(m_rwObject) == rpATOMIC){	// useless check
 					RwFrame *f = RpAtomicGetFrame((RpAtomic*)m_rwObject);
@@ -761,7 +761,7 @@ CPlane::InitPlanes(void)
 
 	for(i = 0; i < 3; i++){
 		CPlane *plane = new CPlane(MI_AIRTRAIN, PERMANENT_VEHICLE);
-		plane->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+		plane->GetMatrix()->SetTranslate(0.0f, 0.0f, 0.0f);
 		plane->SetStatus(STATUS_ABANDONED);
 		plane->bIsLocked = true;
 		plane->m_nPlaneId = i;
@@ -775,7 +775,7 @@ CPlane::InitPlanes(void)
 
 	for(i = 0; i < 3; i++){
 		CPlane *plane = new CPlane(MI_DEADDODO, PERMANENT_VEHICLE);
-		plane->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+		plane->GetMatrix()->SetTranslate(0.0f, 0.0f, 0.0f);
 		plane->SetStatus(STATUS_ABANDONED);
 		plane->bIsLocked = true;
 		plane->m_nPlaneId = i;
@@ -933,7 +933,7 @@ CPlane::CreateIncomingCesna(void)
 		pDrugRunCesna = nil;
 	}
 	pDrugRunCesna = new CPlane(MI_DEADDODO, PERMANENT_VEHICLE);
-	pDrugRunCesna->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+	pDrugRunCesna->GetMatrix()->SetTranslate(0.0f, 0.0f, 0.0f);
 	pDrugRunCesna->SetStatus(STATUS_ABANDONED);
 	pDrugRunCesna->bIsLocked = true;
 	pDrugRunCesna->m_nPlaneId = 0;
@@ -955,7 +955,7 @@ CPlane::CreateDropOffCesna(void)
 		pDropOffCesna = nil;
 	}
 	pDropOffCesna = new CPlane(MI_DEADDODO, PERMANENT_VEHICLE);
-	pDropOffCesna->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+	pDropOffCesna->GetMatrix()->SetTranslate(0.0f, 0.0f, 0.0f);
 	pDropOffCesna->SetStatus(STATUS_ABANDONED);
 	pDropOffCesna->bIsLocked = true;
 	pDropOffCesna->m_nPlaneId = 0;

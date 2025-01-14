@@ -1,5 +1,5 @@
 #include "common.h"
-
+extern void stacktrace();
 CMatrix::CMatrix(void)
 {
 	m_attachment = nil;
@@ -64,6 +64,10 @@ CMatrix::Update(void)
 	GetForward() = m_attachment->up;
 	GetUp() = m_attachment->at;
 	GetPosition() = m_attachment->pos;
+	if (std::isnan(m_attachment->pos.x)) {
+		fprintf(stderr, "m_attachment->pos.x is NaN\n");
+		stacktrace();
+	}
 }
 
 void
@@ -74,6 +78,10 @@ CMatrix::UpdateRW(void)
 		m_attachment->up = GetForward();
 		m_attachment->at = GetUp();
 		m_attachment->pos = GetPosition();
+		if (std::isnan(m_attachment->pos.x)) {
+			fprintf(stderr, "2 m_attachment->pos.x is NaN\n");
+			stacktrace();
+		}
 		RwMatrixUpdate(m_attachment);
 	}
 }

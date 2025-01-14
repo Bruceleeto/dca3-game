@@ -1340,7 +1340,7 @@ CVehicle::Load(uint8*& buf)
 	ReadSaveBuf(&tmp.GetPosition().x, buf);
 	ReadSaveBuf(&tmp.GetPosition().y, buf);
 	ReadSaveBuf(&tmp.GetPosition().z, buf);
-	m_matrix = tmp;
+	SetMatrix(tmp);
 	SkipSaveBuf(buf, 16);
 	LoadEntityFlags(buf);
 	SkipSaveBuf(buf, 212);

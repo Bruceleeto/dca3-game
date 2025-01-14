@@ -52,23 +52,23 @@ CTrafficLights::DisplayActualLight(CEntity *ent)
 	case CAR_LIGHTS_GREEN:
 		r = 0;
 		g = 255;
-		pos1 = ent->GetMatrix() * CVector(x, yMax, zMin);
-		pos2 = ent->GetMatrix() * CVector(x, yMin, zMin);
+		pos1 = ent->GetMatrix().r() * CVector(x, yMax, zMin);
+		pos2 = ent->GetMatrix().r() * CVector(x, yMin, zMin);
 		id = 0;
 		break;
 	case CAR_LIGHTS_YELLOW:
 		r = 255;
 		g = 128;
-		pos1 = ent->GetMatrix() * CVector(x, yMax, (zMin+zMax)/2.0f);
-		pos2 = ent->GetMatrix() * CVector(x, yMin, (zMin+zMax)/2.0f);
+		pos1 = ent->GetMatrix().r() * CVector(x, yMax, (zMin+zMax)/2.0f);
+		pos2 = ent->GetMatrix().r() * CVector(x, yMin, (zMin+zMax)/2.0f);
 		id = 1;
 		break;
 	case CAR_LIGHTS_RED:
 	default:
 		r = 255;
 		g = 0;
-		pos1 = ent->GetMatrix() * CVector(x, yMax, zMax);
-		pos2 = ent->GetMatrix() * CVector(x, yMin, zMax);
+		pos1 = ent->GetMatrix().r() * CVector(x, yMax, zMax);
+		pos2 = ent->GetMatrix().r() * CVector(x, yMin, zMax);
 		id = 2;
 		break;
 	}

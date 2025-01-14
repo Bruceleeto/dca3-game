@@ -1496,10 +1496,10 @@ CCullZone::TestEntityVisibilityFromCullZone(CEntity *entity, float extraDist, CE
 	else
 		boundMaxZ += extraDist;
 
-	CVector vecMin = entity->GetMatrix() * CVector(boundMinX, boundMinY, boundMinZ);
-	CVector vecMaxX = entity->GetMatrix() * CVector(boundMaxX, boundMinY, boundMinZ);
-	CVector vecMaxY = entity->GetMatrix() * CVector(boundMinX, boundMaxY, boundMinZ);
-	CVector vecMaxZ = entity->GetMatrix() * CVector(boundMinX, boundMinY, boundMaxZ);
+	CVector vecMin = entity->GetMatrix().r() * CVector(boundMinX, boundMinY, boundMinZ);
+	CVector vecMaxX = entity->GetMatrix().r() * CVector(boundMaxX, boundMinY, boundMinZ);
+	CVector vecMaxY = entity->GetMatrix().r() * CVector(boundMinX, boundMaxY, boundMinZ);
+	CVector vecMaxZ = entity->GetMatrix().r() * CVector(boundMinX, boundMinY, boundMaxZ);
 	CVector dirx = vecMaxX - vecMin;
 	CVector diry = vecMaxY - vecMin;
 	CVector dirz = vecMaxZ - vecMin;
@@ -1534,7 +1534,7 @@ CCullZone::TestEntityVisibilityFromCullZone(CEntity *entity, float extraDist, CE
 	// check both xy planes
 	for(int i = 0; i < NumTestPoints; i++){
 		CVector testPoint = aTestPoints[i];
-		CVector mid = entity->GetMatrix() * CVector(midX, midY, midZ);
+		CVector mid = entity->GetMatrix().r() * CVector(midX, midY, midZ);
 		mid.z += 0.1f;
 		if(DoThoroughLineTest(testPoint, mid, entity))
 			return true;

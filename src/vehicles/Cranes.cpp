@@ -75,7 +75,7 @@ void CCranes::InitCranes(void)
 
 void CCranes::AddThisOneCrane(CEntity* pEntity)
 {
-	pEntity->GetMatrix().ResetOrientation();
+	pEntity->GetMatrix()->ResetOrientation();
 	if (NumCranes >= NUM_CRANES)
 		return;
 	CCrane* pCrane = &aCranes[NumCranes];
@@ -386,7 +386,7 @@ void CCrane::Update(void)
 	m_pCraneEntity->GetForward().y = fCos;
 	m_pCraneEntity->GetRight().y = fSin;
 	m_pCraneEntity->GetForward().x = -fSin;
-	m_pCraneEntity->GetMatrix().UpdateRW();
+	m_pCraneEntity->GetMatrix()->UpdateRW();
 	m_pCraneEntity->UpdateRwFrame();
 	SetHookMatrix();
 }
@@ -405,7 +405,7 @@ bool CCrane::RotateCarriedCarProperly()
 	float fDeltaThisFrame = CAR_ROTATION_SPEED * CTimer::GetTimeStep();
 	if (Abs(fAngleDelta) <= fDeltaThisFrame) // no rotation is actually applied?
 		return true;
-	m_pVehiclePickedUp->GetMatrix().RotateZ(fAngleDelta < 0 ? -fDeltaThisFrame : fDeltaThisFrame);
+	m_pVehiclePickedUp->GetMatrix()->RotateZ(fAngleDelta < 0 ? -fDeltaThisFrame : fDeltaThisFrame);
 	return false;
 }
 
@@ -586,7 +586,7 @@ void CCrane::FindParametersForTarget(float X, float Y, float Z, float* pAngle, f
 	*pHeight = Z;
 }
 
-void CCrane::CalcHookCoordinates(float* pX, float* pY, float* pZ)
+void CCrane::CalcHookCoordinates(rw::float32W* pX, float* pY, float* pZ)
 {
 	*pX = Cos(m_fHookAngle) * m_fHookOffset + m_pCraneEntity->GetPosition().x;
 	*pY = Sin(m_fHookAngle) * m_fHookOffset + m_pCraneEntity->GetPosition().y;
@@ -604,7 +604,7 @@ void CCrane::SetHookMatrix()
 	m_pHook->GetForward() = CrossProduct(up, m_pHook->GetRight());
 	m_pHook->GetUp() = up;
 	m_pHook->SetOrientation(0.0f, 0.0f, -HALFPI);
-	m_pHook->GetMatrix().UpdateRW();
+	m_pHook->GetMatrix()->UpdateRW();
 	m_pHook->UpdateRwFrame();
 	CWorld::Remove(m_pHook);
 	CWorld::Add(m_pHook);

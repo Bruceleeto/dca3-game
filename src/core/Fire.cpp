@@ -106,7 +106,7 @@ CFire::ProcessFire(void)
 		if (veh && veh->IsVehicle() && veh->IsCar()) {
 			CVehicleModelInfo *mi = ((CVehicleModelInfo*)CModelInfo::GetModelInfo(veh->GetModelIndex()));
 			CVector ModelInfo = mi->m_positions[CAR_POS_HEADLIGHTS];
-			ModelInfo = m_pEntity->GetMatrix() * ModelInfo;
+			ModelInfo = m_pEntity->GetMatrix().r() * ModelInfo;
 
 			firePos.x = ModelInfo.x;
 			firePos.y = ModelInfo.y;

@@ -211,7 +211,7 @@ void CMovingThings::Render()
 // ---------- CMovingThing ----------
 void CMovingThing::Update()
 {
-	m_pEntity->GetMatrix().UpdateRW();
+	m_pEntity->GetMatrix()->UpdateRW();
 	m_pEntity->UpdateRwFrame();
 	
 	if (SQR(m_pEntity->GetPosition().x - TheCamera.GetPosition().x) + SQR(m_pEntity->GetPosition().y - TheCamera.GetPosition().y) < 40000.0f) {

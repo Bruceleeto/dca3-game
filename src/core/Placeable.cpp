@@ -4,7 +4,7 @@
 
 CPlaceable::CPlaceable(void)
 {
-	m_matrix.SetScale(1.0f);
+	m_matrixPlaceable.SetScale(1.0f);
 }
 
 CPlaceable::~CPlaceable(void)
@@ -14,9 +14,9 @@ CPlaceable::~CPlaceable(void)
 void
 CPlaceable::SetHeading(float angle)
 {
-	CVector pos = GetMatrix().GetPosition();
-	m_matrix.SetRotateZ(angle);
-	GetMatrix().Translate(pos);
+	CVector pos = GetMatrix()->GetPosition();
+	m_matrixPlaceable.SetRotateZ(angle);
+	GetMatrix()->Translate(pos);
 }
 
 bool

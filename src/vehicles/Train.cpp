@@ -236,7 +236,7 @@ CTrain::ProcessControl(void)
 			break;
 		}
 
-	GetMatrix().UpdateRW();
+	GetMatrix()->UpdateRW();
 	UpdateRwFrame();
 	RemoveAndAdd();
 
@@ -446,7 +446,7 @@ CTrain::InitTrains(void)
 	int16 wagonGroup[] = { 0, 0, 0,  1, 1 };
 	for(i = 0; i < 5; i++){
 		train = new CTrain(MI_TRAIN, PERMANENT_VEHICLE);
-		train->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+		train->GetMatrix()->SetTranslate(0.0f, 0.0f, 0.0f);
 		train->SetStatus(STATUS_ABANDONED);
 		train->bIsLocked = true;
 		train->m_fWagonPosition = wagonPositions[i];
@@ -465,7 +465,7 @@ CTrain::InitTrains(void)
 	int16 wagonGroup_S[] = { 0, 0,  1, 1,  2, 2,  3, 3 };
 	for(i = 0; i < 8; i++){
 		train = new CTrain(MI_TRAIN, PERMANENT_VEHICLE);
-		train->GetMatrix().SetTranslate(0.0f, 0.0f, 0.0f);
+		train->GetMatrix()->SetTranslate(0.0f, 0.0f, 0.0f);
 		train->SetStatus(STATUS_ABANDONED);
 		train->bIsLocked = true;
 		train->m_fWagonPosition = wagonPositions_S[i];

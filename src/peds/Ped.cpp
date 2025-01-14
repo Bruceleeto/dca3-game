@@ -2184,7 +2184,7 @@ CPed::ProcessControl(void)
 							CVector colMinVec = collidingCol->boundingBox.min;
 							CVector colMaxVec = collidingCol->boundingBox.max;
 
-							CVector vehColCenterDist = collidingVeh->GetMatrix() * ((colMinVec + colMaxVec) * 0.5f) - GetPosition();
+							CVector vehColCenterDist = collidingVeh->GetMatrix().r() * ((colMinVec + colMaxVec) * 0.5f) - GetPosition();
 
 							// TLVC = To look vehicle center
 
@@ -2316,7 +2316,7 @@ CPed::ProcessControl(void)
 							CVector colMinVec = collidingCol->boundingBox.min;
 							CVector colMaxVec = collidingCol->boundingBox.max;
 
-							CVector vehColCenterDist = collidingVeh->GetMatrix() * ((colMinVec + colMaxVec) * 0.5f) - GetPosition();
+							CVector vehColCenterDist = collidingVeh->GetMatrix().r() * ((colMinVec + colMaxVec) * 0.5f) - GetPosition();
 
 							// TLVC = To look vehicle center
 
@@ -2508,9 +2508,9 @@ CPed::ProcessControl(void)
 #endif
 
 						if (flyDir > 0 && !bSomeVCflag1) {
-							GetMatrix().SetTranslateOnly((flyDir == 2 ? obstacleForFlyingOtherDir.point : obstacleForFlying.point));
-							GetMatrix().GetPosition().z += FEET_OFFSET;
-							GetMatrix().UpdateRW();
+							GetMatrix()->SetTranslateOnly((flyDir == 2 ? obstacleForFlyingOtherDir.point : obstacleForFlying.point));
+							GetMatrix()->GetPosition().z += FEET_OFFSET;
+							GetMatrix()->UpdateRW();
 							SetLanding();
 							bIsStanding = true;
 						}
@@ -2527,7 +2527,7 @@ CPed::ProcessControl(void)
 #ifdef FIX_BUGS
 						if (!IsPlayer())
 #endif
-						GetMatrix().GetPosition() += 0.25f * offsetToCheck;
+						GetMatrix()->GetPosition() += 0.25f * offsetToCheck;
 
 						m_fRotationCur = CGeneral::GetRadianAngleBetweenPoints(offsetToCheck.x, offsetToCheck.y, 0.0f, 0.0f);
 						m_fRotationCur = CGeneral::LimitRadianAngle(m_fRotationCur);
@@ -2619,14 +2619,14 @@ CPed::ProcessControl(void)
 					if (CWorld::ProcessVerticalLine(offsetToCheck, GetPosition().z - FEET_OFFSET, foundCol, foundEnt, true, true, false, true, false, false, nil)) {
 #ifdef VC_PED_PORTS
 						if (!bSomeVCflag1 || FEET_OFFSET + foundCol.point.z < GetPosition().z) {
-							GetMatrix().GetPosition().z = FEET_OFFSET + foundCol.point.z;
-							GetMatrix().UpdateRW();
+							GetMatrix()->GetPosition().z = FEET_OFFSET + foundCol.point.z;
+							GetMatrix()->UpdateRW();
 							if (bSomeVCflag1)
 								bSomeVCflag1 = false;
 						}
 #else
-						GetMatrix().GetPosition().z = FEET_OFFSET + foundCol.point.z;
-						GetMatrix().UpdateRW();
+						GetMatrix()->GetPosition().z = FEET_OFFSET + foundCol.point.z;
+						GetMatrix()->UpdateRW();
 #endif
 						SetLanding();
 						bIsStanding = true;
@@ -3107,12 +3107,12 @@ CPed::ProcessEntityCollision(CEntity *collidingEnt, CColPoint *collidingPoints)
 					bStillOnValidPoly = true;
 #ifdef VC_PED_PORTS
 					if(!bSomeVCflag1 || FEET_OFFSET + intersectionPoint.point.z < GetPosition().z) {
-						GetMatrix().GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
+						GetMatrix()->GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
 						if (bSomeVCflag1)
 							bSomeVCflag1 = false;
 					}
 #else
-					GetMatrix().GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
+					GetMatrix()->GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
 #endif
 
 					m_vecMoveSpeed.z = 0.0f;
@@ -3185,12 +3185,12 @@ CPed::ProcessEntityCollision(CEntity *collidingEnt, CColPoint *collidingPoints)
 							}
 #ifdef VC_PED_PORTS
 							if (!bSomeVCflag1 || FEET_OFFSET + intersectionPoint.point.z < GetPosition().z) {
-								GetMatrix().GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
+								GetMatrix()->GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
 								if (bSomeVCflag1)
 									bSomeVCflag1 = false;
 							}
 #else
-						    GetMatrix().GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
+						    GetMatrix()->GetPosition().z = FEET_OFFSET + intersectionPoint.point.z;
 #endif
 							m_nSurfaceTouched = intersectionPoint.surfaceB;
 							if (m_nSurfaceTouched == SURFACE_STEEP_CLIFF) {
@@ -3290,7 +3290,7 @@ CPed::ProcessEntityCollision(CEntity *collidingEnt, CColPoint *collidingPoints)
 					float speed = m_vecMoveSpeed.Magnitude2D();
 					sphereNormal.x = -m_vecMoveSpeed.x / Max(0.001f, speed);
 					sphereNormal.y = -m_vecMoveSpeed.y / Max(0.001f, speed);
-					GetMatrix().GetPosition().z -= 0.05f;
+					GetMatrix()->GetPosition().z -= 0.05f;
 					bSomeVCflag1 = true;
 				}
 #endif
@@ -3595,7 +3595,7 @@ CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 		objUpsideDown = true;
 
 	if (obj->GetModelIndex() != MI_TRAFFICLIGHTS && obj->GetModelIndex() != MI_SINGLESTREETLIGHTS1 && obj->GetModelIndex() != MI_SINGLESTREETLIGHTS2) {
-		objColCenter = obj->GetMatrix() * objColCenter;
+		objColCenter = obj->GetMatrix().r() * objColCenter;
 	} else {
 		checkIntervalInDist = 0.4f;
 		if (objMat.GetUp().z <= 0.57f) {
@@ -3612,7 +3612,7 @@ CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 			objColCenter = obj->GetPosition();
 		} else {
 			objColCenter.x = adjustedColMax.x - 0.25f;
-			objColCenter = obj->GetMatrix() * objColCenter;
+			objColCenter = obj->GetMatrix().r() * objColCenter;
 			distLimitForTimer = 0.75f;
 		}
 		objUpsideDown = false;
@@ -3698,7 +3698,7 @@ CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 			}
 #ifdef NEW_WALK_AROUND_ALGORITHM
 			else {
-				CVector tl = obj->GetMatrix() * CVector(adjustedColMin.x, adjustedColMax.y, 0.0f) - GetPosition();
+				CVector tl = obj->GetMatrix().r() * CVector(adjustedColMin.x, adjustedColMax.y, 0.0f) - GetPosition();
 				if (goingToEnterCar && (m_vehDoor == CAR_DOOR_LF || m_vehDoor == CAR_DOOR_LR)) {
 					cornerToGo = tl;
 					m_walkAroundType = 1;
@@ -3735,7 +3735,7 @@ CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 			}
 #ifdef NEW_WALK_AROUND_ALGORITHM
 			else {
-				CVector tr = obj->GetMatrix() * CVector(adjustedColMax.x, adjustedColMax.y, 0.0f) - GetPosition();
+				CVector tr = obj->GetMatrix().r() * CVector(adjustedColMax.x, adjustedColMax.y, 0.0f) - GetPosition();
 				if (tr.Magnitude2D() < cornerToGo.Magnitude2D()) {
 					if (goingToEnterCar && (m_vehDoor == CAR_DOOR_RF || m_vehDoor == CAR_DOOR_RR)) {
 						cornerToGo = tr;
@@ -3774,7 +3774,7 @@ CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 			}
 #ifdef NEW_WALK_AROUND_ALGORITHM
 			else {
-				CVector br = obj->GetMatrix() * CVector(adjustedColMax.x, adjustedColMin.y, 0.0f) - GetPosition();
+				CVector br = obj->GetMatrix().r() * CVector(adjustedColMax.x, adjustedColMin.y, 0.0f) - GetPosition();
 				if (iWouldPreferGoingBack == 2)
 					m_walkAroundType = 4;
 				else if (br.Magnitude2D() < cornerToGo.Magnitude2D()) {
@@ -3812,7 +3812,7 @@ CPed::SetDirectionToWalkAroundObject(CEntity *obj)
 			}
 #ifdef NEW_WALK_AROUND_ALGORITHM
 			else {
-				CVector bl = obj->GetMatrix() * CVector(adjustedColMin.x, adjustedColMin.y, 0.0f) - GetPosition();
+				CVector bl = obj->GetMatrix().r() * CVector(adjustedColMin.x, adjustedColMin.y, 0.0f) - GetPosition();
 				if (iWouldPreferGoingBack == 1)
 					m_walkAroundType = 7;
 				else if (bl.Magnitude2D() < cornerToGo.Magnitude2D()) {
@@ -7144,8 +7144,8 @@ CPed::LookForInterestingNodes(void)
 					for (int e = 0; e < model->GetNum2dEffects(); e++) {
 						effect = model->Get2dEffect(e);
 						if (effect->type == EFFECT_ATTRACTOR && effect->attractor.probability >= randVal) {
-							objMat = &veh->GetMatrix();
-							CVector effectPos = veh->GetMatrix() * effect->pos;
+							objMat = &veh->GetMatrix().r();
+							CVector effectPos = veh->GetMatrix().r() * effect->pos;
 							effectDist = effectPos - GetPosition();
 							if (effectDist.MagnitudeSqr() < sq(8.0f)) {
 								found = true;
@@ -7162,8 +7162,8 @@ CPed::LookForInterestingNodes(void)
 					for (int e = 0; e < model->GetNum2dEffects(); e++) {
 						effect = model->Get2dEffect(e);
 						if (effect->type == EFFECT_ATTRACTOR && effect->attractor.probability >= randVal) {
-							objMat = &obj->GetMatrix();
-							CVector effectPos = obj->GetMatrix() * effect->pos;
+							objMat = &obj->GetMatrix().r();
+							CVector effectPos = obj->GetMatrix().r() * effect->pos;
 							effectDist = effectPos - GetPosition();
 							if (effectDist.MagnitudeSqr() < sq(8.0f)) {
 								found = true;
@@ -7180,8 +7180,8 @@ CPed::LookForInterestingNodes(void)
 					for (int e = 0; e < model->GetNum2dEffects(); e++) {
 						effect = model->Get2dEffect(e);
 						if (effect->type == EFFECT_ATTRACTOR && effect->attractor.probability >= randVal) {
-							objMat = &building->GetMatrix();
-							CVector effectPos = building->GetMatrix() * effect->pos;
+							objMat = &building->GetMatrix().r();
+							CVector effectPos = building->GetMatrix().r() * effect->pos;
 							effectDist = effectPos - GetPosition();
 							if (effectDist.MagnitudeSqr() < sq(8.0f)) {
 								found = true;
@@ -7198,8 +7198,8 @@ CPed::LookForInterestingNodes(void)
 					for (int e = 0; e < model->GetNum2dEffects(); e++) {
 						effect = model->Get2dEffect(e);
 						if (effect->type == EFFECT_ATTRACTOR && effect->attractor.probability >= randVal) {
-							objMat = &building->GetMatrix();
-							CVector effectPos = building->GetMatrix() * effect->pos;
+							objMat = &building->GetMatrix().r();
+							CVector effectPos = building->GetMatrix().r() * effect->pos;
 							effectDist = effectPos - GetPosition();
 							if (effectDist.MagnitudeSqr() < sq(8.0f)) {
 								found = true;
@@ -7857,10 +7857,10 @@ CPed::PossiblyFindBetterPosToSeekCar(CVector *pos, CVehicle *veh)
 		CVector leftFrontPos = CVector(colMin->x - 0.5f, 0.5f + colMax->y, 0.0f);
 		CVector rightFrontPos = CVector(0.5f + colMax->x, 0.5f + colMax->y, 0.0f);
 
-		leftRearPos = veh->GetMatrix() * leftRearPos;
-		rightRearPos = veh->GetMatrix() * rightRearPos;
-		leftFrontPos = veh->GetMatrix() * leftFrontPos;
-		rightFrontPos = veh->GetMatrix() * rightFrontPos;
+		leftRearPos = veh->GetMatrix().r() * leftRearPos;
+		rightRearPos = veh->GetMatrix().r() * rightRearPos;
+		leftFrontPos = veh->GetMatrix().r() * leftFrontPos;
+		rightFrontPos = veh->GetMatrix().r() * rightFrontPos;
 
 		// Makes helperPos veh-ped distance vector.
 		helperPos -= veh->GetPosition();
@@ -7868,7 +7868,7 @@ CPed::PossiblyFindBetterPosToSeekCar(CVector *pos, CVehicle *veh)
 		// ?!? I think it's absurd to use this unless another function like SeekCar finds next pos. with it and we're trying to simulate it's behaviour.
 		// On every run it returns another pos. for ped, with same distance to the veh.
 		// Sequence of positions are not guaranteed, it depends on global pos. (So sometimes it returns positions to make ped draw circle, sometimes don't)
-		helperPos = veh->GetMatrix() * helperPos;
+		helperPos = veh->GetMatrix().r() * helperPos;
 
 		float vehForwardHeading = veh->GetForward().Heading();
 
@@ -8537,9 +8537,9 @@ void
 CPed::Load(uint8*& buf)
 {
 	SkipSaveBuf(buf, 52);
-	CopyFromBuf(buf, GetMatrix().GetPosition().x);
-	CopyFromBuf(buf, GetMatrix().GetPosition().y);
-	CopyFromBuf(buf, GetMatrix().GetPosition().z);
+	CopyFromBuf(buf, GetMatrix()->GetPosition().x);
+	CopyFromBuf(buf, GetMatrix()->GetPosition().y);
+	CopyFromBuf(buf, GetMatrix()->GetPosition().z);
 	SkipSaveBuf(buf, 288);
 	CopyFromBuf(buf, CharCreatedBy);
 	SkipSaveBuf(buf, 351);

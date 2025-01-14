@@ -3125,22 +3125,22 @@ CPed::KillPedWithCar(CVehicle *car, float impulse)
 
 					if (carFrontZ < -0.2f) {
 						// Highest point of car's back
-						carHighestZ = (car->GetMatrix() * CVector(0.0f, vehColMinY, vehColMaxZ)).z;
+						carHighestZ = (car->GetMatrix().r() * CVector(0.0f, vehColMinY, vehColMaxZ)).z;
 						carLength = vehColMaxY - vehColMinY;
 
 					} else if (carFrontZ > 0.1f) {
 						// Highest point of car's front
-						carHighestZ = (car->GetMatrix() * CVector(0.0f, vehColMaxY, vehColMaxZ)).z;
+						carHighestZ = (car->GetMatrix().r() * CVector(0.0f, vehColMaxY, vehColMaxZ)).z;
 						float highestZDist = carHighestZ - GetPosition().z;
 						if (highestZDist > 0.0f) {
-							GetMatrix().GetPosition().z += 0.5f * highestZDist;
+							GetMatrix()->GetPosition().z += 0.5f * highestZDist;
 							carHighestZ += highestZDist * 0.25f;
 						}
 						carLength = vehColMaxY;
 
 					} else {
 						// Highest point of car's front
-						carHighestZ = (car->GetMatrix() * CVector(0.0f, vehColMaxY, vehColMaxZ)).z;
+						carHighestZ = (car->GetMatrix().r() * CVector(0.0f, vehColMaxY, vehColMaxZ)).z;
 						carLength = vehColMaxY;
 					}
 

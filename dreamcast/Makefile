@@ -96,9 +96,10 @@ OBJS_O3 =
 # 	../vendor/librw/src/base.o \
 # 	../src/renderer/Shadows.o
 
-OBJS_NO_FAST_MATH = \
-	../src/core/Cam.o \
-	../src/core/Camera.o
+OBJS_NO_FAST_MATH =
+# \
+# 	../src/core/Cam.o \
+# 	../src/core/Camera.o
 
 KOS_CPPFLAGS += -mfsrra -mfsca  -fbuiltin #-ffast-math -ffp-contract=fast \
 	
@@ -111,7 +112,7 @@ endif
 
 DEPS = $(OBJS:.o=.d) $(OBJS_TEXCONV:.o:.d)
 
-CXXFLAGS += $(if $(WITH_32MB),-O3,-Os) \
+CXXFLAGS += $(if $(WITH_32MB),-O3,-O0) \
 	$(if $(WITH_IDE),-DWITH_IDE) \
 	$(if $(WITH_PROF),-DWITH_PROF=\"$(WITH_PROF)\") \
 	-MMD -MP -ffunction-sections -fdata-sections \

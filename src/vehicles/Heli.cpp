@@ -144,11 +144,11 @@ CHeli::ProcessControl(void)
 			if(GetPosition().z > 31.55f)
 				break;
 			m_pathState = 7;
-			GetMatrix().GetPosition().z = 31.55f;
+			GetMatrix()->GetPosition().z = 31.55f;
 			m_vecMoveSpeed = CVector(0.0f, 0.0f, 0.0f);
 			break;
 		case 7:
-			GetMatrix().GetPosition().z = 31.55f;
+			GetMatrix()->GetPosition().z = 31.55f;
 			target = GetPosition();
 			break;
 
@@ -214,8 +214,8 @@ CHeli::ProcessControl(void)
 		vTargetDist = target - GetPosition();
 		m_fTargetZ = target.z;
 		if(m_pathState == 6){
-			GetMatrix().GetPosition().x = GetMatrix().GetPosition().x*0.99f + target.x*0.01f;
-			GetMatrix().GetPosition().y = GetMatrix().GetPosition().y*0.99f + target.y*0.01f;
+			GetMatrix()->GetPosition().x = GetMatrix()->GetPosition().x*0.99f + target.x*0.01f;
+			GetMatrix()->GetPosition().y = GetMatrix()->GetPosition().y*0.99f + target.y*0.01f;
 		}
 	}else{
 		vTargetDist = FindPlayerCoors() - GetPosition();
@@ -369,8 +369,8 @@ CHeli::ProcessControl(void)
 		m_vecMoveSpeed.x += speedDir.x*speedInc;
 		m_vecMoveSpeed.y += speedDir.y*speedInc;
 	}
-	GetMatrix().GetPosition().x += m_vecMoveSpeed.x*CTimer::GetTimeStep();
-	GetMatrix().GetPosition().y += m_vecMoveSpeed.y*CTimer::GetTimeStep();
+	GetMatrix()->GetPosition().x += m_vecMoveSpeed.x*CTimer::GetTimeStep();
+	GetMatrix()->GetPosition().y += m_vecMoveSpeed.y*CTimer::GetTimeStep();
 
 	// Find z target
 	if(m_heliStatus == HELI_STATUS_FLY_AWAY)
@@ -391,7 +391,7 @@ CHeli::ProcessControl(void)
 		m_vecMoveSpeed.z -= speedIncZ;
 	else
 		m_vecMoveSpeed.z += speedIncZ*1.5f;
-	GetMatrix().GetPosition().z += m_vecMoveSpeed.z*CTimer::GetTimeStep();
+	GetMatrix()->GetPosition().z += m_vecMoveSpeed.z*CTimer::GetTimeStep();
 
 	// Find angular speed
 	float targetAngularSpeed;
@@ -553,7 +553,7 @@ CHeli::ProcessControl(void)
 
 	RemoveAndAdd();
 	bIsInSafePosition = true;
-	GetMatrix().UpdateRW();
+	GetMatrix()->UpdateRW();
 	UpdateRwFrame();
 }
 
@@ -817,9 +817,9 @@ CHeli::GenerateHeli(bool catalina)
 		}
 		heliPos.z += 50.0f;
 	}
-	heli->GetMatrix().SetTranslate(heliPos);
+	heli->GetMatrix()->SetTranslate(heliPos);
 	if(catalina)
-		heli->GetMatrix().SetRotateZOnly(DEGTORAD(270.0f));	// game actually uses 3.14 here
+		heli->GetMatrix()->SetRotateZOnly(DEGTORAD(270.0f));	// game actually uses 3.14 here
 
 	heli->SetStatus(STATUS_ABANDONED);
 	heli->bIsLocked = true;

@@ -432,10 +432,10 @@ CGlass::RenderEntityInGlass(CEntity *entity)
 	ASSERT(col!=nil);
 	if ( col->numTriangles >= 2 )
 	{
-		CVector a = object->GetMatrix() * col->vertices[0].Get();
-		CVector b = object->GetMatrix() * col->vertices[1].Get();
-		CVector c = object->GetMatrix() * col->vertices[2].Get();
-		CVector d = object->GetMatrix() * col->vertices[3].Get();
+		CVector a = object->GetMatrix().r() * col->vertices[0].Get();
+		CVector b = object->GetMatrix().r() * col->vertices[1].Get();
+		CVector c = object->GetMatrix().r() * col->vertices[2].Get();
+		CVector d = object->GetMatrix().r() * col->vertices[3].Get();
 
 		if ( object->bGlassCracked )
 		{
@@ -621,10 +621,10 @@ CGlass::WindowRespondsToCollision(CEntity *entity, float amount, CVector speed, 
 	CColModel *col = object->GetColModel();
 	ASSERT(col!=nil);
 	
-	CVector a = object->GetMatrix() * col->vertices[0].Get();
-	CVector b = object->GetMatrix() * col->vertices[1].Get();
-	CVector c = object->GetMatrix() * col->vertices[2].Get();
-	CVector d = object->GetMatrix() * col->vertices[3].Get();
+	CVector a = object->GetMatrix().r() * col->vertices[0].Get();
+	CVector b = object->GetMatrix().r() * col->vertices[1].Get();
+	CVector c = object->GetMatrix().r() * col->vertices[2].Get();
+	CVector d = object->GetMatrix().r() * col->vertices[3].Get();
 
 	float minx = Min(Min(a.x, b.x), Min(c.x, d.x));
 	float maxx = Max(Max(a.x, b.x), Max(c.x, d.x));
@@ -656,7 +656,7 @@ CGlass::WindowRespondsToCollision(CEntity *entity, float amount, CVector speed, 
 	}
 
 	object->bGlassBroken = true;
-	object->GetMatrix().GetPosition().z = -100.0f;
+	object->GetMatrix()->GetPosition().z = -100.0f;
 }
 
 void

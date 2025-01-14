@@ -531,7 +531,7 @@ int8 CRunningScript::ProcessCommands300To399(int32 command)
 		script_assert(pObject);
 		CWorld::Remove(pObject);
 		pObject->SetHeading(DEGTORAD(*(float*)&ScriptParams[1]));
-		pObject->GetMatrix().UpdateRW();
+		pObject->GetMatrix()->UpdateRW();
 		pObject->UpdateRwFrame();
 		CWorld::Add(pObject);
 		return 0;

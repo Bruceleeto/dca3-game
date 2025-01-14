@@ -140,6 +140,7 @@
     "svd": "cpp",
     "print": "cpp",
     "strstream": "cpp",
-    "regex": "cpp"
+    "regex": "cpp",
+    "__availability": "cpp"
   }
 }

@@ -213,7 +213,7 @@ CCamera::Init(void)
 	m_iModeToGoTo = CCam::MODE_FOLLOWPED;
 	m_bJust_Switched = false;
 	m_bUseTransitionBeta = false;
-	GetMatrix().SetScale(1.0f);
+	GetMatrix()->SetScale(1.0f);
 	m_bTargetJustBeenOnTrain = false;
 	m_bInitialNoNodeStaticsSet = false;
 	m_uiLongestTimeInMill = 5000;
@@ -654,19 +654,19 @@ CCamera::Process(void)
 			}
 		}
 
-	GetMatrix().GetRight() = CrossProduct(CamUp, CamFront);	// actually Left
-	GetMatrix().GetForward() = CamFront;
-	GetMatrix().GetUp() = CamUp;
-	GetMatrix().GetPosition() = CamSource;
+	GetMatrix()->GetRight() = CrossProduct(CamUp, CamFront);	// actually Left
+	GetMatrix()->GetForward() = CamFront;
+	GetMatrix()->GetUp() = CamUp;
+	GetMatrix()->GetPosition() = CamSource;
 
 	// Process Shake
 	float shakeStrength = m_fCamShakeForce - 0.28f*(CTimer::GetTimeInMilliseconds()-m_uiCamShakeStart)/1000.0f;
 	shakeStrength = Clamp(shakeStrength, 0.0f, 2.0f);
 	int shakeRand = CGeneral::GetRandomNumber();
 	float shakeOffset = shakeStrength*0.1f;
-	GetMatrix().GetPosition().x += shakeOffset * ((shakeRand & 0xF) - 7);
-	GetMatrix().GetPosition().y += shakeOffset * (((shakeRand & 0xF0) >> 4) - 7);
-	GetMatrix().GetPosition().z += shakeOffset * (((shakeRand & 0xF00) >> 8) - 7);
+	GetMatrix()->GetPosition().x += shakeOffset * ((shakeRand & 0xF) - 7);
+	GetMatrix()->GetPosition().y += shakeOffset * (((shakeRand & 0xF0) >> 4) - 7);
+	GetMatrix()->GetPosition().z += shakeOffset * (((shakeRand & 0xF00) >> 8) - 7);
 
 	if(shakeOffset > 0.0f && m_BlurType != MOTION_BLUR_SNIPER)
 		SetMotionBlurAlpha(Min((int)(shakeStrength*255.0f) + 25, 150));
@@ -683,10 +683,10 @@ CCamera::Process(void)
 		CVector Front = Cams[2].Front;
 		CVector Up = Cams[2].Up;
 
-		GetMatrix().GetRight() = CrossProduct(Up, Front);
-		GetMatrix().GetForward() = Front;
-		GetMatrix().GetUp() = Up;
-		GetMatrix().GetPosition() = Source;
+		GetMatrix()->GetRight() = CrossProduct(Up, Front);
+		GetMatrix()->GetForward() = Front;
+		GetMatrix()->GetUp() = Up;
+		GetMatrix()->GetPosition() = Source;
 
 		CDraw::SetFOV(Cams[2].FOV);
 		m_vecGameCamPos = Cams[ActiveCam].Source;

@@ -107,7 +107,7 @@ CPhoneInfo::Update(void)
 					} else {
 						m_aPhones[phoneId].m_pEntity->GetUp().z = 1.0f;
 					}
-					m_aPhones[phoneId].m_pEntity->GetMatrix().UpdateRW();
+					m_aPhones[phoneId].m_pEntity->GetMatrix()->UpdateRW();
 					m_aPhones[phoneId].m_pEntity->UpdateRwFrame();
 					if (notInCar && !bPickingUpPhone && player->IsPedInControl()) {
 						CVector2D distToPhone = playerPos - m_aPhones[phoneId].m_vecPos;
@@ -146,7 +146,7 @@ CPhoneInfo::Update(void)
 					} else {
 						m_aPhones[phoneId].m_pEntity->GetUp().z = 1.0f;
 					}
-					m_aPhones[phoneId].m_pEntity->GetMatrix().UpdateRW();
+					m_aPhones[phoneId].m_pEntity->GetMatrix()->UpdateRW();
 					m_aPhones[phoneId].m_pEntity->UpdateRwFrame();
 					break;
 				default:
