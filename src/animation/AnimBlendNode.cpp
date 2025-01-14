@@ -140,7 +140,7 @@ CAnimBlendNode::GetCurrentTranslation(CVector &trans, float weight)
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
 		auto kfAdt = sequence->GetDeltaTime(frameA);
-		float t = (kfAdt - remainingTime)/kfAdt;
+		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
 		if(sequence->type & CAnimBlendSequence::KF_TRANS){
 			auto kfAt = sequence->GetTranslation(frameA);
 			auto kfBt = sequence->GetTranslation(frameB);
