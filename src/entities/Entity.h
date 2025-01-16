@@ -131,6 +131,7 @@ public:
 	bool IsPed(void) { return m_type == ENTITY_TYPE_PED; }
 	bool IsObject(void) { return m_type == ENTITY_TYPE_OBJECT; }
 	bool IsDummy(void) { return m_type == ENTITY_TYPE_DUMMY; }
+	bool IsFence(void);
 
 	RpAtomic *GetAtomic(void) {
 		assert(RwObjectGetType(m_rwObject) == rpATOMIC);
