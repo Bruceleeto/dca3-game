@@ -327,7 +327,7 @@ enum Config {
 //#define NEW_RENDERER		// leeds-like world rendering, needs librw
 #endif
 
-#define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)
+// #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc) // JP - Disabled this as it produces incorrect aspect ratio with custom screen resolutions and is not needed otherwise
 
 #ifndef EXTENDED_COLOURFILTER
 #undef SCREEN_DROPLETS		// we need the backbuffer for this effect
