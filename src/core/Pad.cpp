@@ -2785,22 +2785,22 @@ bool CPad::WeaponJustDown(void)
 		case 0:	//Xbox Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				if (NewState.RightTrigger > 128)
+				if (NewState.RightTrigger > 128 && !(OldState.RightTrigger > 128))
 					return true;			
 			}
 			else
 			{
-				if (NewState.RightTrigger > 128)
+				if (NewState.RightTrigger > 128 && !(OldState.RightTrigger > 128))
 					return true;			
 			}
 		case 1:	//PS2 Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.B;
+				return	NewState.B && !OldState.B;
 			}
 			else
 			{
-				return	NewState.B;
+				return	NewState.B && !OldState.B;
 			}
 	}
 
