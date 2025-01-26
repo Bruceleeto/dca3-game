@@ -1132,7 +1132,8 @@ cSampleManager::StartStreamedFile(uint8 nFile, uint32 nPos, uint8 nStream)
 	debugf("StartStreamedFile(%d, %d, %d)\n", nFile, nPos, nStream);
 	uint32_t seek_aligned = 0;
 	if (nPos) {
-		uint32 seek_bytes = nPos * streams[nStream].rate / (streams[nStream].stereo ? 1000: 2000);
+		uint64_t seek_bytes = (uint64_t)nPos * streams[nStream].rate / (streams[nStream].stereo ? 1000: 2000);
+		assert(seek_bytes <= INT32_MAX);
 		seek_aligned = seek_bytes & ~(streams[nStream].stereo ? (STREAM_STAGING_READ_SIZE_STEREO-1) : (STREAM_STAGING_READ_SIZE_MONO-1));
 	}
 	PreloadStreamedFile(nFile, nStream, seek_aligned);
@@ -1164,7 +1165,9 @@ cSampleManager::GetStreamedFilePosition(uint8 nStream)
 	ASSERT( nStream < MAX_STREAMS );
 	int32 rv = 0;
 
-	return streams[nStream].played_samples * 1000 / streams[nStream].rate;
+	int64_t rv64 = (int64_t)streams[nStream].played_samples * 1000 / streams[nStream].rate;
+	assert(rv64 <= INT32_MAX);
+	rv = (int32)rv64;
 	// if(streams[nStream].fd >= 0) {
 	// 	rv = fs_tell(streams[nStream].fd);
 	// }
@@ -1207,7 +1210,10 @@ cSampleManager::GetStreamedFileLength(uint8 nFile)
 	WavHeader hdr;
 	assert(fs_read(fd, &hdr, sizeof(hdr)) == sizeof(hdr));
 
-	rv = hdr.dataSize * 2000 / hdr.numOfChan / hdr.samplesPerSec;
+	uint64_t rv64 = (uint64_t)hdr.dataSize * 2000 / hdr.numOfChan / hdr.samplesPerSec;
+
+	assert(rv64 <= INT32_MAX);
+	rv = (int32)rv64;
 
 	fs_close(fd);
 
