@@ -10,7 +10,7 @@
 #       include <dc/sound/sound.h>
 #   endif
 
-extern bool _dcAudioInitialized;
+extern bool _bSampmanInitialised;
 
 // ====== STATIC METHODS =====
 
@@ -86,7 +86,7 @@ void VmuProfiler::run() {
 
 #ifdef DC_SH4
         if(auto *dev = maple_enum_type(0, MAPLE_FUNC_MEMCARD); 
-            dev && _dcAudioInitialized && updated_) 
+            dev && _bSampmanInitialised && updated_) 
         {
             pvr_stats_t pvrStats;   pvr_get_stats(&pvrStats);
             uint32_t    sramStats = snd_mem_available();
