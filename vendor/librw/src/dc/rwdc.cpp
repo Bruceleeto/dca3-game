@@ -305,6 +305,8 @@ void rw_mat_load_4x4(rw::Matrix* mtx) {
 #define mat_identity(a)
 #define pvr_fog_table_color(a,r,g,b)
 #define pvr_fog_table_linear(s,e)
+#define pvr_fog_table_exp(d)
+#define pvr_fog_table_custom(d)
 #endif
 
 #define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
@@ -663,7 +665,10 @@ void malloc_stats() { }
 #define UNIMPL_LOGV(...)
 #endif
 
+Camera* rwdcCam;
+
 void beginUpdate(Camera* cam)  {
+	rwdcCam = cam;
 	float view[16], proj[16];
 
 	// View Matrix
@@ -1098,6 +1103,7 @@ static bool doAlphaTest;
 
 static uint8_t fogFuncPvr = PVR_FOG_DISABLE;
 static uint32_t fogColor = 0;
+static float fogStart = 0.0f;
 static uint32 cullModePvr;
 
 static inline unsigned pvrCullMode(uint32_t cullMode) {
@@ -1198,8 +1204,9 @@ setRenderState(int32 state, void *pvalue)
 	 	fogFuncPvr = value ? PVR_FOG_TABLE : PVR_FOG_DISABLE;
 	 	break;
 	 case FOGCOLOR:
+#if !defined(DC_TEXCONV)		
         // Set fog color when state changes
-        if(fogColor != value) {
+        if(fogColor != value || fogStart != RwCameraGetFogDistance(rwdcCam)) {
             fogColor = value;
             RGBA c;
             c.red = value;
@@ -1207,9 +1214,22 @@ setRenderState(int32 state, void *pvalue)
             c.blue = value>>16;
             c.alpha = value>>24;
             pvr_fog_table_color(c.alpha / 255.0f, c.red / 255.0f, c.green  / 255.0f, c.blue  / 255.0f);
-            pvr_fog_table_linear(50.0f, 450.0f);
+
+			fogStart = RwCameraGetFogDistance(rwdcCam);
+			float fogEnd = RwCameraGetFarClipPlane(rwdcCam);
+			float fogIntensity[129];
+			short idx = 0;
+			float startIntensity = (-fogStart) / (fogEnd - fogStart);  //interpolate between start and end to get initial intensity
+			float step = (1.0f - startIntensity) / 129; // we have 129 entries, create a step such that start + (step*129) = 1.0
+			for(int i = 128; i >= 0; i--) {
+				fogIntensity[i] = startIntensity + (idx++ * step);
+			}
+			pvr_fog_far_depth(fogEnd);
+			pvr_fog_table_custom(fogIntensity);
         }
+#endif
 	 	break;
+
 	// case CULLMODE:
 	// 	if(rwStateCache.cullmode != value){
 	// 		rwStateCache.cullmode = value;
