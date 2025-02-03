@@ -174,7 +174,6 @@ static pvr_dr_state_t drState;
 #include <kos/dbglog.h>
 
 #if !defined(DC_TEXCONV) && !defined(DC_SIM)
-#include "Timecycle.h"
 #include <kos.h>
 
 #define VIDEO_MODE_WIDTH  vid_mode->width
@@ -307,6 +306,7 @@ void rw_mat_load_4x4(rw::Matrix* mtx) {
 #define pvr_fog_table_color(a,r,g,b)
 #define pvr_fog_table_linear(s,e)
 #define pvr_fog_table_exp(d)
+#define pvr_fog_table_custom(d)
 #endif
 
 #define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
@@ -665,7 +665,10 @@ void malloc_stats() { }
 #define UNIMPL_LOGV(...)
 #endif
 
+Camera* rwdcCam;
+
 void beginUpdate(Camera* cam)  {
+	rwdcCam = cam;
 	float view[16], proj[16];
 
 	// View Matrix
@@ -1203,7 +1206,7 @@ setRenderState(int32 state, void *pvalue)
 	 case FOGCOLOR:
 #if !defined(DC_TEXCONV)		
         // Set fog color when state changes
-        if(fogColor != value || fogStart != CTimeCycle::GetFogStart()) {
+        if(fogColor != value || fogStart != RwCameraGetFogDistance(rwdcCam)) {
             fogColor = value;
             RGBA c;
             c.red = value;
@@ -1212,16 +1215,17 @@ setRenderState(int32 state, void *pvalue)
             c.alpha = value>>24;
             pvr_fog_table_color(c.alpha / 255.0f, c.red / 255.0f, c.green  / 255.0f, c.blue  / 255.0f);
 
-			fogStart = CTimeCycle::GetFogStart();
-            //pvr_fog_table_linear(fogStart + 200.0f, fogStart + 450.0f);
-
-			// Fog ranges between -200 (Most Fog) and +100 (least fog) (these are loaded from TIMECYC.DAT)
-			// This formula will transform these values into a density between 0 and 0.02f
-			const float MAX_DENSITY = 0.02f;
-			const float FOG_RANGE = 300.0f;
-			const float FOG_OFFSET = 200.0f;
-			float density = ((FOG_RANGE - (fogStart + FOG_OFFSET)) / FOG_RANGE) * MAX_DENSITY;
-			pvr_fog_table_exp(density);
+			fogStart = RwCameraGetFogDistance(rwdcCam);
+			float fogEnd = RwCameraGetFarClipPlane(rwdcCam);
+			float fogIntensity[129];
+			short idx = 0;
+			float startIntensity = (-fogStart) / (fogEnd - fogStart);  //interpolate between start and end to get initial intensity
+			float step = (1.0f - startIntensity) / 129; // we have 129 entries, create a step such that start + (step*129) = 1.0
+			for(int i = 128; i >= 0; i--) {
+				fogIntensity[i] = startIntensity + (idx++ * step);
+			}
+			pvr_fog_far_depth(fogEnd);
+			pvr_fog_table_custom(fogIntensity);
         }
 #endif
 	 	break;
