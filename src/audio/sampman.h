@@ -174,10 +174,6 @@ public:
 	
 	void UpdateEffectsVolume(void);
 
-#ifdef DC_SH4
-	void UpdateChannelVolume(uint32 nChannel);
-#endif
-
 	void SetEffectsMasterVolume(uint8 nVolume);
 	void SetMusicMasterVolume  (uint8 nVolume);
 	void SetEffectsFadeVolume  (uint8 nVolume);
