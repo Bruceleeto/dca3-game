@@ -1218,7 +1218,7 @@ setRenderState(int32 state, void *pvalue)
 			fogStart = RwCameraGetFogDistance(rwdcCam);
 			float fogEnd = RwCameraGetFarClipPlane(rwdcCam);
 			float fogIntensity[129];
-			short idx = 0;
+			uint8_t idx = 0;
 			float startIntensity = (-fogStart) / (fogEnd - fogStart);  //interpolate between start and end to get initial intensity
 			float step = (1.0f - startIntensity) / 129; // we have 129 entries, create a step such that start + (step*129) = 1.0
 			for(int i = 128; i >= 0; i--) {
