@@ -151,7 +151,6 @@ void aica_snd_sfx_freq_vol(int chn, int freq, int vol) {
 
 cSampleManager SampleManager;
 bool8 _bSampmanInitialised = FALSE;
-bool _dcAudioInitialized = false;
 
 uint32 BankStartOffset[MAX_SFX_BANKS];
 char SampleBankDescFilename[] = "sfx/sfx_all.dsc";
@@ -462,7 +461,7 @@ cSampleManager::Initialise(void)
 
 	assert(fdPedSfx >= 0);
 
-	_dcAudioInitialized = true;
+	_bSampmanInitialised = true;
 	return TRUE;
 }
 
@@ -485,7 +484,14 @@ char cSampleManager::GetCDAudioDriveLetter(void)
 void
 cSampleManager::UpdateEffectsVolume(void)
 {
-	// TODO
+	if(_bSampmanInitialised) {
+		std::lock_guard<std::mutex> lk(channel_mtx);
+		for (int i = 0; i < MAXCHANNELS+MAX2DCHANNELS; i++) {
+			if (channels[i].ch != -1) {
+				UpdateChannelVolume(i);
+			}
+		}
+	}
 }
 
 
@@ -851,9 +857,10 @@ cSampleManager::InitialiseChannel(uint32 nChannel, uint32 nSfx, uint8 nBank)
 	return TRUE;
 }
 
-void updateVol(uint32 nChannel) {
+void cSampleManager::UpdateChannelVolume(uint32 nChannel) {
 
 	auto newVol = channels[nChannel].emittingVol * channels[nChannel].attenuationVol / 255;
+	newVol = m_nEffectsFadeVolume * newVol * m_nEffectsVolume >> 14;
 	// newVol = 255;
 	// printf("updateVol(nChannel: %d) vol: %d, newVol: %d\n", nChannel, channels[nChannel].vol, newVol);
 	if (channels[nChannel].vol != newVol) {
@@ -876,7 +883,7 @@ cSampleManager::SetChannelVolume(uint32 nChannel, uint32 nVolume)
 	channels[nChannel].emittingVol = linearlize_volume(nVolume);// nVolume * 255 / MAX_VOLUME;
 	channels[nChannel].attenuationVol = 255;
 
-	updateVol(nChannel);
+	UpdateChannelVolume(nChannel);
 	verbosef("SetChannelVolume(nChannel: %d) vol: %d\n", nChannel, nVolume);
 }
 
@@ -1182,6 +1189,7 @@ cSampleManager::SetStreamedVolumeAndPan(uint8 nVolume, uint8 nPan, uint8 nEffect
 	if (nVolume > MAX_VOLUME)
 		nVolume = MAX_VOLUME;
 	nVolume = linearlize_volume(nVolume); //nVolume * 255 / MAX_VOLUME;
+	nVolume = m_nMusicFadeVolume * nVolume * m_nMusicVolume >> 14;
 	if (streams[nStream].vol != nVolume || streams[nStream].nPan != nPan) {
 		streams[nStream].vol = nVolume;
 		streams[nStream].nPan = nPan;
@@ -1293,9 +1301,17 @@ void  cSampleManager::SetChannelEmittingVolume(uint32 nChannel, uint32 nVolume) 
 	if (nVolume > MAX_VOLUME)
 		nVolume = MAX_VOLUME;
 
+	// reduce channel volume when JB.MP3 or S4_BDBD.MP3 playing
+	if (   MusicManager.GetMusicMode()    == MUSICMODE_CUTSCENE
+		&& MusicManager.GetNextTrack() != STREAMED_SOUND_NEWS_INTRO
+		&& MusicManager.GetNextTrack() != STREAMED_SOUND_CUTSCENE_SAL4_BDBD )
+	{
+		nVolume /= 4;
+	}
+
 	std::lock_guard<std::mutex> lk(channel_mtx);
 	channels[nChannel].emittingVol = linearlize_volume(nVolume); // nVolume * 255 / MAX_VOLUME;
-	updateVol(nChannel);
+	UpdateChannelVolume(nChannel);
 }
 
 float calculatePan(float x, float z) {
@@ -1340,7 +1356,7 @@ void  cSampleManager::SetChannel3DPosition    (uint32 nChannel, float fX, float 
 		channels[nChannel].fY = fY;
 		channels[nChannel].fZ = fZ;
 		channels[nChannel].attenuationVol = calculateAttenuation(channels[nChannel].fX, channels[nChannel].fY, channels[nChannel].fZ, channels[nChannel].distMin, channels[nChannel].distMax) * 255;
-		updateVol(nChannel);
+		UpdateChannelVolume(nChannel);
 	}
 
 	SetChannelPan(nChannel, calculatePan(-fX, fZ) * 63 + 64);
@@ -1353,7 +1369,7 @@ void  cSampleManager::SetChannel3DDistances   (uint32 nChannel, float fMax, floa
 	channels[nChannel].distMin = fMin;
 	channels[nChannel].distMax = fMax;
 	channels[nChannel].attenuationVol = calculateAttenuation(channels[nChannel].fX, channels[nChannel].fY, channels[nChannel].fZ, channels[nChannel].distMin, channels[nChannel].distMax) * 255;
-	updateVol(nChannel);
+	UpdateChannelVolume(nChannel);
 }
 #endif
 
