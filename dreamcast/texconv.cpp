@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include <set>
+#include <vector>
 
 #include <iostream>
 using namespace std;
@@ -238,6 +239,40 @@ PluginAttach(void)
 
 const char* currentFile;
 
+namespace rw {
+	Image* readBMP(const char *filename);
+	Image* readPNG(const char *filename);
+}
+
+void InsertImage(RwTexDictionary* texDict, const char* file, const char* texName) {
+	RwTexture *tex;
+	RwRaster *raster;
+	RwInt32 width, height, depth, format;
+	RwImage *image = rw::readBMP(file);
+	if (!image) {
+		image = rw::readPNG(file);
+	}
+
+	assert(image);
+
+	RwImageFindRasterFormat(image, rwRASTERTYPETEXTURE, &width, &height, &depth, &format);
+	raster = RwRasterCreate(width, height, depth, format);
+	RwRasterSetFromImage(raster, image);
+
+	tex = RwTextureCreate(raster);
+	RwTextureSetName(tex, texName);
+
+	RwTextureSetFilterMode(tex, rwFILTERLINEAR);
+
+	RwTexDictionaryAddTexture(texDict, tex);
+
+	RwImageDestroy(image);
+}
+
+std::vector<std::pair<const char*, const char*>> ImagesToAdd;
+std::vector<const char*> ImagesToRemove;
+bool listTextures = false;
+
 int main(int argc, const char** argv) {
 	if (argc >= 5) {
 	    int width = atoi(argv[3]);
@@ -247,7 +282,7 @@ int main(int argc, const char** argv) {
         if(height >= 16 && height <= 1024)
 		    rw::dc::maxRasterHeight = height;
 	}
-    for (int i = 0; i < argc; i++) {
+    for (int i = 5; i < argc; i++) {
         if (argv[i] != nullptr) {
             // Downsample Parameter
             if (strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "-D") == 0) {
@@ -271,6 +306,22 @@ int main(int argc, const char** argv) {
                     }
                 }
             }
+
+			if (strcmp(argv[i], "--include-tex") == 0) {
+				assert(i + 2 < argc);
+				ImagesToAdd.emplace_back(argv[i+1], argv[i+2]);
+				i += 2;
+			}
+
+			if (strcmp(argv[i], "--delete-tex") == 0) {
+				assert(i + 1 < argc);
+				ImagesToRemove.emplace_back(argv[i+1]);
+				i += 1;
+			}
+
+			if (strcmp(argv[i], "--list-tex") == 0) {
+				listTextures = true;
+			}
         }
     }
 
@@ -297,6 +348,31 @@ int main(int argc, const char** argv) {
 		assert(texDict && "Failed to LoadTxd");
 
 		RwStreamClose(stream, nil);
+
+		if (listTextures) {
+			fprintf(stdout, "Incoming textures:\n");
+			FORLIST(lnk, texDict->textures) {
+				auto tex = rw::Texture::fromDict(lnk);
+				fprintf(stdout, "texture: '%s'\n", tex->name);
+			}
+		}
+
+		for (auto&& removedTextureName: ImagesToRemove) {
+			auto removedTexture = texDict->find(removedTextureName);
+			assert(removedTexture);
+			texDict->remove(removedTexture);
+		}
+		for (auto&& extraTexture: ImagesToAdd) {
+			InsertImage(texDict, extraTexture.first, extraTexture.second);
+		}
+
+		if (listTextures) {
+			fprintf(stdout, "Processing textures:\n");
+			FORLIST(lnk, texDict->textures) {
+				auto tex = rw::Texture::fromDict(lnk);
+				fprintf(stdout, "texture: '%s'\n", tex->name);
+			}
+		}
 
 		auto streamOut = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMWRITE, argv[2]);
 		assert(streamOut && "failed to open output");

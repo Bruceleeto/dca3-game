@@ -79,6 +79,9 @@ OBJS_TEXCONV += \
 	../vendor/librw/src/d3d-x/d3d.texconv.o \
 	../vendor/librw/src/d3d-x/d3d8.texconv.o \
 	../vendor/librw/src/d3d-x/d3d8render.texconv.o \
+	../vendor/librw/src/bmp.texconv.o \
+	../vendor/librw/src/png.texconv.o \
+	../vendor/librw/src/lodepng/lodepng.texconv.o	
 
 # Add compilation units to this list to explicity compile them with
 # -O3 optimizations, while the rest get the default (-Os) treatment
@@ -316,6 +319,22 @@ TXD_OPTS_NEWS = 512 512
 TXD_OPTS_SPLASH1 = 512 512
 TXD_OPTS_SPLASH2 = 512 512
 TXD_OPTS_SPLASH3 = 512 512
+TXD_OPTS_frontend = 512 512 \
+	--delete-tex "fe_arrows4" \
+	--delete-tex "fe_arrows2" \
+	--delete-tex "fe_arrows1" \
+	--delete-tex "fe_controllersh" \
+	--delete-tex "fe_controller" \
+	\
+	--include-tex assets/dc_ps2d.png dc_ps2d \
+	--include-tex assets/dc_ps2f.png dc_ps2f \
+	--include-tex assets/dc_xboxd.png dc_xboxd \
+	--include-tex assets/dc_xboxf.png dc_xboxf \
+	--include-tex assets/ps4_d.png ps4_d \
+	--include-tex assets/ps4_f.png ps4_f \
+	--include-tex assets/xbox_d.png xbox_d \
+	--include-tex assets/xbox_f.png xbox_f
+
 DEFAULT_RES = 512
 
 PVR_ENCODER ?= PVRTEX
