@@ -1012,8 +1012,14 @@ void CGame::InitialiseWhenRestarting(void)
 	DMAudio.ChangeMusicMode(MUSICMODE_GAME);
 }
 
+namespace rw::dc {
+	void relocate_objects();
+}
+
 void CGame::Process(void) 
 {
+	rw::dc::relocate_objects();
+
 	CPad::UpdatePads();
 #ifdef USE_CUSTOM_ALLOCATOR
 	ProcessTidyUpMemory();

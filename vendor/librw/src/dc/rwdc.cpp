@@ -5,6 +5,10 @@
 #include <string.h>
 #include <assert.h>
 
+extern "C" size_t malloc_usable_size(void* m);
+
+#include <list>
+
 #if !defined(DC_TEXCONV) && !defined(MACOS64)
 #include <malloc.h>
 #endif
@@ -4599,12 +4603,31 @@ writeNativeTexture(Texture *tex, Stream *stream)
 
 #define DC_MODEL_VERSION 5
 
+std::list<void**> allocations;
+
+void relocate_objects() {
+	for (auto allocation: allocations) {
+		auto size = malloc_usable_size(*allocation);
+		void* candidate = rwMalloc(size, MEMDUR_EVENT | ID_GEOMETRY);
+		if (!candidate)
+			continue;
+		if ((uintptr_t&)candidate < (uintptr_t&)*allocation) {
+			// fprintf(stderr, "Moving memory %p to %p\n", *allocation, candidate);
+			memcpy(candidate, *allocation, size);
+			free(*allocation);
+			*allocation = candidate;
+		} else {
+			free(candidate);
+		}
+	}
+}
 void*
 destroyNativeData(void *object, int32, int32)
 {
 	auto geo = (Geometry*)object;
 	rwFree(geo->instData);
 	geo->instData = nil;
+	allocations.remove(&(void*&)geo->instData);
 
 	return object;
 }
@@ -4622,6 +4645,7 @@ readNativeData(Stream *stream, int32 length, void *object, int32, int32)
 
 	DCModelDataHeader *header = (DCModelDataHeader *)rwNew(sizeof(DCModelDataHeader) + chunkLen - 8, MEMDUR_EVENT | ID_GEOMETRY);
 	geo->instData = header;
+	allocations.insert(allocations.begin(), &(void*&)geo->instData);
 	stream->read32(&header->platform, 4);
 	uint32_t version;
 	stream->read32(&version, 4);
