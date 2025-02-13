@@ -379,7 +379,7 @@ enum Config {
 #	define CUSTOM_FRONTEND_OPTIONS
 
 #	ifdef CUSTOM_FRONTEND_OPTIONS
-#		define MENU_MAP			// VC-like menu map. Won't appear if you don't have our menu.txd
+#	define MENU_MAP			// Enabled on Dca3 now, but could use some controller mapping**
 #		define GRAPHICS_MENU_OPTIONS // otherwise Display settings will be scrollable
 #		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU
 #		define CUTSCENE_BORDERS_SWITCH
