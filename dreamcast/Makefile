@@ -286,7 +286,17 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 
 TXD_OPTS_fonts = 256 256
 TXD_OPTS_hud = 128 128
-TXD_OPTS_menu = 512 512
+TXD_OPTS_menu = 512 512 \
+	--include-tex assets/mapBot01.png mapBot01 \
+	--include-tex assets/mapBot02.png mapBot02 \
+	--include-tex assets/mapBot03.png mapBot03 \
+	--include-tex assets/mapMid01.png mapMid01 \
+	--include-tex assets/mapMid02.png mapMid02 \
+	--include-tex assets/mapMid03.png mapMid03 \
+	--include-tex assets/mapTop01.png mapTop01 \
+	--include-tex assets/mapTop02.png mapTop02 \
+	--include-tex assets/mapTop03.png mapTop03
+
 TXD_OPTS_LOADSC0 = 512 512
 TXD_OPTS_LOADSC1 = 512 512
 TXD_OPTS_LOADSC10 = 512 512
