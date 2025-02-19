@@ -40,6 +40,24 @@ extern const char* currentFile;
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
 
+void* obj_alloc(size_t size) {
+	auto rv = malloc(size);
+
+	while (rv == nullptr) {
+		if (!re3RemoveLeastUsedModel()) {
+			logf("obj_alloc: out of memory\n");
+			return nullptr;
+		}
+		rv = malloc(size);
+	}
+	
+	return rv;
+}
+
+void obj_free(void* p) {
+	free(p);
+}
+
 // #include "rwdcimpl.h"
 
 #include <dc/pvr.h>
@@ -4603,7 +4621,7 @@ void*
 destroyNativeData(void *object, int32, int32)
 {
 	auto geo = (Geometry*)object;
-	rwFree(geo->instData);
+	obj_free(geo->instData);
 	geo->instData = nil;
 
 	return object;
@@ -4620,7 +4638,9 @@ readNativeData(Stream *stream, int32 length, void *object, int32, int32)
 		return nil;
 	}
 
-	DCModelDataHeader *header = (DCModelDataHeader *)rwNew(sizeof(DCModelDataHeader) + chunkLen - 8, MEMDUR_EVENT | ID_GEOMETRY);
+	DCModelDataHeader *header = (DCModelDataHeader *)obj_alloc(sizeof(DCModelDataHeader) + chunkLen - 8);
+	assert(header != nullptr);
+
 	geo->instData = header;
 	stream->read32(&header->platform, 4);
 	uint32_t version;

@@ -172,6 +172,12 @@ file_t fdPedSfx;
 volatile uint32 nPedSfxReqReadId = 1;
 volatile uint32 nPedSfxReqNextId = 1;
 
+// this is very wasteful and temporary
+#define BANK_STAGE_SIZE 16 * 2048
+static  uint8_t stagingBufferBank[BANK_STAGE_SIZE] __attribute__((aligned(32)));
+static  uint8_t stagingBufferPedSFX[PED_BLOCKSIZE_ADPCM] __attribute__((aligned(32)));
+
+
 struct WavHeader {
     // RIFF Header
     char riff[4];        // RIFF Header Magic header
@@ -526,6 +532,7 @@ cSampleManager::SetMonoMode(uint8 nMode)
 {
 }
 
+
 bool8
 cSampleManager::LoadSampleBank(uint8 nBank)
 {
@@ -555,8 +562,8 @@ cSampleManager::LoadSampleBank(uint8 nBank)
 		// TODO: Split per-bank sfx file
 		int fd = fs_open(SampleBankDataFilename, O_RDONLY);
 		assert(fd >= 0);
-		// this is very wasteful and temporary
-		void* stagingBuffer = memalign(32, 32 * 2048);
+
+		auto stagingBuffer = stagingBufferBank;
 		assert(stagingBuffer != 0);
 
 		// Ideally, we'd suspend the CdStream thingy here or read via that instead
@@ -564,7 +571,7 @@ cSampleManager::LoadSampleBank(uint8 nBank)
 		fs_seek(fd, fileStart, SEEK_SET);
 
 		while (fileSize > 0) {
-			size_t readSize = fileSize > 32 * 2048 ? 32 * 2048 : fileSize;
+			size_t readSize = fileSize > BANK_STAGE_SIZE ? BANK_STAGE_SIZE : fileSize;
 			int rs = fs_read(fd, stagingBuffer, readSize);
 			debugf("Read %d bytes, expected %d\n", rs, readSize);
 			assert(rs == readSize);
@@ -574,7 +581,6 @@ cSampleManager::LoadSampleBank(uint8 nBank)
 			debugf("Loaded %d bytes, %d remaining\n", readSize, fileSize);
 		}
 		fs_close(fd);
-		free(stagingBuffer);
 		
 
 		for (int nSfx = BankStartOffset[nBank]; nSfx < BankStartOffset[nBank+1]; nSfx++) {
@@ -723,7 +729,8 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		// TODO: When we can dma directly to AICA, we can use this instead
 		// fs_read(fdPedSfx, SPU_BASE_U8 + (uintptr_t)cmd->dest, cmd->size);
 
-		void* stagingBuffer = memalign(32, cmd->size);
+		// TODO: Merge stagingBufferPedSFX with stagingBuffer
+		void* stagingBuffer = stagingBufferPedSFX;
 		assert(stagingBuffer != 0);
 		debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
 		int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
@@ -731,7 +738,6 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		assert(rs == cmd->size);
 
 		spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
-		free(stagingBuffer);
 		nPedSfxReqReadId = nPedSfxReqReadId + 1;
 	});
 

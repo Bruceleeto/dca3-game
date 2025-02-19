@@ -1,3 +1,8 @@
+#include <cstddef>
+
+void* obj_alloc(size_t size);
+void obj_free(void* ptr);
+
 #include "common.h"
 
 #include "AnimBlendSequence.h"
@@ -16,7 +21,7 @@ CAnimBlendSequence::CAnimBlendSequence(void)
 CAnimBlendSequence::~CAnimBlendSequence(void)
 {
 	if(keyFrames)
-		RwFree(keyFrames);
+		obj_free(keyFrames);
 }
 
 void
@@ -42,7 +47,8 @@ CAnimBlendSequence::SetNumFrames(int numFrames, bool translation, bool compress)
 		sz = sizeof(KeyFrame);
 		type |= KF_ROT;
 	}
-	keyFrames = RwMalloc(sz * numFrames);
+	keyFrames = obj_alloc(sz * numFrames);
+	assert(keyFrames != nullptr);
 	this->numFrames = numFrames;
 }
 
