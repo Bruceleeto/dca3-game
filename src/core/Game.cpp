@@ -1012,8 +1012,20 @@ void CGame::InitialiseWhenRestarting(void)
 	DMAudio.ChangeMusicMode(MUSICMODE_GAME);
 }
 
+bool obj_relocate();
+
 void CGame::Process(void) 
 {
+	if (!obj_relocate()) {
+		// animations
+		for(int i = 0; i < NUMANIMATIONS; i++){
+			CAnimBlendHierarchy *anim = CAnimManager::GetAnimation(i);
+			if(anim == nil)
+				continue;	// cannot happen
+			anim->MoveMemory(true);
+		}
+	}
+	
 	CPad::UpdatePads();
 #ifdef USE_CUSTOM_ALLOCATOR
 	ProcessTidyUpMemory();

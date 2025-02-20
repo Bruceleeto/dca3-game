@@ -269,6 +269,7 @@ RE3_OBJS = \
 	../src/vmu/vmu.o \
 	../vendor/miniLZO/minilzo.o \
 	\
+	../vendor/tlsf/tlsf.o
 
 # Excluded \
 	../src/extras/custompipes.o \
@@ -380,7 +381,9 @@ INCLUDE = \
 \
 -I../vendor/librw \
 \
--I../vendor/miniLZO
+-I../vendor/miniLZO \
+\
+-I../vendor/tlsf
 
 DEFINES = -DRW_DC -DLIBRW $(if $(WITH_LOGGING),-DWITH_LOGGING) $(if $(WITH_DCLOAD),-DDC_CHDIR=/pc) \
 	$(if $(WITH_BEEPS),-DWITH_BEEPS)

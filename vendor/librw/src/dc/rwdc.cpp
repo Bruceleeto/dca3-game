@@ -16,6 +16,8 @@ extern const char* currentFile;
 #define texconvf(...) // printf(__VA_ARGS__)
 #endif
 
+#include "tlsf.h"
+
 #include "../../../src/vmu/vmu.h"
 #include "../rwbase.h"
 #include "../rwerror.h"
@@ -40,22 +42,50 @@ extern const char* currentFile;
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
 
+std::map<void*, void**> relocatableAllocs;
+
+uint8_t obj_heap[4 * 1024 * 1024];
+tlsf_t obj_pool;
+
+void obj_init() {
+	obj_pool = tlsf_create_with_pool(obj_heap, sizeof(obj_heap));
+}
+
 void* obj_alloc(size_t size) {
-	auto rv = malloc(size);
+	auto rv = tlsf_malloc(obj_pool, size);
 
 	while (rv == nullptr) {
 		if (!re3RemoveLeastUsedModel()) {
-			logf("obj_alloc: out of memory\n");
+			fprintf(stderr, "obj_alloc: out of memory\n");
 			return nullptr;
 		}
-		rv = malloc(size);
+		fprintf(stderr, "obj_alloc: soft out of memory\n");
+		rv = tlsf_malloc(obj_pool, size);
 	}
 	
 	return rv;
 }
 
 void obj_free(void* p) {
-	free(p);
+	tlsf_free(obj_pool, p);
+}
+
+void* obj_move(void* p) {
+	return tlsf_move(obj_pool, p);
+}
+
+bool obj_relocate() {
+	for (auto p : relocatableAllocs) {
+		auto newp = obj_move(p.first);
+		if (newp) {
+			*p.second = newp;
+			relocatableAllocs.erase(p.first);
+			relocatableAllocs[newp] = p.second;
+			// fprintf(stderr, "obj_relocate: %p -> %p\n", p.first, newp);
+			return true;
+		}
+	}
+	return false;
 }
 
 // #include "rwdcimpl.h"
@@ -4400,6 +4430,7 @@ ObjPipeline* makeDefaultPipeline(void)
 static void*
 driverOpen(void *o, int32, int32)
 {
+	obj_init();
     pvr_init(&pvr_params);
 
 	fake_tex = pvr_mem_malloc(sizeof(fake_tex_data));
@@ -4622,6 +4653,7 @@ destroyNativeData(void *object, int32, int32)
 {
 	auto geo = (Geometry*)object;
 	obj_free(geo->instData);
+	relocatableAllocs.erase((void*)geo->instData);
 	geo->instData = nil;
 
 	return object;
@@ -4642,6 +4674,7 @@ readNativeData(Stream *stream, int32 length, void *object, int32, int32)
 	assert(header != nullptr);
 
 	geo->instData = header;
+	relocatableAllocs[(void*)header] = &(void*&)geo->instData;
 	stream->read32(&header->platform, 4);
 	uint32_t version;
 	stream->read32(&version, 4);

@@ -52,7 +52,6 @@ CAnimBlendHierarchy::RemoveAnimSequences(void)
 	numSequences = 0;
 }
 
-#ifdef USE_CUSTOM_ALLOCATOR
 void
 CAnimBlendHierarchy::MoveMemory(bool onlyone)
 {
@@ -61,4 +60,3 @@ CAnimBlendHierarchy::MoveMemory(bool onlyone)
 		if(sequences[i].MoveMemory() && onlyone)
 			return;
 }
-#endif
