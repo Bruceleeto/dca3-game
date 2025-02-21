@@ -51,7 +51,7 @@ void obj_init() {
 	obj_pool = tlsf_create_with_pool(obj_heap, sizeof(obj_heap));
 }
 
-void* obj_alloc(size_t size) {
+void* obj_alloc(size_t size, void** storage) {
 	auto rv = tlsf_malloc(obj_pool, size);
 
 	while (rv == nullptr) {
@@ -62,11 +62,14 @@ void* obj_alloc(size_t size) {
 		fprintf(stderr, "obj_alloc: soft out of memory\n");
 		rv = tlsf_malloc(obj_pool, size);
 	}
+
+	relocatableAllocs[rv] = storage;
 	
 	return rv;
 }
 
 void obj_free(void* p) {
+	relocatableAllocs.erase(p);
 	tlsf_free(obj_pool, p);
 }
 
@@ -74,17 +77,42 @@ void* obj_move(void* p) {
 	return tlsf_move(obj_pool, p);
 }
 
+void* last_relocation;
 bool obj_relocate() {
-	for (auto p : relocatableAllocs) {
-		auto newp = obj_move(p.first);
+	// FILE* f = fopen("/pc/Users/skmp/projects/dca3-game/dreamcast/chunks-sorted-with.txt.native.tmp", "w");
+	// fprintf(f, "ALLOC: %p, %d\n", (uintptr_t)obj_heap & 0xFFFFFF, sizeof(obj_heap));
+	// for(auto allocation: relocatableAllocs) {
+	// 	fprintf(f, "ALLOC: %p, %d\n", (uintptr_t&)allocation.first & 0xFFFFFF, tlsf_block_size(allocation.first));
+	// }
+	// fclose(f);
+
+	// fs_unlink("/pc/Users/skmp/projects/dca3-game/dreamcast/chunks-sorted-with.txt.native");
+	// fs_rename("/pc/Users/skmp/projects/dca3-game/dreamcast/chunks-sorted-with.txt.native.tmp", "/pc/Users/skmp/projects/dca3-game/dreamcast/chunks-sorted-with.txt.native");
+
+	// fprintf(stderr, "obj_relocate: %p\n", last_relocation);
+	int toRelocate = 10 * 1024;
+	auto start = relocatableAllocs.upper_bound(last_relocation);
+	if (start == relocatableAllocs.end())
+		start = relocatableAllocs.begin();
+	while(start != relocatableAllocs.end()) {
+		auto old = start->first;
+		auto storage = start->second;
+		auto oldSize = tlsf_block_size(old);
+		auto newp = obj_move(start->first);
 		if (newp) {
-			*p.second = newp;
-			relocatableAllocs.erase(p.first);
-			relocatableAllocs[newp] = p.second;
-			// fprintf(stderr, "obj_relocate: %p -> %p\n", p.first, newp);
-			return true;
+			toRelocate -= oldSize;
+			*storage = newp;
+			start = relocatableAllocs.erase(start, std::next(start));
+			relocatableAllocs[newp] = storage;
+			last_relocation = newp;
+			// fprintf(stderr, "obj_relocate: %p -> %p, %d\n", old, newp, oldSize);
+			if (toRelocate <= 0)
+				return true;
+		} else {
+			start++;
 		}
 	}
+	last_relocation = 0;
 	return false;
 }
 
@@ -4653,7 +4681,6 @@ destroyNativeData(void *object, int32, int32)
 {
 	auto geo = (Geometry*)object;
 	obj_free(geo->instData);
-	relocatableAllocs.erase((void*)geo->instData);
 	geo->instData = nil;
 
 	return object;
@@ -4670,11 +4697,10 @@ readNativeData(Stream *stream, int32 length, void *object, int32, int32)
 		return nil;
 	}
 
-	DCModelDataHeader *header = (DCModelDataHeader *)obj_alloc(sizeof(DCModelDataHeader) + chunkLen - 8);
+	DCModelDataHeader *header = (DCModelDataHeader *)obj_alloc(sizeof(DCModelDataHeader) + chunkLen - 8, &(void*&)geo->instData);
 	assert(header != nullptr);
 
 	geo->instData = header;
-	relocatableAllocs[(void*)header] = &(void*&)geo->instData;
 	stream->read32(&header->platform, 4);
 	uint32_t version;
 	stream->read32(&version, 4);

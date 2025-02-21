@@ -34,7 +34,7 @@ CPathInfoForObject *InfoForTilePeds;
 CTempDetachedNode *DetachedNodesCars;
 CTempDetachedNode *DetachedNodesPeds;
 
-void* obj_alloc(size_t size);
+void* obj_alloc(size_t size, void** storage);
 void obj_free(void* ptr);
 
 bool 
@@ -261,9 +261,9 @@ CPathFind::AllocatePathFindInfoMem(int16 numPathGroups)
 	}
 
 	// NB: MIAMI doesn't use numPathGroups here but hardcodes 4500
-	InfoForTileCars = (CPathInfoForObject*) obj_alloc(sizeof(CPathInfoForObject)*12*numPathGroups);
+	InfoForTileCars = (CPathInfoForObject*) obj_alloc(sizeof(CPathInfoForObject)*12*numPathGroups, nil);
 	memset(InfoForTileCars, 0, 12*numPathGroups*sizeof(CPathInfoForObject));
-	InfoForTilePeds = (CPathInfoForObject*) obj_alloc(sizeof(CPathInfoForObject)*12*numPathGroups);
+	InfoForTilePeds = (CPathInfoForObject*) obj_alloc(sizeof(CPathInfoForObject)*12*numPathGroups, nil);
 	memset(InfoForTilePeds, 0, 12*numPathGroups*sizeof(CPathInfoForObject));
 
 	// unused

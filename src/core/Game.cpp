@@ -1016,15 +1016,7 @@ bool obj_relocate();
 
 void CGame::Process(void) 
 {
-	if (!obj_relocate()) {
-		// animations
-		for(int i = 0; i < NUMANIMATIONS; i++){
-			CAnimBlendHierarchy *anim = CAnimManager::GetAnimation(i);
-			if(anim == nil)
-				continue;	// cannot happen
-			anim->MoveMemory(true);
-		}
-	}
+	obj_relocate();
 	
 	CPad::UpdatePads();
 #ifdef USE_CUSTOM_ALLOCATOR

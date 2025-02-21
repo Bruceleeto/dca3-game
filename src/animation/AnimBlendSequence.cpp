@@ -1,6 +1,6 @@
 #include <cstddef>
 
-void* obj_alloc(size_t size);
+void* obj_alloc(size_t size, void** storage);
 void obj_free(void* ptr);
 void* obj_move(void* ptr);
 
@@ -48,7 +48,7 @@ CAnimBlendSequence::SetNumFrames(int numFrames, bool translation, bool compress)
 		sz = sizeof(KeyFrame);
 		type |= KF_ROT;
 	}
-	keyFrames = obj_alloc(sz * numFrames);
+	keyFrames = obj_alloc(sz * numFrames, &(void*&)keyFrames);
 	assert(keyFrames != nullptr);
 	this->numFrames = numFrames;
 }
@@ -71,6 +71,7 @@ CAnimBlendSequence::RemoveQuaternionFlips(void)
 	}
 }
 
+#if 0
 bool
 CAnimBlendSequence::MoveMemory(void)
 {
@@ -83,4 +84,4 @@ CAnimBlendSequence::MoveMemory(void)
 	}
 	return false;
 }
-
+#endif

@@ -52,6 +52,7 @@ CAnimBlendHierarchy::RemoveAnimSequences(void)
 	numSequences = 0;
 }
 
+#if 0
 void
 CAnimBlendHierarchy::MoveMemory(bool onlyone)
 {
@@ -60,3 +61,4 @@ CAnimBlendHierarchy::MoveMemory(bool onlyone)
 		if(sequences[i].MoveMemory() && onlyone)
 			return;
 }
+#endif
