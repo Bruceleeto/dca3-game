@@ -41,6 +41,7 @@ extern const char* currentFile;
 
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
+bool re3EmergencyRemoveModel();
 
 std::map<void*, void**> relocatableAllocs;
 
@@ -51,13 +52,19 @@ void obj_init() {
 	obj_pool = tlsf_create_with_pool(obj_heap, sizeof(obj_heap));
 }
 
+void* last_relocation;
+bool obj_relocate();
+
 void* obj_alloc(size_t size, void** storage) {
 	auto rv = tlsf_malloc(obj_pool, size);
 
 	while (rv == nullptr) {
-		if (!re3RemoveLeastUsedModel()) {
-			fprintf(stderr, "obj_alloc: out of memory\n");
-			return nullptr;
+		if (!re3RemoveLeastUsedModel() && !re3EmergencyRemoveModel()) {
+			fprintf(stderr, "obj_alloc: out of memory, doing full compaction\n");
+			last_relocation = 0;
+			while (obj_relocate())
+				;
+			// last chance
 		}
 		fprintf(stderr, "obj_alloc: soft out of memory\n");
 		rv = tlsf_malloc(obj_pool, size);
@@ -77,7 +84,6 @@ void* obj_move(void* p) {
 	return tlsf_move(obj_pool, p);
 }
 
-void* last_relocation;
 bool obj_relocate() {
 	// FILE* f = fopen("/pc/Users/skmp/projects/dca3-game/dreamcast/chunks-sorted-with.txt.native.tmp", "w");
 	// fprintf(f, "ALLOC: %p, %d\n", (uintptr_t)obj_heap & 0xFFFFFF, sizeof(obj_heap));
