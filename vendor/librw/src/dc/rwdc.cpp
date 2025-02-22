@@ -3669,6 +3669,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					}
 				}
 			} else if (geo->meshHeader->flags & rw::MeshHeader::TRISTRIP) {
+				/* TODO: Add back this
 				auto numIndices = mesh->numIndices;
 				auto vertices = geo->morphTargets[0].vertices;
 				auto texcoords = geo->texCoords[0];
@@ -3726,6 +3727,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				}
 
 				clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
+				*/
 			} else { // no trilist assets anymore
 				assert(false && "Unsupported geometry type");
 			}

@@ -2,12 +2,22 @@
 #include "common.h"
 #include "crossplatform.h"
 #include "platform.h"
+#ifdef RW_DC
+
+#include <dc/maple.h>
+#include <dc/maple/controller.h>
+#include <map>
+
+auto contMaple = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+auto state = (cont_state_t *)maple_dev_status(contMaple);
+
 #ifdef XINPUT
 #include <xinput.h>
 #if !defined(PSAPI_VERSION) || (PSAPI_VERSION > 1)
 #pragma comment( lib, "Xinput9_1_0.lib" )
 #else
 #pragma comment( lib, "Xinput.lib" )
+#endif
 #endif
 #endif
 
@@ -924,7 +934,8 @@ void CPad::UpdateMouse()
 		}
 	}
 #elif defined(RW_DC)
-	printf("TODO this %s\n", __func__);
+	// Do mouse stuff here?
+	// printf("TODO this %s\n", __func__);
 #else
 	if ( IsForegroundApp() && PSGLOBAL(cursorIsInWindow) )
 	{
@@ -1979,8 +1990,118 @@ void CPad::Update(int16 pad)
 	if (!CRecordDataForGame::IsPlayingBack() && !CRecordDataForChase::ShouldThisPadBeLeftAlone(pad))
 #endif
 	{
+#ifdef RW_DC
+		if (((NewState.RightStickY > 64 && OldState.RightStickY > 64)) || ((NewState.RightStickY) < -64 && (OldState.RightStickY < -64)))
+		{
+			// if (contMaple == nullptr)
+			// 	CPad::GetPad(0)->IsDualAnalog = false;
+			// else
+				CPad::GetPad(0)->IsDualAnalog = true;
+		}
+
+		//CPad::IsDualAnalog = cont_has_capabilities(contMaple, CONT_CAPABILITIES_DUAL_ANALOG); //Query controller about Dual analog capabilities
+
+		if (pad == 0) 
+		{
+			if (contMaple == NULL)
+			{
+				CPad::GetPad(0)->IsDualAnalog = false;
+				NewState.DPadUp			= 0;
+				NewState.DPadDown		= 0;
+				NewState.DPadLeft		= 0;
+				NewState.DPadRight		= 0;
+				NewState.A				= 0;
+				NewState.B				= 0;
+				NewState.C				= 0;
+				NewState.D				= 0;
+				NewState.X				= 0;
+				NewState.Y				= 0;
+				NewState.Z				= 0;
+				NewState.Start			= 0;
+				NewState.RightTrigger	= 0;
+				NewState.LeftTrigger	= 0;
+				NewState.LeftStickX		= 0;
+				NewState.LeftStickY		= 0;
+				NewState.RightStickX	= 0;
+				NewState.RightStickY	= 0;
+				NewState.RightShock		= 0;
+			}
+			else
+			{
+				NewState.DPadUp			= state->dpad_up;				//This part could be inside a compiler directive to preserve the old code and just use this block if compil
+				NewState.DPadDown		= state->dpad_down;				//I also changed CControllerState inside Pad.h and created these values for DC controllers
+				NewState.DPadLeft		= state->dpad_left;
+				NewState.DPadRight		= state->dpad_right;
+				NewState.A				= state->a;
+				NewState.B				= state->b;
+				NewState.C				= state->c;
+				NewState.D				= state->d;
+				NewState.X				= state->x;
+				NewState.Y				= state->y;
+				NewState.Z				= state->z;
+				NewState.Start			= state->start;
+				NewState.RightTrigger	= state->rtrig;
+				NewState.LeftTrigger	= state->ltrig;
+				NewState.LeftStickX		= state->joyx;
+				NewState.LeftStickY		= state->joyy;
+				NewState.RightStickX	= state->joy2x;
+				NewState.RightStickY	= state->joy2y;
+				NewState.RightShock		= state->dpad_left;
+			}
+
+		} 
+
+		else 
+		{
+			NewState.DPadUp			= 0;
+			NewState.DPadDown		= 0;
+			NewState.DPadLeft		= 0;
+			NewState.DPadRight		= 0;
+			NewState.A				= 0;
+			NewState.B				= 0;
+			NewState.C				= 0;
+			NewState.D				= 0;
+			NewState.X				= 0;
+			NewState.Y				= 0;
+			NewState.Z				= 0;
+			NewState.Start			= 0;
+			NewState.RightTrigger	= 0;
+			NewState.LeftTrigger	= 0;
+			NewState.LeftStickX		= 0;
+			NewState.LeftStickY		= 0;
+			NewState.RightStickX	= 0;
+			NewState.RightStickY	= 0;
+			NewState.RightShock		= 0;
+		}
+
+		// if (old_contMaple == nullptr && contMaple != nullptr)
+		// {
+		// 	CPad::GetPad(0)->IsDualAnalog = false;
+		// 	NewState.DPadUp			= 0;
+		// 	NewState.DPadDown		= 0;
+		// 	NewState.DPadLeft		= 0;
+		// 	NewState.DPadRight		= 0;
+		// 	NewState.A				= 0;
+		// 	NewState.B				= 0;
+		// 	NewState.C				= 0;
+		// 	NewState.D				= 0;
+		// 	NewState.X				= 0;
+		// 	NewState.Y				= 0;
+		// 	NewState.Z				= 0;
+		// 	NewState.Start			= 0;
+		// 	NewState.RightTrigger	= 0;
+		// 	NewState.LeftTrigger	= 0;
+		// 	NewState.LeftStickX		= 0;
+		// 	NewState.LeftStickY		= 0;
+		// 	NewState.RightStickX	= 0;
+		// 	NewState.RightStickY	= 0;
+		// 	NewState.RightShock		= 0;
+		// }
+
+#else
 		NewState = ReconcileTwoControllersInput(PCTempKeyState, PCTempJoyState);
 		NewState = ReconcileTwoControllersInput(PCTempMouseState, NewState);
+#endif
 	}
 
 	PCTempJoyState.Clear();
@@ -2006,6 +2127,13 @@ void CPad::Update(int16 pad)
 
 	if ( JustOutOfFrontend != 0 )
 		--JustOutOfFrontend;
+		
+#ifdef RW_DC
+	//auto old_contMaple = contMaple;
+	//auto n_dev = maple_enum_count();
+	contMaple = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+	state = (cont_state_t *)maple_dev_status(contMaple);
+#endif
 }
 
 void CPad::DoCheats(void)

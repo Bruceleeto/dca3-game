@@ -354,7 +354,8 @@ CWaterLevel::CreateWavyAtomic()
 													|rpGEOMETRYTEXTURED
 													|rpGEOMETRYPRELIT
 													|rpGEOMETRYNORMALS
-													|rpGEOMETRYMODULATEMATERIALCOLOR);
+													|rpGEOMETRYMODULATEMATERIALCOLOR
+													|rw::Geometry::HAS_TRIANGLES/* RW_DC specific */);
 #ifdef PC_WATER
 		RpGeometryAddMorphTarget(wavyGeometry);
 #endif
@@ -365,7 +366,8 @@ CWaterLevel::CreateWavyAtomic()
 													|rpGEOMETRYTEXTURED
 													|rpGEOMETRYPRELIT
 													|rpGEOMETRYNORMALS
-													|rpGEOMETRYMODULATEMATERIALCOLOR);
+													|rpGEOMETRYMODULATEMATERIALCOLOR
+													|rw::Geometry::HAS_TRIANGLES/* RW_DC specific */);
 #ifdef PC_WATER
 		RpGeometryAddMorphTarget(maskGeometry);
 #endif

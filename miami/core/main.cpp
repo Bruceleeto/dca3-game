@@ -779,7 +779,7 @@ ProcessSlowMode(void)
 	
 	do
 	{
-		if ( CPad::GetPad(1)->GetSelectJustDown() || CPad::GetPad(1)->GetStart() )
+		if ( CPad::GetPad(1)->GetLeftShoulder1JustDown() || CPad::GetPad(1)->GetRightShoulder1() )
 			break;
 		
 		if ( stop )
@@ -793,7 +793,7 @@ ProcessSlowMode(void)
 		RwCameraBeginUpdate(Scene.camera);
 		RwCameraEndUpdate(Scene.camera);
 		
-	} while (!CPad::GetPad(1)->GetSelectJustDown() && !CPad::GetPad(1)->GetStart());
+	} while (!CPad::GetPad(1)->GetLeftShoulder1JustDown() && !CPad::GetPad(1)->GetRightShoulder1());
 	
 	
 	CPad::GetPad(0)->OldState.LeftStickX = lX;
