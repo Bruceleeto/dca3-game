@@ -235,7 +235,8 @@ DoRWStuffStartOfFrame_Horizon(int16 TopRed, int16 TopGreen, int16 TopBlue, int16
 		return false;
 
 	TheCamera.m_viewMatrix.Update();
-	CClouds::RenderBackground(TopRed, TopGreen, TopBlue, BottomRed, BottomGreen, BottomBlue, Alpha);
+	// TODO: FIX THIS
+	// CClouds::RenderBackground(TopRed, TopGreen, TopBlue, BottomRed, BottomGreen, BottomBlue, Alpha);
 
 	return true;
 }
@@ -244,7 +245,8 @@ DoRWStuffStartOfFrame_Horizon(int16 TopRed, int16 TopGreen, int16 TopBlue, int16
 void
 DoRWRenderHorizon(void)
 {
-	CClouds::RenderHorizon();
+	// TODO: FIX THIS
+	// CClouds::RenderHorizon();
 }
 
 void
