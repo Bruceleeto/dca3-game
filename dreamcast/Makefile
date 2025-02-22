@@ -94,19 +94,21 @@ OBJS_TEXCONV += \
 # to conserve RAM.
 OBJS_O3 = \
 	../vendor/librw/src/dc/rwdc.o \
-	../src/core/World.o \
-	../src/collision/Collision.o \
-	../src/math/math.o \
-	../src/math/Matrix.o \
-	../src/math/Quaternion.o \
-	../src/math/Rect.o \
-	../src/math/Vector.o \
+	../miami/core/World.o \
+	../miami/collision/Collision.o \
+	../miami/math/math.o \
+	../miami/math/Matrix.o \
+	../miami/math/Quaternion.o \
+	../miami/math/Rect.o \
+	../miami/math/Vector.o \
 	../vendor/librw/src/base.o \
-	../src/renderer/Shadows.o
+	../miami/renderer/Shadows.o
 
 OBJS_NO_FAST_MATH = \
-	../src/core/Cam.o \
-	../src/core/Camera.o
+	../miami/core/Cam.o \
+	../miami/core/Camera.o \
+	../miami/vehicles/Bike.o \
+	../miami/renderer/Particle.o
 
 KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
 	-mfsrra -mfsca

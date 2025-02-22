@@ -248,7 +248,7 @@ CVector CPedShelterAttractor::GetDisplacement(int32 qid) const
 	return ms_displacements[qid];
 }
 
-void CPedShelterAttractor::ComputeAttractPos(int32 qid, CVector& pos) const
+void CPedShelterAttractor::ComputeAttractPos(int qid, CVector& pos) const
 {
 	if (!p2dEffect)
 		return;
@@ -262,7 +262,7 @@ void CPedAttractor::ComputeAttractHeading(int32 qid, float& heading) const
 		heading += ComputeDeltaHeading();
 }
 
-void CPedShelterAttractor::ComputeAttractHeading(int32 qid, float& heading) const
+void CPedShelterAttractor::ComputeAttractHeading(int qid, float& heading) const
 {
 	heading = CGeneral::GetRandomNumberInRange(0.0f, TWOPI);
 }

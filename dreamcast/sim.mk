@@ -8,7 +8,7 @@ all: $(TARGET)
 include common.mk
 
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../src/audio/sampman_null.o
+	../miami/audio/sampman_null.o
 
 OBJS_SIM=$(OBJS:.o=.sim.o) \
 	../vendor/koshle/hlekos.sim.o \
@@ -47,11 +47,11 @@ ifeq ($(IS_MAC), yes)
 else
 # Using sse2 here for valgrind compatibility
 %.sim.o: %.c
-	$(CC) -msse2 -mfpmath=sse -c -O0 -g -fno-pic -no-pie -o $@ $(CFLAGS) -I../vendor/koshle -I../vendor/emu -m32 -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<
+	$(CC) -msse2 -mfpmath=sse -c -O0 -g -fno-pic -no-pie -o $@ $(CFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<
 %.sim.o: %.cpp
-	$(CXX) -msse2 -mfpmath=sse -c -O0 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -m32 -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<
+	$(CXX) -msse2 -mfpmath=sse -c -O0 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<
 %.sim.o3: %.cpp
-	$(CXX) -msse2 -mfpmath=sse -c -O3 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -m32 -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<	
+	$(CXX) -msse2 -mfpmath=sse -c -O3 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<	
 endif
 
 clean:
@@ -62,6 +62,6 @@ $(TARGET): $(OBJS_SIM)
 	$(CXX) -fno-pic -no-pie -o $(TARGET) $(OBJS_SIM) -lX11
 else
 $(TARGET): $(OBJS_SIM)
-	$(CXX) -m32 -fno-pic -no-pie -o $(TARGET) $(OBJS_SIM) -lX11
+	$(CXX) -fno-pic -no-pie -o $(TARGET) $(OBJS_SIM) -lX11
 endif
 -include $(DEPS_SIM)

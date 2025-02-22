@@ -8,7 +8,7 @@
 #include "General.h"
 #include "Object.h"
 
-int CWaterCreatures::nNumActiveSeaLifeForms;
+int32 CWaterCreatures::nNumActiveSeaLifeForms;
 CWaterCreature CWaterCreatures::aWaterCreatures[NUM_WATER_CREATURES];
 
 struct WaterCreatureProperties aProperties[65] = {

@@ -1,4 +1,4 @@
-MISSC_FILES = \
+MISC_FILES = \
   \
   txd/LOADSC8.TXD \
   txd/LOADSC6.TXD \
@@ -38,7 +38,6 @@ MISSC_FILES = \
   models/particle.txd \
   models/fronten1.txd \
   models/INTRO.TXD \
-  models/generic \
   models/generic/wheels.TXD \
   models/generic/wheels.DFF \
   models/generic/arrow.DFF \
@@ -120,84 +119,65 @@ MISSC_FILES = \
   data/maps/airport/airport.ipl \
   data/maps/airport/airport.ide \
   data/maps/airport/airport.col \
-  data/maps/nbeachbt \
   data/maps/nbeachbt/nbeachbt.col \
   data/maps/nbeachbt/nbeachbt.ide \
   data/maps/nbeachbt/nbeachbt.ipl \
   data/maps/map5.dat \
-  data/maps/lawyers \
   data/maps/lawyers/lawyers.ide \
   data/maps/lawyers/lawyers.col \
   data/maps/lawyers/lawyers.ipl \
-  data/maps/haitiN \
   data/maps/haitiN/haitin.ipl \
   data/maps/haitiN/haitin.col \
   data/maps/haitiN/haitiN.ide \
-  data/maps/downtown \
   data/maps/downtown/downtown.col \
   data/maps/downtown/downtown.ipl \
   data/maps/downtown/downtown.ide \
-  data/maps/stadint \
   data/maps/stadint/stadint.col \
   data/maps/stadint/stadint.ide \
   data/maps/stadint/stadint.ipl \
-  data/maps/club \
   data/maps/club/club.ide \
   data/maps/club/CLUB.ipl \
   data/maps/club/CLUB.col \
-  data/maps/yacht \
   data/maps/yacht/yacht.ipl \
   data/maps/yacht/yacht.col \
   data/maps/yacht/yacht.ide \
   data/maps/cull.ipl \
   data/maps/map3.dat \
-  data/maps/airportN \
   data/maps/airportN/airportN.ipl \
   data/maps/airportN/airportN.col \
   data/maps/airportN/airportN.ide \
-  data/maps/oceandrv \
   data/maps/oceandrv/oceandrv.ipl \
   data/maps/oceandrv/oceandrv.ide \
   data/maps/oceandrv/oceandrv.col \
-  data/maps/starisl \
   data/maps/starisl/starisl.col \
   data/maps/starisl/starisl.ide \
   data/maps/starisl/starisl.ipl \
   data/maps/map1.dat \
-  data/maps/oceandn \
   data/maps/oceandn/oceandN.ide \
   data/maps/oceandn/oceandN.col \
   data/maps/oceandn/oceandN.ipl \
-  data/maps/washints \
   data/maps/washints/washints.ipl \
   data/maps/washints/washints.col \
   data/maps/washints/washints.ide \
-  data/maps/mansion \
   data/maps/mansion/mansion.col \
   data/maps/mansion/mansion.ipl \
   data/maps/mansion/mansion.ide \
-  data/maps/downtows \
   data/maps/downtows/downtows.ipl \
   data/maps/downtows/downtows.col \
   data/maps/downtows/downtows.ide \
-  data/maps/bridge \
   data/maps/bridge/bridge.col \
   data/maps/bridge/bridge.ide \
   data/maps/bridge/bridge.ipl \
-  data/maps/docks \
   data/maps/docks/docks.col \
   data/maps/docks/docks.ide \
   data/maps/docks/docks.ipl \
-  data/maps/concerth \
   data/maps/concerth/concerth.ipl \
   data/maps/concerth/concerth.ide \
   data/maps/concerth/concerth.col \
   data/maps/paths.ipl \
-  data/maps/cisland \
   data/maps/cisland/cisland.ide \
   data/maps/cisland/cisland.ipl \
   data/maps/cisland/cisland.col \
-  data/maps/stripclb \
   data/maps/stripclb/stripclb.ide \
   data/maps/stripclb/stripclb.ipl \
   data/maps/stripclb/stripclb.col \
@@ -207,7 +187,6 @@ MISSC_FILES = \
   data/occlu.ipl \
   data/handling.cfg \
   data/timecyc.dat \
-  data/paths \
   data/paths/flight3.dat \
   data/paths/spath0.dat \
   data/paths/flight2.dat \

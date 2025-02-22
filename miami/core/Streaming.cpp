@@ -1358,6 +1358,10 @@ found:
 	return true;
 }
 
+bool re3RemoveLeastUsedModel() {
+	return CStreaming::RemoveLeastUsedModel(0);
+}
+
 bool
 CStreaming::RemoveLeastUsedModel(uint32 excludeMask)
 {
