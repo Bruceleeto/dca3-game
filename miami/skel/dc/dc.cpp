@@ -359,7 +359,7 @@ psTimer(void)
 double
 psTimer(void)
 {
-    #if defined(DC_SH4)
+    #if defined(DC_SH4) && 0
 	// Clock off AICA
 	//
 	// according to purist, sh4 is 199.5MHz (KOS assumes 200 mhz)
