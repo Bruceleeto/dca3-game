@@ -184,7 +184,11 @@ int _caserename(const char *old_filename, const char *new_filename)
 // Returned string should freed manually (if exists)
 char* casepath(char const* path, bool checkPathFirst)
 {
-    if (checkPathFirst && access(path, F_OK) != -1) {
+    //TODO: Implement this
+    bool access_ok = false; //access(path, F_OK) != -1
+    // printf("TODO: FIXME %s\n", __func__);
+
+    if (checkPathFirst && access_ok ) {
         // File path is correct
         return nil;
     }

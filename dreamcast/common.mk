@@ -24,9 +24,6 @@ git-version.h: git-version.tmp
 ../miami/skel/dc/dc.cpp: git-version.h
 
 
-# ../miami/core/CdStreamDC.o \
-# ../miami/skel/dc/dc.o \
-../miami/vmu/vmu.o \
 
 # List all of your C files here, but change the extension to ".o"
 # Include "romdisk.o" if you want a rom disk.
@@ -52,6 +49,7 @@ RE3_OBJS = \
 	../miami/collision/ColModel.o \
 	../miami/collision/ColPoint.o \
 	../miami/collision/ColSphere.o \
+	../miami/collision/ColStore.o \
 	../miami/collision/ColTriangle.o \
 	../miami/collision/TempColModels.o \
 	../miami/collision/VuCollision.o \
@@ -82,12 +80,16 @@ RE3_OBJS = \
 	../miami/control/Script4.o \
 	../miami/control/Script5.o \
 	../miami/control/Script6.o \
+	../miami/control/Script7.o \
+	../miami/control/Script8.o \
+	../miami/control/SetPieces.o \
 	../miami/control/ScriptDebug.o \
 	../miami/control/TrafficLights.o \
 	\
 	../miami/core/Accident.o \
 	../miami/core/Cam.o \
 	../miami/core/Camera.o \
+	../miami/core/CdStreamDC.o \
 	../miami/core/Clock.o \
 	../miami/core/ControllerConfig.o \
 	../miami/core/Debug.o \
@@ -116,6 +118,7 @@ RE3_OBJS = \
 	../miami/core/Range3D.o \
 	../miami/core/re3.o \
 	../miami/core/References.o \
+	../miami/core/Ropes.o \
 	../miami/core/Stats.o \
 	../miami/core/Streaming.o \
 	../miami/core/SurfaceTable.o \
@@ -149,6 +152,7 @@ RE3_OBJS = \
 	../miami/modelinfo/SimpleModelInfo.o \
 	../miami/modelinfo/TimeModelInfo.o \
 	../miami/modelinfo/VehicleModelInfo.o \
+	../miami/modelinfo/WeaponModelInfo.o \
 	\
 	../miami/objects/CutsceneObject.o \
 	../miami/objects/DummyObject.o \
@@ -156,6 +160,7 @@ RE3_OBJS = \
 	../miami/objects/ObjectData.o \
 	../miami/objects/ParticleObject.o \
 	../miami/objects/Projectile.o \
+	../miami/objects/Stinger.o \
 	\
 	../miami/peds/CivilianPed.o \
 	../miami/peds/CopPed.o \
@@ -167,6 +172,7 @@ RE3_OBJS = \
 	../miami/peds/PedDebug.o \
 	../miami/peds/PedFight.o \
 	../miami/peds/PedIK.o \
+	../miami/peds/PedAttractor.o \
 	../miami/peds/PedPlacement.o \
 	../miami/peds/PedRoutes.o \
 	../miami/peds/PedType.o \
@@ -178,6 +184,7 @@ RE3_OBJS = \
 	../miami/renderer/Console.o \
 	../miami/renderer/Coronas.o \
 	../miami/renderer/Credits.o \
+	../miami/renderer/CutsceneShadow.o \
 	../miami/renderer/Draw.o \
 	../miami/renderer/Fluff.o \
 	../miami/renderer/Font.o \
@@ -186,6 +193,7 @@ RE3_OBJS = \
 	../miami/renderer/Instance.o \
 	../miami/renderer/Lines.o \
 	../miami/renderer/MBlur.o \
+	../miami/renderer/Occlusion.o \
 	../miami/renderer/Particle.o \
 	../miami/renderer/ParticleMgr.o \
 	../miami/renderer/PlayerSkin.o \
@@ -194,15 +202,19 @@ RE3_OBJS = \
 	../miami/renderer/Renderer.o \
 	../miami/renderer/Rubbish.o \
 	../miami/renderer/Shadows.o \
+	../miami/renderer/ShadowCamera.o \
 	../miami/renderer/Skidmarks.o \
 	../miami/renderer/SpecialFX.o \
 	../miami/renderer/Sprite.o \
 	../miami/renderer/Sprite2d.o \
 	../miami/renderer/TexList.o \
 	../miami/renderer/Timecycle.o \
+	../miami/renderer/VarConsole.o \
 	../miami/renderer/WaterCannon.o \
+	../miami/renderer/WaterCreatures.o \
 	../miami/renderer/WaterLevel.o \
 	../miami/renderer/Weather.o \
+	../miami/renderer/WindModifiers.o \
 	\
 	../miami/rw/ClumpRead.o \
 	../miami/rw/Lights.o \
@@ -220,6 +232,7 @@ RE3_OBJS = \
 	../miami/skel/crossplatform.o \
 	../miami/skel/events.o \
 	../miami/skel/skeleton.o \
+	../miami/skel/dc/dc.o \
 	\
 	../miami/text/Messages.o \
 	../miami/text/Pager.o \
@@ -227,6 +240,7 @@ RE3_OBJS = \
 	\
 	../miami/vehicles/Automobile.o \
 	../miami/vehicles/Boat.o \
+	../miami/vehicles/Bike.o \
 	../miami/vehicles/CarGen.o \
 	../miami/vehicles/Cranes.o \
 	../miami/vehicles/DamageManager.o \
@@ -269,6 +283,7 @@ RE3_OBJS = \
 	\
 	../vendor/miniLZO/minilzo.o \
 	\
+	../miami/vmu/vmu.o
 
 # Excluded \
 	../miami/extras/custompipes.o \

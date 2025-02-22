@@ -59,7 +59,7 @@ CColStore::AddColSlot(const char *name)
 }
 
 void
-CColStore::RemoveColSlot(int slot)
+CColStore::RemoveColSlot(int32 slot)
 {
 	if(GetSlot(slot)){
 		if(GetSlot(slot)->isLoaded)

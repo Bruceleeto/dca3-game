@@ -329,6 +329,7 @@ DoFade(void)
 	}
 }
 
+#if 0
 bool
 RwGrabScreen(RwCamera *camera, RwChar *filename)
 {
@@ -351,6 +352,7 @@ RwGrabScreen(RwCamera *camera, RwChar *filename)
 	RwImageDestroy(pImage);
 	return result;
 }
+#endif
 
 #define TILE_WIDTH 576
 #define TILE_HEIGHT 432
@@ -378,10 +380,12 @@ DoRWStuffEndOfFrame(void)
 		}
 	}
 #else
+#if 0
 	if (CPad::GetPad(1)->GetLeftShockJustDown() || CPad::GetPad(0)->GetFJustDown(11)) {
 		sprintf(s, "screen_%011lld.png", time(nil));
 		RwGrabScreen(Scene.camera, s);
 	}
+#endif
 #endif
 #endif // !MASTER
 }
@@ -1807,6 +1811,7 @@ AppEventHandler(RsEvent event, void *param)
 	}
 }
 
+#if !defined(RW_DC)
 #ifndef MASTER
 void
 TheModelViewer(void)
@@ -1838,6 +1843,7 @@ TheModelViewer(void)
 	CTimer::Update();
 #endif
 }
+#endif
 #endif
 
 
