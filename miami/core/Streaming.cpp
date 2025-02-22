@@ -87,6 +87,10 @@ bool gbPrintVehiclesInMemory;  // TODO
 bool gbPrintStreamingBuffer; // TODO
 #endif
 
+#define memory_logf(...) // printf(__VA_ARGS__)
+
+#define STREAMING_MEM_SIZE (4 * 1024 * 1024)
+
 bool
 CStreamingInfo::GetCdPosnAndSize(uint32 &posn, uint32 &size)
 {
@@ -222,6 +226,10 @@ CStreaming::Init2(void)
 
 	// PC only, figure out how much memory we got
 #ifdef GTA_PC
+#if defined(RW_DC)
+	ms_memoryAvailable = STREAMING_MEM_SIZE;
+	desiredNumVehiclesLoaded = 12;
+#else
 #define MB (1024*1024)
 #ifdef FIX_BUGS
 	// do what gta3 does
@@ -238,6 +246,7 @@ CStreaming::Init2(void)
 	debug("Memory allocated to Streaming is %zuMB", ms_memoryAvailable/MB); // original modifier was %d
 #endif
 #undef MB
+#endif
 #endif
 
 	// find island LODs
@@ -667,7 +676,10 @@ CStreaming::ConvertBufferToObject(int8 *buf, int32 streamId)
 	if(ms_aInfoForModel[streamId].m_loadState != STREAMSTATE_STARTED){
 		ms_aInfoForModel[streamId].m_loadState = STREAMSTATE_LOADED;
 #ifndef USE_CUSTOM_ALLOCATOR
-		ms_memoryUsed += ms_aInfoForModel[streamId].GetCdSize() * CDSTREAM_SECTOR_SIZE;
+		if(streamId < STREAM_OFFSET_TXD) {
+			ms_memoryUsed += ms_aInfoForModel[streamId].GetCdSize() * CDSTREAM_SECTOR_SIZE;
+			memory_logf("ConvertBufferToObject: Memory used: %d\n", ms_memoryUsed);
+		}
 #endif
 	}
 
@@ -734,7 +746,10 @@ CStreaming::FinishLoadingLargeFile(int8 *buf, int32 streamId)
 
 	ms_aInfoForModel[streamId].m_loadState = STREAMSTATE_LOADED;
 #ifndef USE_CUSTOM_ALLOCATOR
-	ms_memoryUsed += ms_aInfoForModel[streamId].GetCdSize() * CDSTREAM_SECTOR_SIZE;
+	if(streamId < STREAM_OFFSET_TXD) {
+		ms_memoryUsed += ms_aInfoForModel[streamId].GetCdSize() * CDSTREAM_SECTOR_SIZE;
+		memory_logf("FinishLoadingLargeFile: Memory used: %d\n", ms_memoryUsed);
+	}
 #endif
 
 	if(!success){
@@ -1098,7 +1113,10 @@ CStreaming::RemoveModel(int32 id)
 			assert(id < NUMSTREAMINFO);
 			CAnimManager::RemoveAnimBlock(id - STREAM_OFFSET_ANIM);
 		}
-		ms_memoryUsed -= ms_aInfoForModel[id].GetCdSize()*CDSTREAM_SECTOR_SIZE;
+		if (id < STREAM_OFFSET_TXD) {
+			ms_memoryUsed -= ms_aInfoForModel[id].GetCdSize()*CDSTREAM_SECTOR_SIZE;
+			memory_logf("Remove Model: %d\n", ms_memoryUsed);
+		}
 	}
 
 	if(ms_aInfoForModel[id].m_next){
@@ -3084,13 +3102,9 @@ void
 CStreaming::MakeSpaceFor(int32 size)
 {
 #ifdef FIX_BUGS
-#define MB (1024 * 1024)
 	if(ms_memoryAvailable == 0) {
-		extern size_t _dwMemAvailPhys;
-		ms_memoryAvailable = (_dwMemAvailPhys - 10 * MB) / 2;
-		if(ms_memoryAvailable < 65 * MB) ms_memoryAvailable = 65 * MB;
+		ms_memoryAvailable = STREAMING_MEM_SIZE;
 	}
-#undef MB
 #endif
 	while(ms_memoryUsed >= ms_memoryAvailable - size)
 		if(!RemoveLeastUsedModel(STREAMFLAGS_20)){
