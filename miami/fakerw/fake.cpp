@@ -574,7 +574,7 @@ RwBool RwEngineOpen(RwEngineOpenParams *initParams) {
 	return Engine::open(&openParams);
 }
 RwBool RwEngineStart(void) {
-	rw::d3d::isP8supported = false;
+	// rw::d3d::isP8supported = false;
 	return Engine::start();
 }
 RwBool RwEngineStop(void) { Engine::stop(); return true; }
@@ -752,6 +752,7 @@ RwInt32 RpClumpGetNumAtomics(RpClump * clump) { return clump->countAtomics(); }
 //RwInt32 RpClumpGetNumLights(RpClump * clump);
 //RwInt32 RpClumpGetNumCameras(RpClump * clump);
 RpClump *RpClumpStreamRead(RwStream * stream) { return rw::Clump::streamRead(stream); }
+RwBool RpClumpStreamWrite(RpClump * clump, RwStream * stream) { return clump->streamWrite(stream); }
 //RpClump *RpClumpStreamWrite(RpClump * clump, RwStream * stream);
 RwInt32 RpClumpRegisterPlugin(RwInt32 size, RwUInt32 pluginID, RwPluginObjectConstructor constructCB, RwPluginObjectDestructor destructCB, RwPluginObjectCopy copyCB)
 	{ return Clump::registerPlugin(size, pluginID, constructCB, destructCB, (CopyConstructor)copyCB); }
@@ -806,7 +807,7 @@ RwBool       RpWorldPluginAttach(void) {
 	registerMaterialRightsPlugin();
 
 	// not sure if this goes here
-	rw::xbox::registerVertexFormatPlugin();
+	// rw::xbox::registerVertexFormatPlugin();
 	return true;
 }
 
@@ -910,6 +911,7 @@ RpSkin *RpSkinGeometryGetSkin( RpGeometry *geometry ) { return Skin::get(geometr
 RpAtomic *RpSkinAtomicSetHAnimHierarchy( RpAtomic *atomic, RpHAnimHierarchy *hierarchy ) { Skin::setHierarchy(atomic, hierarchy); return atomic; }
 RpHAnimHierarchy *RpSkinAtomicGetHAnimHierarchy( const RpAtomic *atomic ) { return Skin::getHierarchy(atomic); }
 
+#if 0
 RwImage *
 RtBMPImageWrite(RwImage *image, const RwChar *imageName)
 {
@@ -982,6 +984,7 @@ RtPNGImageRead(const RwChar *imageName)
 	return rw::readPNG(imageName);
 #endif
 }
+#endif
 
 #include "rtquat.h"
 

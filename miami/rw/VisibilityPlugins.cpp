@@ -140,6 +140,7 @@ CVisibilityPlugins::InsertAtomicIntoBoatSortedList(RpAtomic *a, float dist)
 // probably have to fix fading for this so material alpha isn't overwritten
 #define VEHICLE_LODDIST_MULTIPLIER (TheCamera.GenerationDistMultiplier)
 
+#if !defined(DC_TEXCONV)
 void
 CVisibilityPlugins::SetRenderWareCamera(RwCamera *camera)
 {
@@ -160,6 +161,10 @@ CVisibilityPlugins::SetRenderWareCamera(RwCamera *camera)
 	ms_pedLod1Dist = sq(60.0f * TheCamera.LODDistMultiplier);
 	ms_pedFadeDist = sq(70.0f * TheCamera.LODDistMultiplier);
 }
+#else
+void
+CVisibilityPlugins::SetRenderWareCamera(RwCamera *camera) { assert(false); }
+#endif
 
 static float DistToCameraSq;
 static float PitchToCamera;
@@ -212,6 +217,7 @@ CVisibilityPlugins::RenderBoatAlphaAtomics(void)
 	SetCullMode(rwCULLMODECULLBACK);
 }
 
+#if !defined(DC_TEXCONV)
 void
 CVisibilityPlugins::RenderFadingEntities(CLinkList<AlphaObjectInfo> &list)
 {
@@ -244,6 +250,13 @@ CVisibilityPlugins::RenderFadingEntities(CLinkList<AlphaObjectInfo> &list)
 			RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)TRUE);
 	}
 }
+#else
+void
+CVisibilityPlugins::RenderFadingEntities(CLinkList<AlphaObjectInfo> &list)
+{
+	assert(false);
+}
+#endif
 
 void
 CVisibilityPlugins::RenderFadingEntities(void)
@@ -258,6 +271,7 @@ CVisibilityPlugins::RenderFadingUnderwaterEntities(void)
 	RenderFadingEntities(m_alphaUnderwaterEntityList);
 }
 
+#if !defined(DC_TEXCONV)
 RpAtomic*
 CVisibilityPlugins::RenderWheelAtomicCB(RpAtomic *atomic)
 {
@@ -275,6 +289,10 @@ CVisibilityPlugins::RenderWheelAtomicCB(RpAtomic *atomic)
 	}
 	return atomic;
 }
+#else
+RpAtomic*
+CVisibilityPlugins::RenderWheelAtomicCB(RpAtomic *atomic) { assert(false); }
+#endif
 
 RpAtomic*
 CVisibilityPlugins::RenderObjNormalAtomic(RpAtomic *atomic)
@@ -308,6 +326,7 @@ CVisibilityPlugins::RenderAlphaAtomic(RpAtomic *atomic, int alpha)
 	return atomic;
 }
 
+#if !defined(DC_TEXCONV)
 RpAtomic*
 CVisibilityPlugins::RenderWeaponCB(RpAtomic *atomic)
 {
@@ -325,7 +344,12 @@ CVisibilityPlugins::RenderWeaponCB(RpAtomic *atomic)
 		RENDERCALLBACK(atomic);
 	return atomic;
 }
+#else
+RpAtomic*
+CVisibilityPlugins::RenderWeaponCB(RpAtomic *atomic) { assert(false); }
+#endif
 
+#if !defined(DC_TEXCONV)
 RpAtomic*
 CVisibilityPlugins::RenderFadingAtomic(RpAtomic *atomic, float camdist)
 {
@@ -362,6 +386,13 @@ CVisibilityPlugins::RenderFadingAtomic(RpAtomic *atomic, float camdist)
 
 	return atomic;
 }
+#else
+RpAtomic*
+CVisibilityPlugins::RenderFadingAtomic(RpAtomic *atomic, float camdist)
+{
+	assert(false);
+}
+#endif
 
 
 
@@ -649,6 +680,7 @@ CVisibilityPlugins::RenderVehicleTailRotorAlphaCB(RpAtomic *atomic)
 	return atomic;
 }
 
+#if !defined(DC_TEXCONV)
 RpAtomic*
 CVisibilityPlugins::RenderPlayerCB(RpAtomic *atomic)
 {
@@ -657,6 +689,13 @@ CVisibilityPlugins::RenderPlayerCB(RpAtomic *atomic)
 	RENDERCALLBACK(atomic);
 	return atomic;
 }
+#else
+RpAtomic*
+CVisibilityPlugins::RenderPlayerCB(RpAtomic *atomic)
+{
+	assert(false);
+}
+#endif
 
 RpAtomic*
 CVisibilityPlugins::RenderPedCB(RpAtomic *atomic)

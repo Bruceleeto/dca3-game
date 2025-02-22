@@ -12,19 +12,19 @@ IS_MAC := $(shell uname -s | grep -i "darwin" > /dev/null && echo "yes" || echo 
 
 MOD_NAME?=
 
-GTA_DIR?=../../gta3
-GTA_MOD_DIR?=../../gta3_mod$(MOD_NAME)
+GTA_DIR?=../../miami
+GTA_MOD_DIR?=../../miami_mod$(MOD_NAME)
 GTA_MOD_IMG_DIR?=$(GTA_MOD_DIR)/img
 GTA_MOD_SFX_DIR?=$(GTA_MOD_DIR)/sfx
 GTA_MOD_LOOSE_DIR?=$(GTA_MOD_DIR)/loose
 
 REPACK_DIR?=repack-data
-REPACK_GTA_DIR?=$(REPACK_DIR)/gta3
-REPACK_IMG_ORIG_DIR?=$(REPACK_DIR)/img-orig
-REPACK_IMG_DC_DIR?=$(REPACK_DIR)/img-dc
-REPACK_SFX_ORIG_DIR?=$(REPACK_DIR)/sfx-orig
-REPACK_SFX_DC_DIR?=$(REPACK_DIR)/sfx-dc
-REPACK_STREAM_DECODED_DIR?=$(REPACK_DIR)/stream-decoded
+REPACK_GTA_DIR?=$(REPACK_DIR)/miami
+REPACK_IMG_ORIG_DIR?=$(REPACK_DIR)/miami-img-orig
+REPACK_IMG_DC_DIR?=$(REPACK_DIR)/miami-img-dc
+REPACK_SFX_ORIG_DIR?=$(REPACK_DIR)/miami-sfx-orig
+REPACK_SFX_DC_DIR?=$(REPACK_DIR)/miami-sfx-dc
+REPACK_STREAM_DECODED_DIR?=$(REPACK_DIR)/miami-stream-decoded
 
 LIBS :=
 TEXCONV_FLAGS :=
@@ -45,7 +45,7 @@ all: $(TARGET)
 include common.mk
 
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../src/audio/sampman_dc.o \
+	../src/Audio/sampman_dc.o \
 	../src/prof/profiler.o
 
 OBJS_TEXCONV = $(RW_OBJS:.o=.texconv.o)
@@ -60,28 +60,33 @@ OBJS_TEXCONV += \
 	../vendor/koshle/hlepvr_irq.texconv.o \
 	../vendor/koshle/hlematrix3d.texconv.o \
 	../vendor/librw/src/dc/vq.texconv.o \
-	../src/fakerw/fake.texconv.o \
-	../src/skel/crossplatform.texconv.o \
-	../src/rw/TxdStore.texconv.o \
+	../miami/fakerw/fake.texconv.o \
+	../miami/skel/crossplatform.texconv.o \
+	../miami/rw/TxdStore.texconv.o \
+	../miami/rw/RwHelper.texconv.o \
 	texconv.texconv.o \
 	../vendor/TriStripper/src/connectivity_graph.texconv.o \
 	../vendor/TriStripper/src/policy.texconv.o \
 	../vendor/TriStripper/src/tri_stripper.texconv.o \
-	../src/rw/VisibilityPlugins.texconv.o \
-	../src/rw/NodeName.texconv.o \
-	../src/animation/RpAnimBlend.texconv.o \
-	../src/animation/Bones.texconv.o \
-	../src/animation/AnimBlendAssociation.texconv.o \
-	../src/animation/AnimBlendNode.texconv.o \
-	../src/animation/AnimBlendClumpData.texconv.o \
-	../src/rw/MemoryMgr.texconv.o \
-	../src/math/Quaternion.texconv.o \
+	../miami/rw/VisibilityPlugins.texconv.o \
+	../miami/rw/NodeName.texconv.o \
+	../miami/animation/RpAnimBlend.texconv.o \
+	../miami/animation/Bones.texconv.o \
+	../miami/animation/AnimBlendAssociation.texconv.o \
+	../miami/animation/AnimBlendNode.texconv.o \
+	../miami/animation/AnimBlendClumpData.texconv.o \
+	../miami/rw/MemoryMgr.texconv.o \
+	../miami/math/Quaternion.texconv.o \
+	../vendor/librw/src/ps2-x/ps2.texconv.o \
+	../vendor/librw/src/ps2-x/ps2device.texconv.o \
+	../vendor/librw/src/ps2-x/ps2raster.texconv.o \
+	../vendor/librw/src/ps2-x/ps2skin.texconv.o \
 	../vendor/librw/src/d3d-x/d3d.texconv.o \
 	../vendor/librw/src/d3d-x/d3d8.texconv.o \
 	../vendor/librw/src/d3d-x/d3d8render.texconv.o \
 	../vendor/librw/src/bmp.texconv.o \
 	../vendor/librw/src/png.texconv.o \
-	../vendor/librw/src/lodepng/lodepng.texconv.o	
+	../vendor/librw/src/lodepng/lodepng.texconv.o
 
 # Add compilation units to this list to explicity compile them with
 # -O3 optimizations, while the rest get the default (-Os) treatment
@@ -278,7 +283,7 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 	$(CXX) -o $@ $(OBJS_TEXCONV)
 
 %.texconv.o: %.cpp
-	$(CXX) -std=c++2a -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
+	$(CXX) -std=c++2a -c -O0 -g -MMD -MP -o $@ -I../vendor/koshle -I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
 
 -include $(DEPS)
 
@@ -343,6 +348,7 @@ TEXTURE_DOWNSAMPLE_IMG ?= HALF
 
 -include texlist.mk
 -include modlist.mk
+-include imgmisc.mk
 -include gta3files.mk
 -include sfxlist.mk
 -include sfxlooplist.mk
@@ -351,6 +357,7 @@ TEXTURE_DOWNSAMPLE_IMG ?= HALF
 
 IMG_TEXTURES_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_MODELS))
+IMG_MISC_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_MISC))
 LOOSE_FILES_DC = $(addprefix $(REPACK_GTA_DIR)/, $(MISC_FILES))
 SFX_DC_DIR = $(REPACK_GTA_DIR)/sfx
 SFX_DC_RAW = $(SFX_DC_DIR)/sfx_all.raw
@@ -382,6 +389,7 @@ $(REPACK_DIR)/unpacked: imgtool $(GTA_DIR)/models/gta3.img $(GTA_DIR)/models/gta
 	@touch $@
 
 $(IMG_TEXTURES_ORIG) $(IMG_MODELS_ORIG): $(REPACK_DIR)/unpacked
+	@test -f $@
 	@touch $@
 
 # First try the mods img directory
@@ -416,6 +424,22 @@ $(REPACK_IMG_DC_DIR)/%.TXD: $(REPACK_IMG_ORIG_DIR)/%.TXD texconv
 	@mkdir -p $(@D)
 	./texconv $< $@ $(DEFAULT_RES) $(DEFAULT_RES) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_IMG)
 
+# First try the mods img directory
+$(REPACK_IMG_DC_DIR)/%.col: $(GTA_MOD_IMG_DIR)/%.col
+	@mkdir -p $(@D)
+	cp $< $@
+$(REPACK_IMG_DC_DIR)/%.ifp: $(GTA_MOD_IMG_DIR)/%.ifp
+	@mkdir -p $(@D)
+	cp $< $@
+
+# if not, the extracted img directory
+$(REPACK_IMG_DC_DIR)/%.col: $(REPACK_IMG_ORIG_DIR)/%.col
+	@mkdir -p $(@D)
+	cp $< $@
+$(REPACK_IMG_DC_DIR)/%.ifp: $(REPACK_IMG_ORIG_DIR)/%.ifp
+	@mkdir -p $(@D)
+	cp $< $@
+
 # first try the mods loose directory
 $(REPACK_GTA_DIR)/%.dff: $(GTA_MOD_LOOSE_DIR)/%.dff texconv
 	@mkdir -p $(@D)
@@ -449,7 +473,7 @@ $(REPACK_GTA_DIR)/%.TXD: $(GTA_DIR)/%.TXD texconv
 	@mkdir -p $(@D)
 	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
 
-$(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC)
+$(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC) $(IMG_MISC_DC)
 	mkdir -p $(@D)
 	mkdir -p "$(REPACK_GTA_DIR)/models/gta3"
 	./imgtool pack "$(REPACK_GTA_DIR)/models/gta3" "$(REPACK_IMG_DC_DIR)"
@@ -459,16 +483,18 @@ $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir: $(REPACK_DI
 	@touch $@
 
 # sfx processing
-$(REPACK_DIR)/unpacked-sfx: extract-sfx $(GTA_DIR)/audio/sfx.SDT $(GTA_DIR)/audio/sfx.RAW
+$(REPACK_DIR)/unpacked-sfx: extract-sfx $(GTA_DIR)/Audio/sfx.SDT $(GTA_DIR)/Audio/sfx.RAW
 	mkdir -p $(@D)
 	mkdir -p "$(REPACK_SFX_ORIG_DIR)"
-	./extract-sfx "$(GTA_DIR)/audio/sfx.SDT" "$(GTA_DIR)/audio/sfx.RAW" "$(REPACK_SFX_ORIG_DIR)"
+	./extract-sfx "$(GTA_DIR)/Audio/sfx.SDT" "$(GTA_DIR)/Audio/sfx.RAW" "$(REPACK_SFX_ORIG_DIR)"
 	@touch $@
 
 $(SFX_ORIG): $(REPACK_DIR)/unpacked-sfx
+	@test -f $@
 	@touch $@
 
 $(SFX_ORIG_LOOP): $(SFX_ORIG)
+	@test -f $@
 	@touch $@
 
 # try first mods sfx directory
@@ -484,20 +510,24 @@ $(REPACK_SFX_DC_DIR)/%.pcm: $(REPACK_SFX_ORIG_DIR)/%.wav aud2adpcm
 # stream processing
 
 # first try the mods loose directory
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/audio/%.wav aud2adpcm
+$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/audio/%.mp3 aud2adpcm
+$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.mp3 aud2adpcm
+	@mkdir -p $(@D)
+	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
+
+$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.adf aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
 # then original folder
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/audio/%.wav aud2adpcm
+$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/Audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/audio/%.mp3 aud2adpcm
+$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/Audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
@@ -508,7 +538,7 @@ $(REPACK_GTA_DIR)/%: $(GTA_DIR)/%
 
 $(SFX_DC_RAW): pack-sfx $(SFX_REPACK_DC)
 	mkdir -p $(@D)
-	./pack-sfx "$(GTA_DIR)/audio/sfx.SDT" $(SFX_DC_RAW) $(SFX_DC_DSC) $(REPACK_SFX_DC_DIR)
+	./pack-sfx "$(GTA_DIR)/Audio/sfx.SDT" $(SFX_DC_RAW) $(SFX_DC_DSC) $(REPACK_SFX_DC_DIR)
 
  $(SFX_DC_DSC): $(SFX_DC_RAW)
 	ls -l $@

@@ -425,6 +425,7 @@ RpAnimBlendClumpFindBone(RpClump *clump, uint32 boneTag)
 	return pFrameDataFound;
 }
 
+#if !defined(DC_TEXCONV)
 void
 RpAnimBlendNodeUpdateKeyframes(AnimBlendFrameData *frames, AnimBlendFrameUpdateData *updateData, int32 numNodes)
 {
@@ -441,7 +442,12 @@ RpAnimBlendNodeUpdateKeyframes(AnimBlendFrameData *frames, AnimBlendFrameUpdateD
 			}
 	}
 }
+#else
+void
+RpAnimBlendNodeUpdateKeyframes(AnimBlendFrameData *frames, AnimBlendFrameUpdateData *updateData, int32 numNodes) { assert(false); }
+#endif
 
+#if !defined(DC_TEXCONV)
 // TODO:
 // CAnimBlendClumpData::LoadFramesIntoSPR
 // CAnimBlendClumpData::ForAllFramesInSPR
@@ -515,3 +521,7 @@ RpAnimBlendClumpUpdateAnimations(RpClump *clump, float timeDelta, bool doRender)
 	}
 	RwFrameUpdateObjects(RpClumpGetFrame(clump));
 }
+#else
+void
+RpAnimBlendClumpUpdateAnimations(RpClump *clump, float timeDelta, bool doRender) { assert(false); }
+#endif

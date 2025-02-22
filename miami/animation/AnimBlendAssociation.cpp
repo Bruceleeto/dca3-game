@@ -125,6 +125,12 @@ CAnimBlendAssociation::SetDeleteCallback(void (*cb)(CAnimBlendAssociation*, void
 	callbackArg = arg;
 }
 
+#if defined(DC_TEXCONV)
+void
+CAnimBlendAssociation::SetCurrentTime(float time) {
+	assert("false" && "Must not reach here");
+}
+#else
 void
 CAnimBlendAssociation::SetCurrentTime(float time)
 {
@@ -151,6 +157,7 @@ CAnimBlendAssociation::SetCurrentTime(float time)
 				nodes[i].FindKeyFrame(currentTime);
 	}
 }
+#endif
 
 void
 CAnimBlendAssociation::SyncAnimation(CAnimBlendAssociation *other)

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cstring>
 #include <iomanip>
+#include <cassert>
 
 // Sector size constant
 const size_t SECTOR_SIZE = 2048;
@@ -27,6 +28,7 @@ std::vector<DirRecord> readDirFile(const std::string& dirFilePath) {
     DirRecord record;
 
     while (dirFile.read(reinterpret_cast<char*>(&record), sizeof(DirRecord))) {
+        assert(record.size != 0);
         records.push_back(record);
     }
 

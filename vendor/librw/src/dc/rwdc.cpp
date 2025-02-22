@@ -43,6 +43,7 @@ bool re3RemoveLeastUsedModel();
 // #include "rwdcimpl.h"
 
 #include <dc/pvr.h>
+#include <dc/matrix.h>
 #include "alloc.h"
 
 #undef PVR_TXRFMT_STRIDE
@@ -4051,7 +4052,7 @@ rasterFromImage(Raster* raster, Image* image)
 
 	std::vector<Color> imageData;
 	if (image->depth == 32) {
-		assert(rasterFmt == Raster::C4444 || rasterFmt == Raster::C1555);
+		assert(rasterFmt == Raster::C4444 || rasterFmt == Raster::C1555 || rasterFmt == Raster::C565 /* DXT compression */);
 		imageData = createImageFromData_ARGB8888(image->pixels, image->width, image->height, image->stride);
     } else if (image->depth == 24) {
 		assert(rasterFmt == Raster::C565);

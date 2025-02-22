@@ -89,6 +89,7 @@
 // Use this to add const that wasn't there in the original code
 #define Const const
 
+#ifndef RW_DC
 typedef uint8_t uint8;
 typedef int8_t int8;
 typedef uint16_t uint16;
@@ -104,6 +105,12 @@ typedef uintptr_t uintptr;
 typedef intptr_t intptr;
 typedef uint64_t uint64;
 typedef int64_t int64;
+#endif
+#ifdef DC_SIM
+#include "dc_hle_types.h"
+#endif
+typedef uintptr_t uintptr;
+typedef intptr_t intptr;
 // hardcode ucs-2
 typedef uint16_t wchar;
 

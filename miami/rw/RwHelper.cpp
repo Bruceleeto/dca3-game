@@ -64,6 +64,7 @@ void FlushObrsPrintfs()
 #endif
 }
 
+#if !defined(DC_TEXCONV)
 void
 DefinedState(void)
 {
@@ -95,6 +96,10 @@ DefinedState(void)
 	RwD3D8SetRenderState(D3DRS_ALPHAREF, 2);
 #endif
 }
+#else
+void
+DefinedState(void) { assert(false); }
+#endif
 
 void
 SetCullMode(uint32 mode)
@@ -321,6 +326,7 @@ HAnimAnimationCreateForHierarchy(RpHAnimHierarchy *hier)
 	return anim;
 }
 
+#if !defined(DC_TEXCONV)
 void
 RenderSkeleton(RpHAnimHierarchy *hier)
 {
@@ -347,6 +353,10 @@ RenderSkeleton(RpHAnimHierarchy *hier)
 			par = stack[--sp];
 	}
 }
+#else
+void
+RenderSkeleton(RpHAnimHierarchy *hier) { assert(false); }
+#endif
 
 
 RwBool Im2DRenderQuad(RwReal x1, RwReal y1, RwReal x2, RwReal y2, RwReal z, RwReal recipCamZ, RwReal uvOffset)
@@ -467,6 +477,7 @@ RpClump *RpClumpGetBoundingSphere(RpClump *clump, RwSphere *sphere, bool useLTM)
 	return clump;
 }
 
+#if !defined(DC_TEXCONV)
 void
 CameraSize(RwCamera * camera, RwRect * rect,
 		   RwReal viewWindow, RwReal aspectRatio)
@@ -620,6 +631,11 @@ CameraSize(RwCamera * camera, RwRect * rect,
 
 	return;
 }
+#else
+void
+CameraSize(RwCamera * camera, RwRect * rect,
+		   RwReal viewWindow, RwReal aspectRatio) { assert(false); }
+#endif
 
 void
 CameraDestroy(RwCamera *camera)
@@ -719,6 +735,7 @@ findPlatform(rw::Atomic *a)
 	return 0;
 }
 
+#if !defined(DC_TEXCONV)
 // Game doesn't read atomic extensions so we never get any other than the default pipe,
 // but we need it for uninstancing
 void
@@ -733,6 +750,10 @@ attachPipe(rw::Atomic *atomic)
 			RpMatFXAtomicEnableEffects(atomic);
 	}
 }
+#else
+void
+attachPipe(rw::Atomic *atomic) { assert(false); }
+#endif
 
 // Attach pipes for the platform we have native data for so we can uninstance
 void
