@@ -84,9 +84,9 @@
 #define EXTENDED_RANGE_DESPAWN_MULTIPLIER (1.5f)
 
 bool CCarCtrl::bMadDriversCheat;
-int CCarCtrl::NumLawEnforcerCars;
-int CCarCtrl::NumAmbulancesOnDuty;
-int CCarCtrl::NumFiretrucksOnDuty;
+int32 CCarCtrl::NumLawEnforcerCars;
+int32 CCarCtrl::NumAmbulancesOnDuty;
+int32 CCarCtrl::NumFiretrucksOnDuty;
 bool CCarCtrl::bCarsGeneratedAroundCamera;
 float CCarCtrl::CarDensityMultiplier = 1.0f;
 int32 CCarCtrl::NumMissionCars;
@@ -811,7 +811,7 @@ CCarCtrl::AddToLoadedVehicleArray(int32 mi, int32 rating, int32 freq)
 }
 
 void
-CCarCtrl::RemoveFromLoadedVehicleArray(int mi, int32 rating)
+CCarCtrl::RemoveFromLoadedVehicleArray(int32 mi, int32 rating)
 {
 	int index = 0;
 	while (LoadedCarsArray[rating][index] != -1) {
@@ -832,7 +832,7 @@ CCarCtrl::RemoveFromLoadedVehicleArray(int mi, int32 rating)
 }
 
 int32
-CCarCtrl::ChooseCarModelToLoad(int rating)
+CCarCtrl::ChooseCarModelToLoad(int32 rating)
 {
 	return CarArrays[rating][CGeneral::GetRandomNumberInRange(0, TotalNumOfCarsOfRating[rating])];
 }
@@ -3229,7 +3229,7 @@ bool CCarCtrl::GenerateOneEmergencyServicesCar(uint32 mi, CVector vecPos)
 	bool created = false;
 	int attempts = 0;
 	CVector spawnPos;
-	int curNode, nextNode;
+	int32 curNode, nextNode;
 	float posBetweenNodes;
 	while (!created && attempts < 5){
 		if (ThePaths.GenerateCarCreationCoors(pPlayerPos.x, pPlayerPos.y, 0.707f, 0.707f,

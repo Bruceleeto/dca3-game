@@ -34,8 +34,8 @@ public:
 
 	static CStore<C2dEffect, TWODFXSIZE> &Get2dEffectStore(void) { return ms_2dEffectStore; }
 
-	static CBaseModelInfo *GetModelInfo(const char *name, int *id);
-	static CBaseModelInfo *GetModelInfo(int id){
+	static CBaseModelInfo *GetModelInfo(const char *name, int32 *id);
+	static CBaseModelInfo *GetModelInfo(int32 id){
 		return ms_modelInfoPtrs[id];
 	}
 	static CBaseModelInfo *GetModelInfo(const char *name, int minIndex, int maxIndex);

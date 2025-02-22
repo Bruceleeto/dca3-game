@@ -346,7 +346,7 @@ CPopulation::UpdatePedCount(ePedType pedType, bool decrease)
 	}
 }
 
-int
+int32
 CPopulation::ChooseGangOccupation(int gangId)
 {
 	return CGangs::ChooseGangPedModel(gangId);
@@ -620,7 +620,7 @@ CPopulation::AddToPopulation(float minDist, float maxDist, float minDistOffScree
 			pedAmount = 1;
 
 		CVector generatedCoors;
-		int node1, node2;
+		int32 node1, node2;
 		float randomPos;
 		bool foundCoors = !!ThePaths.GeneratePedCreationCoors(playerCentreOfWorld.x, playerCentreOfWorld.y, minDist, maxDist, minDistOffScreen, maxDistOffScreen,
 			&generatedCoors, &node1, &node2, &randomPos, nil);
@@ -1426,7 +1426,7 @@ CPopulation::ChooseCivilianCoupleOccupations(int32 group, int32& man, int32& wom
 }
 
 void
-CPopulation::PlaceGangMembers(ePedType pedType, int pedAmount, CVector const& coors)
+CPopulation::PlaceGangMembers(ePedType pedType, int32 pedAmount, CVector const& coors)
 {
 	if (CGeneral::GetRandomNumberInRange(0.f, 1.f) < 0.333f) {
 		PlaceGangMembersInFormation(pedType, pedAmount, coors);
@@ -1436,7 +1436,7 @@ CPopulation::PlaceGangMembers(ePedType pedType, int pedAmount, CVector const& co
 }
 
 void
-CPopulation::PlaceGangMembersInFormation(ePedType pedType, int pedAmount, CVector const& coors)
+CPopulation::PlaceGangMembersInFormation(ePedType pedType, int32 pedAmount, CVector const& coors)
 {
 	CPed *createdPeds[5];
 
@@ -1507,7 +1507,7 @@ CPopulation::PlaceGangMembersInFormation(ePedType pedType, int pedAmount, CVecto
 }
 
 void
-CPopulation::PlaceGangMembersInCircle(ePedType pedType, int pedAmount, CVector const& coors)
+CPopulation::PlaceGangMembersInCircle(ePedType pedType, int32 pedAmount, CVector const& coors)
 {
 	CPed *createdPeds[5];
 

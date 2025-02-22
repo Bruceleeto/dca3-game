@@ -44,8 +44,9 @@ all: $(TARGET)
 
 include common.mk
 
+# ../src/Audio/sampman_dc.o
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../src/Audio/sampman_dc.o \
+	../miami/audio/sampman_null.o \
 	../src/prof/profiler.o
 
 OBJS_TEXCONV = $(RW_OBJS:.o=.texconv.o)
@@ -123,7 +124,7 @@ CXXFLAGS += $(if $(WITH_32MB),-O3,-Os) \
 	$(if $(WITH_PROF),-DWITH_PROF=\"$(WITH_PROF)\") \
 	-MMD -MP -ffunction-sections -fdata-sections -ffast-math \
 	-fmerge-all-constants -fomit-frame-pointer -ml -std=gnu++20 \
-	-fno-exceptions -fno-rtti -flto=auto -fipa-pta -Wno-write-strings \
+	-fno-exceptions -fno-rtti -fipa-pta -Wno-write-strings \
 	-Wno-deprecated-enum-enum-conversion -Wno-deprecated-enum-float-conversion \
 	-Wno-multichar -Wno-unused-value -Wno-char-subscripts -Wno-reorder \
 	-Wno-unused-function -Wno-class-memaccess -fno-permissive \
@@ -163,7 +164,7 @@ $(OBJS_NO_FAST_MATH): %.o: %.cpp
 
 $(TARGET): $(OBJS)
 	kos-c++ -o $(TARGET) $(OBJS) -Wl,--gc-sections -Wl,--as-needed -Wl,-Map,output.map \
-		-flto=auto $(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 
+		$(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 
 	@echo && echo && echo "*** Build Completed Successfully ***" && echo && echo
 
 run: $(TARGET)

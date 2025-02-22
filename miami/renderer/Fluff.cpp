@@ -387,7 +387,7 @@ CMovingThing CMovingThings::EndCloseList;
 int16 CMovingThings::Num;
 CMovingThing CMovingThings::aMovingThings[NUMMOVINGTHINGS];
 
-int32 CScrollBar::TonightsEvent;
+int CScrollBar::TonightsEvent;
  
 void CMovingThings::Init()
 {

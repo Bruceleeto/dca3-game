@@ -140,6 +140,12 @@
     "svd": "cpp",
     "print": "cpp",
     "strstream": "cpp",
-    "regex": "cpp"
+    "regex": "cpp",
+    "cassert": "cpp",
+    "barrier": "cpp",
+    "coroutine": "cpp",
+    "future": "cpp",
+    "latch": "cpp",
+    "syncstream": "cpp"
   }
 }

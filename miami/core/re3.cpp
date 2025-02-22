@@ -301,6 +301,12 @@ void StoreIni(const char *cat, const char *key, int8 val)
 	sprintf(temp, "%d", val);
 	cfg[cat][key] = temp;
 }
+void StoreIni(const char *cat, const char *key, bool val)
+{
+	char temp[11];
+	sprintf(temp, "%d", val);
+	cfg[cat][key] = temp;
+}
 
 void StoreIni(const char *cat, const char *key, float val)
 {
@@ -973,7 +979,7 @@ DebugMenuPopulate(void)
 		DebugMenuAddCmd("Cheats", "Special car", SpecialCarCheats);
 		DebugMenuAddCmd("Cheats", "Pickup chicks", PickUpChicksCheat);
 
-		static int spawnCarId = MI_LANDSTAL;
+		static int32 spawnCarId = MI_LANDSTAL;
 		e = DebugMenuAddVar("Spawn", "Spawn Car ID", &spawnCarId, nil, 1, MI_LANDSTAL, MI_VICECHEE, carnames);
 		DebugMenuEntrySetWrap(e, true);
 		DebugMenuAddCmd("Spawn", "Spawn Car", [](){
@@ -1027,8 +1033,8 @@ DebugMenuPopulate(void)
 #endif
 		DebugMenuAddVarBool8("Render", "Backface Culling", &gBackfaceCulling, nil);
 		DebugMenuAddVarBool8("Render", "PS2 Alpha test Emu", &gPS2alphaTest, nil);
-		DebugMenuAddVarBool8("Render", "Frame limiter", &FrontEndMenuManager.m_PrefsFrameLimiter, nil);
-		DebugMenuAddVarBool8("Render", "VSynch", &FrontEndMenuManager.m_PrefsVsync, nil);
+		DebugMenuAddVarBool8("Render", "Frame limiter", (int8_t*)&FrontEndMenuManager.m_PrefsFrameLimiter, nil);
+		DebugMenuAddVarBool8("Render", "VSynch", (int8_t*)&FrontEndMenuManager.m_PrefsVsync, nil);
 		DebugMenuAddVar("Render", "Max FPS", &RsGlobal.maxFPS, nil, 1, 1, 1000, nil);
 #ifdef NEW_RENDERER
 		DebugMenuAddVarBool8("Render", "New Renderer", &gbNewRenderer, nil);
@@ -1157,7 +1163,7 @@ extern bool gbRenderWorld2;
 			"PIZZA BOY", "RC Raider Pickup", "RC Bandit Race", "RC Baron Race", "Checkpoint Charlie"
 		};
 
-		missionEntry = DebugMenuAddVar("Game", "Select mission", &nextMissionToSwitch, nil, 1, 0, ARRAY_SIZE(missions) - 1, missions);
+		missionEntry = DebugMenuAddVar("Game", "Select mission", (uint32_t*)&nextMissionToSwitch, nil, 1, 0, ARRAY_SIZE(missions) - 1, missions);
 		DebugMenuEntrySetWrap(missionEntry, true);
 		DebugMenuAddCmd("Game", "Start selected mission ", SwitchToMission);
 #endif

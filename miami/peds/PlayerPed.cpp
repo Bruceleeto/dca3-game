@@ -2040,7 +2040,7 @@ CPlayerPed::PlayIdleAnimations(CPad *padUsed)
 			if (!hasIdleAnim && !bIsLooking && !bIsRestoringLook && sinceLastInput - lastTime > 25000) {
 				int anim;
 				do
-					anim = CGeneral::GetRandomNumberInRange(0, ARRAY_SIZE(idleAnims));
+					anim = CGeneral::GetRandomNumberInRange(0, (int32)ARRAY_SIZE(idleAnims));
 				while (lastAnim == anim);
 
 				assoc = CAnimManager::BlendAnimation(GetClump(), idleAnims[anim].groupId, idleAnims[anim].animId, 8.0f);

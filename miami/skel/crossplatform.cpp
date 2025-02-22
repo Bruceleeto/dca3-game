@@ -91,7 +91,9 @@ void GetDateFormat(int unused1, int unused2, SYSTEMTIME* in, int unused3, char* 
 	linuxTime.tm_hour = in->wHour;
 	linuxTime.tm_min = in->wMinute;
 	linuxTime.tm_sec = in->wSecond;
-	strftime(out, size, nl_langinfo(D_FMT), &linuxTime);
+	// strftime(out, size, nl_langinfo(D_FMT), &linuxTime);
+    printf("TODO: FIXME %s\n",__func__);
+    strcpy(out,"abc");
 }
 
 void FileTimeToSystemTime(time_t* writeTime, SYSTEMTIME* out) {
