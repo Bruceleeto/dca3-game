@@ -150,9 +150,11 @@ public:
 	static void SetMissionDoesntRequireSpecialChar(int32 id);
 	static void DecrementRef(int32 id);
 	static void RemoveModel(int32 id);
+	#if !defined(DC_TEXCONV)
 	static void RemoveTxd(int32 id) { RemoveModel(id + STREAM_OFFSET_TXD); }
 	static void RemoveCol(int32 id) { RemoveModel(id + STREAM_OFFSET_COL); }
 	static void RemoveAnim(int32 id) { RemoveModel(id + STREAM_OFFSET_ANIM); }
+	#endif
 	static void RemoveUnusedBuildings(eLevelName level);
 	static void RemoveBuildings(eLevelName level);
 	static void RemoveBuildingsNotInArea(int32 area);

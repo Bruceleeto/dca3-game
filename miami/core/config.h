@@ -184,8 +184,8 @@ enum Config {
 #	ifndef GTA_HANDHELD
 #		define PC_PLAYER_CONTROLS	// mouse player/cam mode
 #	endif
-#	define GTA_REPLAY
-#	define GTA_SCENE_EDIT
+//#	define GTA_REPLAY
+//#	define GTA_SCENE_EDIT
 #	define PC_MENU
 #	define PC_WATER
 #elif defined GTA_XBOX
@@ -245,7 +245,7 @@ enum Config {
 
 // Memory allocation and compression
 // #define USE_CUSTOM_ALLOCATOR		// use CMemoryHeap for allocation. use with care, not finished yet
-//#define COMPRESSED_COL_VECTORS	// use compressed vectors for collision vertices
+#define COMPRESSED_COL_VECTORS	// use compressed vectors for collision vertices
 //#define ANIM_COMPRESSION	// only keep most recently used anims uncompressed
 
 #if defined GTA_PC && defined GTA_PS2_STUFF
@@ -316,10 +316,10 @@ enum Config {
 #define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
 //#define USE_TEXTURE_POOL
 #ifdef LIBRW
-#define EXTENDED_COLOURFILTER		// more options for colour filter (replaces mblur)
-#define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
-#define SCREEN_DROPLETS			// neo water droplets
-#define NEW_RENDERER		// leeds-like world rendering, needs librw
+// #define EXTENDED_COLOURFILTER		// more options for colour filter (replaces mblur)
+// #define EXTENDED_PIPELINES		// custom render pipelines (includes Neo)
+// #define SCREEN_DROPLETS			// neo water droplets
+// #define NEW_RENDERER		// leeds-like world rendering, needs librw
 #endif
 
 #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)
@@ -444,9 +444,9 @@ static_assert(false, "SUPPORT_XBOX_SCRIPT and SUPPORT_MOBILE_SCRIPT are mutually
 #define RADIO_SCROLL_TO_PREV_STATION // Won't work without FIX_BUGS
 #define AUDIO_CACHE // cache sound lengths to speed up the cold boot
 #define PS2_AUDIO_CHANNELS // increases the maximum number of audio channels to PS2 value of 43 (PC has 28 originally)
-#define PS2_AUDIO_PATHS // changes audio paths for cutscenes and radio to PS2 paths (needs vbdec on MSS builds)
+// #define PS2_AUDIO_PATHS // changes audio paths for cutscenes and radio to PS2 paths (needs vbdec on MSS builds)
 //#define AUDIO_OAL_USE_SNDFILE // use libsndfile to decode WAVs instead of our internal decoder
-#define AUDIO_OAL_USE_MPG123 // use mpg123 to support mp3 files
+// #define AUDIO_OAL_USE_MPG123 // use mpg123 to support mp3 files
 #define PAUSE_RADIO_IN_FRONTEND // pause radio when game is paused
 #define ATTACH_RELEASING_SOUNDS_TO_ENTITIES // sounds would follow ped and vehicles coordinates if not being queued otherwise
 #define USE_TIME_SCALE_FOR_AUDIO // slow down/speed up sounds according to the speed of the game
@@ -467,15 +467,15 @@ static_assert(false, "SUPPORT_XBOX_SCRIPT and SUPPORT_MOBILE_SCRIPT are mutually
 // Streaming
 #if !defined(_WIN32) && !defined(__SWITCH__)
 	//#define ONE_THREAD_PER_CHANNEL // Don't use if you're not on SSD/Flash - also not utilized too much right now(see commented LoadAllRequestedModels in Streaming.cpp)
-	#define FLUSHABLE_STREAMING // Make it possible to interrupt reading when processing file isn't needed anymore.
+	// #define FLUSHABLE_STREAMING // Make it possible to interrupt reading when processing file isn't needed anymore.
 #endif
 #define BIG_IMG // Not complete - allows to read larger img files
 
-//#define SQUEEZE_PERFORMANCE
+#define SQUEEZE_PERFORMANCE
 #ifdef SQUEEZE_PERFORMANCE
 	#undef PS2_ALPHA_TEST
 	#undef NO_ISLAND_LOADING
-	#undef PS2_AUDIO_CHANNELS
+	// #undef PS2_AUDIO_CHANNELS
 	#undef EXTENDED_OFFSCREEN_DESPAWN_RANGE
 #endif
 

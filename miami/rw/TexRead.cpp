@@ -71,6 +71,18 @@ destroyTexture(RwTexture *texture, void *data)
 	return texture;
 }
 
+void
+RwTexDictionaryGtaStreamWrite(RwStream *stream, RwTexDictionary *texDict) {
+	rw::writeChunkHeader(stream, rwID_STRUCT, 4);
+	stream->writeI32(texDict->count());
+	
+	RwTexDictionaryForAllTextures(texDict, [](RwTexture *texture, void* vstream) {
+		RwTextureGtaStreamWrite((RwStream*)vstream, texture);
+		return texture;
+	}, stream);
+}
+
+
 RwTexDictionary*
 RwTexDictionaryGtaStreamRead(RwStream *stream)
 {
