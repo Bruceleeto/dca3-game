@@ -1555,7 +1555,7 @@ int16 ThingsToCollect;
 
 CPacManPickup CPacManPickups::aPMPickUps[NUMPACMANPICKUPS];
 CVector CPacManPickups::LastPickUpCoors;
-int32 CPacManPickups::PillsEatenInRace;
+int CPacManPickups::PillsEatenInRace;
 bool CPacManPickups::bPMActive;
 
 void

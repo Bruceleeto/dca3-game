@@ -79,6 +79,24 @@ void CapturePad(RwInt32 padID);
 void joysChangeCB(int jid, int event);
 #endif
 
+#ifdef RW_DC
+typedef struct
+{
+    RwBool		fullScreen;
+    RwV2d		lastMousePos;
+    double      mouseWheel; // glfw doesn't cache it
+    bool        cursorIsInWindow;
+    RwInt8        joy1id;
+    RwInt8        joy2id;
+}
+psGlobalType;
+
+#define PSGLOBAL(var) (((psGlobalType *)(RsGlobal.ps))->var)
+
+void CapturePad(RwInt32 padID);
+void joysChangeCB(int jid, int event);
+#endif
+
 #ifdef DETECT_JOYSTICK_MENU
 extern char gSelectedJoystickName[128];
 #endif
@@ -135,7 +153,7 @@ void GetLocalTime_CP(SYSTEMTIME* out);
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <langinfo.h>
+// #include <langinfo.h>
 #include <unistd.h>
 
 typedef void* HANDLE;

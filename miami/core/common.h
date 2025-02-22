@@ -396,6 +396,9 @@ template<int s, int t> struct check_size {
 
 #define PERCENT(x, p)                    ((float(x) * (float(p) / 100.0f)))
 #define ARRAY_SIZE(array)                (sizeof(array) / sizeof(array[0]))
+#ifdef BIT
+#undef BIT
+#endif
 #define BIT(num)                         (1<<(num))
 
 #define ABS(a)  (((a) < 0) ? (-(a)) : (a))

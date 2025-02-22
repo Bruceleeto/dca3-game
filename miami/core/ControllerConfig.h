@@ -136,8 +136,8 @@ public:
 	GlfwJoyState           m_OldState;
 	GlfwJoyState           m_NewState;
 #else
-	DIJOYSTATE2           m_OldState;
-	DIJOYSTATE2           m_NewState;
+	// DIJOYSTATE2           m_OldState;
+	// DIJOYSTATE2           m_NewState;
 #endif
 	wchar                 m_aActionNames[MAX_CONTROLLERACTIONS][ACTIONNAME_LENGTH];
 	bool                  m_aButtonStates[MAX_BUTTONS];

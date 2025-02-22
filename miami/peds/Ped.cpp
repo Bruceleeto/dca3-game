@@ -7596,7 +7596,7 @@ CPed::SeekCar(void)
 bool
 CPed::CheckForExplosions(CVector2D &area)
 {
-	int event = 0;
+	int32 event = 0;
 	if (CEventList::FindClosestEvent(EVENT_EXPLOSION, GetPosition(), &event)) {
 		area.x = gaEvent[event].posn.x;
 		area.y = gaEvent[event].posn.y;
@@ -7640,7 +7640,7 @@ CPed::CheckForExplosions(CVector2D &area)
 CPed *
 CPed::CheckForGunShots(void)
 {
-	int event;
+	int32 event;
 	if (CEventList::FindClosestEvent(EVENT_GUNSHOT, GetPosition(), &event)) {
 		if (gaEvent[event].entityType == EVENT_ENTITY_PED) {
 			// Probably due to we don't want peds to go gunshot area? (same on VC)
@@ -7655,7 +7655,7 @@ CPed::CheckForGunShots(void)
 CPed *
 CPed::CheckForDeadPeds(void)
 {
-	int event;
+	int32 event;
 	if (CEventList::FindClosestEvent(EVENT_DEAD_PED, GetPosition(), &event)) {
 		int pedHandle = gaEvent[event].entityRef;
 		if (pedHandle && gaEvent[event].entityType == EVENT_ENTITY_PED) {
@@ -8047,7 +8047,7 @@ PlayRandomAnimationsFromAnimBlock(CPed* ped, AssocGroupId animGroup, uint32 firs
 	if (!assoc || assoc->blendDelta < 0.0f) {
 		int selectedAnimOffset;
 		do
-			selectedAnimOffset = CGeneral::GetRandomNumberInRange(0, amount);
+			selectedAnimOffset = CGeneral::GetRandomNumberInRange(0, (int32)amount);
 		while (assoc && first + selectedAnimOffset == assoc->animId);
 
 		assoc = CAnimManager::BlendAnimation(ped->GetClump(), animGroup, (AnimationId)(first + selectedAnimOffset), 3.0f);
@@ -9423,7 +9423,7 @@ CPed::HasAttractor(void)
 }
 
 void
-CPed::SetNewAttraction(CPedAttractor* pAttractor, const CVector& pos, float heading, float time, int32 qid)
+CPed::SetNewAttraction(CPedAttractor* pAttractor, const CVector& pos, float heading, float time, int qid)
 {
 	if (!m_attractor)
 		m_attractor = pAttractor;

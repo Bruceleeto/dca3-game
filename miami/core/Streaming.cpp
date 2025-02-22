@@ -401,10 +401,10 @@ CStreaming::LoadCdDirectory(void)
 }
 
 void
-CStreaming::LoadCdDirectory(const char *dirname, int n)
+CStreaming::LoadCdDirectory(const char *dirname, int32 n)
 {
 	int fd, lastID, imgSelector;
-	int modelId;
+	int32 modelId;
 	CDirectory::DirectoryInfo direntry;
 	char *dot;
 

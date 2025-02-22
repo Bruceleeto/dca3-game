@@ -24,6 +24,10 @@ git-version.h: git-version.tmp
 ../miami/skel/dc/dc.cpp: git-version.h
 
 
+# ../miami/core/CdStreamDC.o \
+# ../miami/skel/dc/dc.o \
+../miami/vmu/vmu.o \
+
 # List all of your C files here, but change the extension to ".o"
 # Include "romdisk.o" if you want a rom disk.
 RE3_OBJS = \
@@ -84,7 +88,6 @@ RE3_OBJS = \
 	../miami/core/Accident.o \
 	../miami/core/Cam.o \
 	../miami/core/Camera.o \
-	../miami/core/CdStreamDC.o \
 	../miami/core/Clock.o \
 	../miami/core/ControllerConfig.o \
 	../miami/core/Debug.o \
@@ -147,7 +150,6 @@ RE3_OBJS = \
 	../miami/modelinfo/TimeModelInfo.o \
 	../miami/modelinfo/VehicleModelInfo.o \
 	\
-	../miami/objects/CutsceneHead.o \
 	../miami/objects/CutsceneObject.o \
 	../miami/objects/DummyObject.o \
 	../miami/objects/Object.o \
@@ -218,7 +220,6 @@ RE3_OBJS = \
 	../miami/skel/crossplatform.o \
 	../miami/skel/events.o \
 	../miami/skel/skeleton.o \
-	../miami/skel/dc/dc.o \
 	\
 	../miami/text/Messages.o \
 	../miami/text/Pager.o \
@@ -266,7 +267,6 @@ RE3_OBJS = \
 	../miami/extras/postfx.o \
 	../miami/extras/screendroplets.o \
 	\
-	../miami/vmu/vmu.o \
 	../vendor/miniLZO/minilzo.o \
 	\
 

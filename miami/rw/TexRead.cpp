@@ -37,6 +37,22 @@ int32 texNumLoaded;
 #define READNATIVE(stream, tex, size) RWSRCGLOBAL(stdFunc[rwSTANDARDNATIVETEXTUREREAD](stream, tex, size))
 #endif
 
+void RwTextureGtaStreamWrite(RwStream *stream, RwTexture* texture)
+{
+	auto fheader = stream->tell();
+	// size will be written later
+	rw::writeChunkHeader(stream, rwID_TEXTURENATIVE, 0);
+	auto fbegin = stream->tell();
+
+	texture->streamWriteNative(stream);
+
+	// rewrite header with correct size
+	auto fend = stream->tell();
+	stream->seek(fheader, 0);
+	rw::writeChunkHeader(stream, rwID_TEXTURENATIVE, fend - fbegin);
+	stream->seek(fend, 0);
+}
+
 RwTexture*
 RwTextureGtaStreamRead(RwStream *stream)
 {

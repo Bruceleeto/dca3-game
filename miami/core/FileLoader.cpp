@@ -221,7 +221,7 @@ CFileLoader::LoadCollisionFileFirstTime(uint8 *buffer, uint32 size, uint8 colSlo
 	char modelname[24];
 	CBaseModelInfo *mi;
 	ColHeader *header;
-	int modelIndex;
+	int32 modelIndex;
 
 	while(size > 8){
 		header = (ColHeader*)buffer;
