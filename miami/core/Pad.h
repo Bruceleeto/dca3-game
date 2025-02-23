@@ -224,7 +224,11 @@ public:
 	void StopShaking(int16 pad);
 	
 	static CPad *GetPad(int32 pad);
-	
+
+#ifdef RW_DC
+	bool CameraSinglePress(void);	//Checks if camera modifier was double clicked 
+	bool CameraDoublePress(void);
+#endif	
 	int16 GetSteeringLeftRight(void);
 	int16 GetSteeringUpDown(void);
 	int16 GetCarGunUpDown(void);
