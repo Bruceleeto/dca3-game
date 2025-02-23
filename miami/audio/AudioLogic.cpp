@@ -52,7 +52,11 @@
 void
 cAudioManager::PreInitialiseGameSpecificSetup()
 {
+	unsigned DynamicBankCount = SFX_BANK_PED_COMMENTS; // first non dynamic bank
 	BankStartOffset[SFX_BANK_0] = SAMPLEBANK_START;
+	for (unsigned i = SFX_BANK_1; i < DynamicBankCount; i++) {
+		BankStartOffset[i] = (SAMPLEBANK_END - SAMPLEBANK_START) / DynamicBankCount + BankStartOffset[i - 1];
+	}
 #ifdef GTA_PS2
 	BankStartOffset[SAMPLEBANK_CAR_PACARD] = SFX_CAR_ACCEL_1;
 	BankStartOffset[SAMPLEBANK_CAR_PATHFINDER] = SFX_CAR_ACCEL_2;
