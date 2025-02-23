@@ -486,7 +486,7 @@ void DCE_MatrixViewport(float x, float y, float width, float height) {
     DCE_MAT_SCREENVIEW[1][1] = height * 0.5f;
     DCE_MAT_SCREENVIEW[2][2] = 1;
     DCE_MAT_SCREENVIEW[3][0] = -DCE_MAT_SCREENVIEW[0][0] + x;
-    DCE_MAT_SCREENVIEW[3][1] = VIDEO_MODE_HEIGHT - (DCE_MAT_SCREENVIEW[1][1] + y); 
+    DCE_MAT_SCREENVIEW[3][1] = height - (DCE_MAT_SCREENVIEW[1][1] + y); 
 }
 
 void DCE_InitMatrices() {
@@ -728,6 +728,8 @@ void beginUpdate(Camera* cam)  {
 	}
 	proj[14] = -cam->nearPlane*proj[10];
 	memcpy4(&cam->devProj, proj, sizeof(RawMatrix));
+	
+	DCE_MatrixViewport(0, 0, cam->frameBuffer->width, cam->frameBuffer->height);
 	
 	mat_load((matrix_t*)&DCE_MAT_SCREENVIEW);
 	mat_apply((matrix_t*)&cam->devProj);
@@ -1018,7 +1020,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 void allocDefrag(int iterations);
 
-void endUpdate(Camera*) {
+void endUpdate(Camera* cam) {
 
 	#if !defined(DC_SIM) && defined(SKIP_FRAMES)
 	if (pvr_check_ready() >= 0)
@@ -1026,7 +1028,17 @@ void endUpdate(Camera*) {
 	{
 		pvr_set_zclip(0.0f);
 		pvr_wait_ready();
-		pvr_scene_begin();
+		if (cam->frameBuffer->type == Raster::CAMERATEXTURE) {
+			auto natras = GETDCRASTEREXT(cam->frameBuffer);
+			uint32 rx = cam->frameBuffer->width;
+			uint32 ry = cam->frameBuffer->height;
+			pvr_scene_begin_txr(natras->raster->texaddr, &rx, &ry);
+		} else if (cam->frameBuffer->type == Raster::CAMERA) {
+			pvr_scene_begin();
+		} else {
+			assert(false && "invalid cam->frameBuffer type");
+		}
+		
 		pvr_dr_init(&drState);
 		pvr_list_begin(PVR_LIST_OP_POLY);
 		enter_oix();
@@ -3783,15 +3795,9 @@ rasterCreate(Raster* raster)
 {
 	auto natras = GETDCRASTEREXT(raster);
 
-    if (raster->type != Raster::TEXTURE) {
+    if (raster->type != Raster::TEXTURE && raster->type != Raster::CAMERATEXTURE && raster->type != Raster::ZBUFFER) {
         printf("rasterCreate: unsupported type %d\n", raster->type);
     }
-
-	if(raster->width == 0 || raster->height == 0){
-		raster->flags |= Raster::DONTALLOCATE;
-		raster->stride = 0;
-        return raster;
-	}
 
 	if (raster->width < 8) {
 		printf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
@@ -3802,12 +3808,45 @@ rasterCreate(Raster* raster)
 		printf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
 		raster->height = 8;
 	}
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		fprintf(stderr, "CameraTexture: %d x %d\n", raster->width, raster->height);
+	} else if (raster->type == Raster::CAMERA) {
+		fprintf(stderr, "Camera: %d x %d  (ignored)\n", raster->width, raster->height);
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;	
+	} else if (raster->type == Raster::ZBUFFER) {
+		fprintf(stderr, "ZBuffer: %d x %d (ignored)\n", raster->width, raster->height);
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;	
+	}
+
+	if(raster->width == 0 || raster->height == 0){
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;
+	}
+
+
 	auto rasterFmt = raster->format & 0x0F00;
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		if (rasterFmt == Raster::DEFAULT && raster->depth == 0) {
+			fprintf(stderr, "CameraTexture: Default means 4444?\n");
+			raster->depth = 16;
+			raster->format |= Raster::C4444;
+		}
+	}
+
+	rasterFmt = raster->format & 0x0F00;
+
 	// assert(raster->depth == 16);
 	if (raster->depth != 16) {
-		raster->depth = 16;
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth: this raster will be corrupted\n");
+		printf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
+		raster->depth = 16;
 	}
 
 	natras->raster = (DcRaster*)malloc(sizeof(DcRaster));
@@ -3815,6 +3854,9 @@ rasterCreate(Raster* raster)
 	natras->raster->refs = 1;
 	natras->raster->u = __builtin_ctz(raster->width) - 3;
 	natras->raster->v = __builtin_ctz(raster->height) - 3;
+
+	assert(raster->width == 1 << (natras->raster->u + 3));
+	assert(raster->height = 1 << (natras->raster->v + 3));
 
 	if (rasterFmt == Raster::C565) {
 		natras->raster->pvr_flags |= PVR_TXRFMT_RGB565;
@@ -3824,11 +3866,17 @@ rasterCreate(Raster* raster)
 		natras->raster->pvr_flags |= PVR_TXRFMT_ARGB4444;
 	} else {
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth: this raster will be corrupted\n");
+		printf("rasterCreate: Usupported raster rasterFmt %X: this raster will be corrupted\n", rasterFmt);
 		// assert(false && "unsupported rasterFmt");
 	}
+	
 
 	raster->stride = raster->width * 2;
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		natras->raster->texaddr = allocTexture(natras->raster, raster->width * raster->height * 2);
+		natras->raster->pvr_flags |= PVR_TXRFMT_NONTWIDDLED;
+	}
 	return raster;
 }
 

@@ -340,10 +340,21 @@ int pvr_scene_finish(void) {
     return 0;
 }
 
+#include "emu/emu.h"
+#include "dc/asic.h"
+#include "refsw/refsw_tile.h"
+
+
 int pvr_wait_ready(void) {
     int t;
 
     assert(pvr_state.valid);
+
+    // This is a hack til vlbanks are raised in a nicer way
+    if (!pvr_state.to_texture[pvr_state.view_target^1]) {
+        Hackpresent();
+    }
+    pvr_queue_interrupt(ASIC_EVT_PVR_VBLANK_BEGIN);
 
     t = sem_wait_timed((semaphore_t *)&pvr_state.ready_sem, 100);
 

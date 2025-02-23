@@ -28,10 +28,6 @@ maple_device_t * maple_enum_type(int n, uint32 func) {
 int sem_wait_timed(semaphore_t *sem, int timeout) {
     auto count = sem->count.load();
 
-    // This is a hack til vlbanks are raised in a nicer way
-    Hackpresent();
-    pvr_queue_interrupt(ASIC_EVT_PVR_VBLANK_BEGIN);
-
     while(count <= 0 || !sem->count.compare_exchange_strong(count, count-1)) {
         count = sem->count.load();
     }
