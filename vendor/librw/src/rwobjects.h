@@ -779,6 +779,7 @@ struct Camera
 	/* RW: frustum sectors, space, position */
 	World *world;
 	ObjectWithFrame::Sync originalSync;
+	RGBA clearColor;
 	void (*originalBeginUpdate)(Camera*);
 	void (*originalEndUpdate)(Camera*);
 

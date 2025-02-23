@@ -1029,6 +1029,8 @@ void endUpdate(Camera* cam) {
 	{
 		pvr_set_zclip(0.0f);
 		pvr_wait_ready();
+		pvr_set_bg_color(cam->clearColor.red / 255.0f, cam->clearColor.green / 255.0f, cam->clearColor.blue / 255.0f);
+
 		if (cam->frameBuffer->type == Raster::CAMERATEXTURE) {
 			auto natras = GETDCRASTEREXT(cam->frameBuffer);
 			uint32 rx = cam->frameBuffer->width;
@@ -1086,7 +1088,10 @@ void endUpdate(Camera* cam) {
 	matfxContexts.clear();
 }
 
-void clearCamera(Camera*,RGBA*,uint32) {
+void clearCamera(Camera* cam,RGBA* col,uint32 flags) {
+	if (flags & rwCAMERACLEARIMAGE) {
+		cam->clearColor = *col;
+	}
     UNIMPL_LOG();
 }
 
@@ -3839,9 +3844,9 @@ rasterCreate(Raster* raster)
 
 	if (raster->type == Raster::CAMERATEXTURE) {
 		if (rasterFmt == Raster::DEFAULT && raster->depth == 0) {
-			fprintf(stderr, "CameraTexture: Default means 4444?\n");
+			fprintf(stderr, "CameraTexture: Default means 565?\n");
 			raster->depth = 16;
-			raster->format |= Raster::C4444;
+			raster->format |= Raster::C565;
 		}
 	}
 
