@@ -353,6 +353,14 @@ void re3_usererror(const char *format, ...);
 #define DEV(f, ...)   re3_debug("[DEV]: " f, ## __VA_ARGS__)
 #endif
 
+#ifndef WITH_LOGGING
+#define printf(...)
+#define perror(...)
+#define re3_debug(...)
+#define re3_trace(...)
+#define re3_usererror(...)
+#endif
+
 #ifdef __MWERKS__
 void debug(char *f, ...);
 void Error(char *f, ...);
