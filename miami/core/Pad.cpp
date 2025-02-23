@@ -2770,6 +2770,7 @@ bool CPad::GetLookLeft(void)
 			}
 			break;
 	}
+	return false;
 #else
 	return !!(NewState.LeftShoulder2 && !NewState.RightShoulder2);
 #endif
