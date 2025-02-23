@@ -2218,12 +2218,101 @@ CPad *CPad::GetPad(int32 pad)
 #define CURMODE (Mode)
 #endif
 
+#ifdef RW_DC
+#define DEADZONE 10
+#endif
+
+//The next are the actuall functions that are checked and produce the values that are used by engine to make the char run, the car turn, etc
+//Although initially I didn't want to change them, I think here is the best place to create the custom desired mapping and behavior for the DC inputs
+//The switch statement using CURMODE could be used in the future to define diferent control configurations, depending on the type of controller and desired mapping (e.g. Xbox like or PS2 like)
+//While i think its possible, creating a system to configure custom mappings inside the game menus like in the PC game is out of my scope in the moment, I don't know if this is really necessary
+//Also, the interface controls are not defined here, they are defined in Frontend.cpp unfortunately, using CControllerState values like here; Because of that, the behavior of the Start button and the A button for selecting menu itens are not here
+
+#ifdef RW_DC
+
+bool CPad::CameraSinglePress (void)
+{
+	if (CPad::CameraDoublePress() == false && NewState.X == true)
+		return true;
+	return 0;
+}
+
+bool CPad::CameraDoublePress (void)
+{
+	if ( ArePlayerControlsDisabled() ) //Wont work driving, camera code isnt there
+		return false;
+	
+	if ((OldState.X == 1) && (NewState.X == 0) //Falling edge
+	&& (CPad::GetPad(0)->CameraIsDoublePressed == false)) //Was not in double click state
+	{
+		//CPad::GetPad(0)->CameraJustUp = true;
+		CPad::GetPad(0)->CameraLastPressed = psTimer(); //Set timer to run
+	}	
+
+	if ((OldState.X == 1) && (NewState.X == 0) //Falling edge
+	&& (CPad::GetPad(0)->CameraIsDoublePressed == true)) //Was in double click state
+	{
+		CPad::GetPad(0)->CameraIsDoublePressed = false; //ends double click state
+		return 0;
+	}	
+
+
+	if ((OldState.X == 0) && (NewState.X == 1) //Rising edge
+	&& ((psTimer() - CPad::GetPad(0)->CameraLastPressed) < 250)) //Checks timer on the Rising edge of X press
+	{
+		CPad::GetPad(0)->CameraIsDoublePressed = true;			//Define that there was a double click
+		return true;
+	}
+
+
+	if ((OldState.X == 1) && (NewState.X == 1) 	//Button is keep pressed
+	&& (CameraIsDoublePressed == true)) 		//The last state was double click
+	{
+		CPad::GetPad(0)->CameraIsDoublePressed = true; //Keep double click state
+		return true;
+	}
+
+	return 0;
+}
+#endif
+
 int16 CPad::GetSteeringLeftRight(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return 0;
-
-	int16 value;
+	int16 value = 0;
+#ifdef RW_DC
+		switch (CURMODE)
+		{
+			case 0:	//Xbox Mode
+				if (CPad::GetPad(0)->IsDualAnalog)
+				{
+					return NewState.LeftStickX;
+				}
+				else
+				{
+					if (NewState.X)
+						return 0;
+					if (NewState.A && ((NewState.LeftStickX < -64) || (NewState.LeftStickX > 64)))
+						return 0;
+					return NewState.LeftStickX;
+				}
+			case 1:	//PS2 Mode
+				if (CPad::GetPad(0)->IsDualAnalog)
+				{
+					return NewState.LeftStickX;
+				}
+				else
+				{
+					if (NewState.LeftTrigger > 128)
+						return 0;
+					if (NewState.A && ((NewState.RightTrigger > 128) || (NewState.LeftTrigger > 128)))
+						return 0;
+					return NewState.LeftStickX;
+				}
+		}
+	
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2256,6 +2345,7 @@ int16 CPad::GetSteeringLeftRight(void)
 			break;
 		}
 	}
+#endif
 
 	return value;
 }
@@ -2265,6 +2355,34 @@ int16 CPad::GetSteeringUpDown(void)
 	if ( ArePlayerControlsDisabled() )
 		return 0;
 
+#ifdef RW_DC
+		switch (CURMODE)
+		{
+			case 0:	//Xbox Mode
+				if (CPad::GetPad(0)->IsDualAnalog)
+				{
+					return NewState.LeftStickY;
+				}
+				else
+				{
+					if (NewState.X)
+						return 0;
+					return NewState.LeftStickY;
+				}
+			case 1:	//PS2 Mode
+				if (CPad::GetPad(0)->IsDualAnalog)
+				{
+					return NewState.LeftStickY;
+				}
+				else
+				{
+					if (NewState.LeftTrigger > 128)
+						return 0;
+					return NewState.LeftStickY;
+				}
+		}
+	
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2289,7 +2407,7 @@ int16 CPad::GetSteeringUpDown(void)
 			break;
 		}
 	}
-
+#endif
 	return 0;
 }
 
@@ -2297,6 +2415,37 @@ int16 CPad::GetCarGunUpDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return 0;
+
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return NewState.RightStickY;
+			}
+			else
+			{
+				if (!NewState.X)
+					return 0;
+				return NewState.LeftStickY;
+				break;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return NewState.RightStickY;
+			}
+			else
+			{
+				if (NewState.LeftTrigger > 128)
+					return NewState.LeftStickY;
+				return 0;
+				break;
+			}
+
+	}
+#else
 
 	switch (CURMODE)
 	{
@@ -2316,6 +2465,7 @@ int16 CPad::GetCarGunUpDown(void)
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -2324,6 +2474,37 @@ int16 CPad::GetCarGunLeftRight(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return 0;
+
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return NewState.RightStickX;
+			}
+			else
+			{
+				if (!NewState.X)
+					return 0;
+				return NewState.LeftStickX;
+				break;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return NewState.RightStickX;
+			}
+			else
+			{
+				if (NewState.LeftTrigger > 128)
+					return NewState.LeftStickX;
+				return 0;
+				break;
+			}
+
+	}
+#else
 
 	switch (CURMODE)
 	{
@@ -2343,6 +2524,7 @@ int16 CPad::GetCarGunLeftRight(void)
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -2352,6 +2534,42 @@ int16 CPad::GetPedWalkLeftRight(void)
 	if ( ArePlayerControlsDisabled() )
 		return 0;
 
+int16 axis = 0;
+	
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.LeftStickX;
+			}
+			else
+			{
+				if (CPad::CameraSinglePress())
+					return 0;
+				axis = NewState.LeftStickX;
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.LeftStickX;
+			}
+			else
+			{
+				if (NewState.LeftTrigger > 128)
+					return 0;
+				axis = NewState.LeftStickX;
+			}
+			break;
+	}
+
+	if (axis > DEADZONE || axis < -DEADZONE)
+	{
+		return axis;
+	}
+#else		
 	switch (CURMODE)
 	{
 		case 0:
@@ -2376,6 +2594,7 @@ int16 CPad::GetPedWalkLeftRight(void)
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -2385,6 +2604,42 @@ int16 CPad::GetPedWalkUpDown(void)
 	if ( ArePlayerControlsDisabled() )
 		return 0;
 
+int16 axis = 0;
+
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.LeftStickY;
+			}
+			else
+			{
+				if (CPad::CameraSinglePress())
+					return 0;
+				axis =  NewState.LeftStickY;
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis =  NewState.LeftStickY;
+			}
+			else
+			{
+				if (NewState.LeftTrigger > 128)
+					return 0;
+				axis =  NewState.LeftStickY;
+			}
+			break;
+	}
+
+	if (axis > DEADZONE || axis < -DEADZONE)
+	{
+		return axis;
+	}
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2409,6 +2664,7 @@ int16 CPad::GetPedWalkUpDown(void)
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -2418,6 +2674,14 @@ int16 CPad::GetAnalogueUpDown(void)
 	switch (CURMODE)
 	{
 		case 0:
+#ifdef RW_DC
+		case 2:
+		{
+			return NewState.LeftStickY;
+
+			break;
+		}
+#else
 		case 2:
 		{
 			int16 axis = NewState.LeftStickY;
@@ -2430,7 +2694,7 @@ int16 CPad::GetAnalogueUpDown(void)
 
 			break;
 		}
-
+#endif
 		case 1:
 		case 3:
 		{
@@ -2478,7 +2742,37 @@ bool CPad::GetLookLeft(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.Z)
+					return true;
+			}
+			else
+			{
+				if (NewState.A && (NewState.LeftStickX < -64))
+					return true;
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.LeftTrigger > 128)
+					return true;
+			}
+			else
+			{
+				if (NewState.B && (NewState.LeftTrigger > 128))
+					return true;
+			}
+			break;
+	}
+#else
 	return !!(NewState.LeftShoulder2 && !NewState.RightShoulder2);
+#endif
 }
 
 bool CPad::GetLookRight(void)
@@ -2486,7 +2780,39 @@ bool CPad::GetLookRight(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+		switch (CURMODE)
+		{
+			case 0:	//Xbox Mode
+				if (CPad::GetPad(0)->IsDualAnalog)
+				{
+					if (NewState.C)
+						return true;
+				}
+				else
+				{
+					if (NewState.A && (NewState.LeftStickX > 64))
+						return true;
+				}
+				break;
+			case 1:	//PS2 Mode
+				if (CPad::GetPad(0)->IsDualAnalog)
+				{
+					if (NewState.RightTrigger > 128)
+						return true;
+				}
+				else
+				{
+					if (NewState.B && (NewState.RightTrigger > 128))
+						return true;
+				}
+				break;
+		}
+		return false;
+	#else
+
 	return !!(NewState.RightShoulder2 && !NewState.LeftShoulder2);
+	#endif
 }
 
 
@@ -2495,7 +2821,40 @@ bool CPad::GetLookBehindForCar(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.C && NewState.Z) //Consider someway to make it work with RS or LS in dual analog
+					return true;
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128 && NewState.LeftTrigger > 128)
+					return true;
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.RightTrigger > 128 && NewState.LeftTrigger > 128) //Consider someway to make it work with RS or LS in dual analog
+					return true;
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128 && NewState.LeftTrigger > 128)
+					return true;
+			}
+			break;
+	}
+	return false;
+#else
+
 	return !!(NewState.RightShoulder2 && NewState.LeftShoulder2);
+
+#endif
 }
 
 bool CPad::GetLookBehindForPed(void)
@@ -2503,7 +2862,33 @@ bool CPad::GetLookBehindForPed(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.DPadDown; //Consider someway to make it work with RS and LS
+			}
+			else
+			{
+				return	NewState.DPadDown;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.DPadDown; //Consider someway to make it work with RS and LS
+			}
+			else
+			{
+				return	NewState.DPadDown;
+			}
+	}
+	return false;
+#else
+
 	return !!NewState.RightShock;
+#endif
 }
 
 bool CPad::GetHorn(void)
@@ -2511,6 +2896,29 @@ bool CPad::GetHorn(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.DPadDown; //Consider someway to make it work with RS and LS
+			}
+			else
+			{
+				return	NewState.DPadDown;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.DPadDown; //Consider someway to make it work with RS and LS
+			}
+			else
+			{
+				return	NewState.DPadDown;
+			}
+	}
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2541,6 +2949,7 @@ bool CPad::GetHorn(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -2589,6 +2998,30 @@ bool CPad::GetCarGunFired(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.A;
+			}
+			else
+			{
+				return	NewState.A;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.B;
+			}
+			else
+			{
+				return	NewState.B;
+			}
+	}
+#else
+
 	switch (CURMODE)
 	{
 		case 0:
@@ -2607,6 +3040,7 @@ bool CPad::GetCarGunFired(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -2616,6 +3050,30 @@ bool CPad::CarGunJustDown(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.A;
+			}
+			else
+			{
+				return	NewState.A;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.B;
+			}
+			else
+			{
+				return	NewState.B;
+			}
+	}
+
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2634,6 +3092,7 @@ bool CPad::CarGunJustDown(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -2643,6 +3102,30 @@ int16 CPad::GetHandBrake(void)
 	if ( ArePlayerControlsDisabled() )
 		return 0;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.B;
+			}
+			else
+			{
+				return	NewState.B;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.C;
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128)
+					return true;
+			}
+	}
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2667,6 +3150,7 @@ int16 CPad::GetHandBrake(void)
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -2676,6 +3160,31 @@ int16 CPad::GetBrake(void)
 	if ( ArePlayerControlsDisabled() )
 		return 0;
 
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.LeftTrigger;
+			}
+			else
+			{
+				return	NewState.LeftTrigger;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if(NewState.X)
+					return 255;
+			}
+			else
+			{
+				if(NewState.X)
+					return 255;
+			}
+	}
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2705,6 +3214,7 @@ int16 CPad::GetBrake(void)
 			break;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -2720,6 +3230,23 @@ bool CPad::GetExitVehicle(void)
 
 	switch (CURMODE)
 	{
+#ifdef RW_DC
+		case 0:
+		case 1:
+		case 3:
+		{
+			return !!NewState.Y;
+
+			break;
+		}
+
+		case 2:
+		{
+			return !!NewState.Y;
+
+			break;
+		}
+#else
 		case 0:
 		case 1:
 		case 3:
@@ -2735,6 +3262,7 @@ bool CPad::GetExitVehicle(void)
 
 			break;
 		}
+#endif
 	}
 
 	return false;
@@ -2752,6 +3280,21 @@ bool CPad::ExitVehicleJustDown(void)
 	{
 		case 0:
 		case 1:
+#ifdef RW_DC
+		case 3:
+		{
+			return !!(NewState.Y && !OldState.Y);
+
+			break;
+		}
+
+		case 2:
+		{
+			return !!(NewState.Y && !OldState.Y);
+
+			break;
+		}
+#else		
 		case 3:
 		{
 			return !!(NewState.Triangle && !OldState.Triangle);
@@ -2765,6 +3308,7 @@ bool CPad::ExitVehicleJustDown(void)
 
 			break;
 		}
+#endif
 	}
 
 	return false;
@@ -2775,6 +3319,33 @@ int32 CPad::GetWeapon(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.RightTrigger > 128)
+					return true;			
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128)
+					return true;			
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.B;
+			}
+			else
+			{
+				return	NewState.B;
+			}
+	}
+
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2800,6 +3371,8 @@ int32 CPad::GetWeapon(void)
 		}
 	}
 
+#endif
+
 	return false;
 }
 
@@ -2808,6 +3381,33 @@ bool CPad::WeaponJustDown(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.RightTrigger > 128 && !(OldState.RightTrigger > 128))
+					return true;			
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128 && !(OldState.RightTrigger > 128))
+					return true;			
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.B && !OldState.B;
+			}
+			else
+			{
+				return	NewState.B && !OldState.B;
+			}
+	}
+
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -2832,6 +3432,7 @@ bool CPad::WeaponJustDown(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -2840,6 +3441,34 @@ int16 CPad::GetAccelerate(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return 0;
+	
+#ifdef RW_DC
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return NewState.RightTrigger;
+			}
+			else
+			{
+				return NewState.RightTrigger;	
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if(NewState.A)
+					return 255;
+			}
+			else
+			{
+				if(NewState.A)
+					return 255;
+			}
+	}
+
+#else
 
 	switch (CURMODE)
 	{
@@ -2870,6 +3499,8 @@ int16 CPad::GetAccelerate(void)
 			break;
 		}
 	}
+
+#endif
 
 	return 0;
 }
@@ -2973,7 +3604,33 @@ bool CPad::ChangeStationJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
+#ifdef RW_DC
 
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return !!(NewState.DPadRight&& !OldState.DPadRight);
+			}
+			else
+			{
+				return !!(NewState.DPadRight && !OldState.DPadRight);
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.Z;
+			}
+			else
+			{
+				return !!(NewState.DPadRight && !OldState.DPadRight);
+			}
+			break;
+	}
+
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -3004,6 +3661,7 @@ bool CPad::ChangeStationJustDown(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -3012,22 +3670,57 @@ bool CPad::CycleWeaponLeftJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
-
+#ifdef RW_DC
+	return !!(NewState.DPadLeft && !OldState.DPadLeft);
+#else
 	return !!(NewState.LeftShoulder2 && !OldState.LeftShoulder2);
+#endif
 }
 
 bool CPad::CycleWeaponRightJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
-
+#ifdef RW_DC
+	return !!(NewState.DPadRight && !OldState.DPadRight);
+#else
 	return !!(NewState.RightShoulder2 && !OldState.RightShoulder2);
+#endif
 }
 
 bool CPad::GetTarget(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
+
+#ifdef RW_DC
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.LeftTrigger > 128)
+					return true;
+			}
+			else
+			{
+				if (NewState.LeftTrigger > 128)
+					return true;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.C;
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128)
+					return true;
+			}
+	}
+
+#else
 
 	switch (CURMODE)
 	{
@@ -3048,6 +3741,7 @@ bool CPad::GetTarget(void)
 		}
 	}
 
+#endif
 	return false;
 }
 
@@ -3055,6 +3749,35 @@ bool CPad::TargetJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
+
+#ifdef RW_DC
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.LeftTrigger > 128)
+					return true;
+			}
+			else
+			{
+				if (NewState.LeftTrigger > 128)
+					return true;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.C;
+			}
+			else
+			{
+				if (NewState.RightTrigger > 128)
+					return true;
+			}
+	}
+
+#else
 
 	switch (CURMODE)
 	{
@@ -3074,6 +3797,7 @@ bool CPad::TargetJustDown(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -3157,16 +3881,68 @@ bool CPad::ShiftTargetLeftJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
+#ifdef RW_DC
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return !!(NewState.DPadLeft && !OldState.DPadLeft);
+			}
+			else
+			{
+				return !!(NewState.DPadLeft && !OldState.DPadLeft);
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.LeftTrigger > 128)
+					return true;
+			}
+			else
+			{
+				return !!(NewState.DPadLeft && !OldState.DPadLeft);
+			}
+	}
+	return 0;
+#else
 
 	return !!(NewState.LeftShoulder2 && !OldState.LeftShoulder2);
+#endif
 }
 
 bool CPad::ShiftTargetRightJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
-
+#ifdef RW_DC
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return !!(NewState.DPadRight && !OldState.DPadRight);
+			}
+			else
+			{
+				return !!(NewState.DPadRight && !OldState.DPadRight);
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				if (NewState.RightTrigger > 128)
+					return true;
+			}
+			else
+			{
+				return !!(NewState.DPadRight && !OldState.DPadRight);
+			}
+	}
+	return 0;
+#else
 	return !!(NewState.LeftShoulder1 && !OldState.LeftShoulder1) || !!(NewState.RightShoulder2 && !OldState.RightShoulder2);
+#endif
 }
 
 bool CPad::GetAnaloguePadUp(void)
@@ -3286,6 +4062,10 @@ bool CPad::ForceCameraBehindPlayer(void)
 	if ( ArePlayerControlsDisabled() )
 		return false;
 
+#ifdef RW_DC
+	if (CPad::CameraDoublePress())
+		return true;
+#else
 	switch (CURMODE)
 	{
 		case 0:
@@ -3310,7 +4090,7 @@ bool CPad::ForceCameraBehindPlayer(void)
 			break;
 		}
 	}
-
+#endif
 	return false;
 }
 
@@ -3323,6 +4103,21 @@ bool CPad::SniperZoomIn(void)
 	{
 		case 0:
 		case 1:
+#ifdef RW_DC
+		case 3:
+		{
+			return !!NewState.X;
+
+			break;
+		}
+
+		case 2:
+		{
+			return !!NewState.X;
+
+			break;
+		}
+#else
 		case 3:
 		{
 			return !!NewState.Square;
@@ -3336,6 +4131,7 @@ bool CPad::SniperZoomIn(void)
 
 			break;
 		}
+#endif
 	}
 
 	return false;
@@ -3350,6 +4146,21 @@ bool CPad::SniperZoomOut(void)
 	{
 		case 0:
 		case 1:
+#ifdef RW_DC
+		case 3:
+		{
+			return !!NewState.A;
+
+			break;
+		}
+
+		case 2:
+		{
+			return !!NewState.A;
+
+			break;
+		}
+#else
 		case 3:
 		{
 			return !!NewState.Cross;
@@ -3363,12 +4174,11 @@ bool CPad::SniperZoomOut(void)
 
 			break;
 		}
+#endif
 	}
 
 	return false;
 }
-
-#undef CURMODE
 
 int16 CPad::SniperModeLookLeftRight(void)
 {
@@ -3412,7 +4222,39 @@ int16 CPad::SniperModeLookUpDown(void)
 
 int16 CPad::LookAroundLeftRight(void)
 {
+#ifdef RW_DC
+	float axis = 0;
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.RightStickX;
+			}
+			else
+			{
+				if (!CPad::CameraSinglePress())
+					return 0;
+				axis = NewState.LeftStickX;
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.RightStickX;
+			}
+			else
+			{
+				if (!(NewState.LeftTrigger > 128))
+					return 0;
+				axis = NewState.LeftStickX;
+			}
+			break;
+	}
+
+#else
 	float axis = GetPad(0)->NewState.RightStickX;
+#endif	
 
 	if ( Abs(axis) > 85 && !GetLookBehindForPed() )
 		return (int16) ( (axis + ( ( axis > 0 ) ? -85 : 85) )
@@ -3427,7 +4269,40 @@ int16 CPad::LookAroundLeftRight(void)
 
 int16 CPad::LookAroundUpDown(void)
 {
+#ifdef RW_DC
+	int16 axis = 0;
+
+	switch (CURMODE)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.RightStickY;
+			}
+			else
+			{
+				if (!CPad::CameraSinglePress())
+					return 0;
+				axis = NewState.LeftStickY;
+			}
+			break;
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				axis = NewState.RightStickY;
+			}
+			else
+			{
+				if (!(NewState.LeftTrigger > 128))
+					return 0;
+				axis = NewState.LeftStickY;
+			}
+			break;
+	}
+
+#else
 	int16 axis = GetPad(0)->NewState.RightStickY;
+#endif
 #ifdef FIX_BUGS
 	axis = -axis;
 #endif
@@ -3444,6 +4319,7 @@ int16 CPad::LookAroundUpDown(void)
 
 	return 0;
 }
+#undef CURMODE
 
 void CPad::ResetAverageWeapon(void)
 {
