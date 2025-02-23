@@ -44,9 +44,8 @@ all: $(TARGET)
 
 include common.mk
 
-# ../src/Audio/sampman_dc.o
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../miami/audio/sampman_null.o \
+	../miami/audio/sampman_dc.o \
 	../src/prof/profiler.o
 
 OBJS_TEXCONV = $(RW_OBJS:.o=.texconv.o)
@@ -279,6 +278,9 @@ extract-sfx: extract-sfx.cpp
 pack-sfx: pack-sfx.cpp
 	$(CXX) -std=c++17 -o $@ -Og $<
 
+adf2mp3: adf2mp3.cpp
+	$(CXX) -o $@ -O3 -g $<
+
 aud2adpcm: aud2adpcm.c
 	$(CC) -o $@ -O3 -g $< -I../vendor/minimp3
 
@@ -366,7 +368,8 @@ SFX_DC_DIR = $(REPACK_GTA_DIR)/sfx
 SFX_DC_RAW = $(SFX_DC_DIR)/sfx_all.raw
 SFX_DC_DSC = $(SFX_DC_DIR)/sfx_all.dsc
 STREAM_ADPCM_DC = $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_WAV:.wav=.APM)) \
-				  $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_MP3:.mp3=.APM))
+				  $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_MP3:.mp3=.APM)) \
+				  $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_ADF:.adf=.APM))
 
 IMG_TEXTURES_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MODELS))
@@ -376,10 +379,11 @@ SFX_ORIG = $(addprefix $(REPACK_SFX_ORIG_DIR)/, $(SFX_WAV))
 SFX_ORIG_LOOP = $(addprefix $(REPACK_SFX_ORIG_DIR)/, $(SFX_LOOP_WAV))
 SFX_REPACK_DC_WAV = $(addprefix $(REPACK_SFX_DC_DIR)/, $(SFX_WAV) $(SFX_LOOP_WAV))
 SFX_REPACK_DC = $(SFX_REPACK_DC_WAV:.wav=.pcm)
+STREAM_ADF_DECODED = $(addprefix $(REPACK_STREAM_DECODED_DIR)/, $(STREAM_ADF:.adf=.wav))
 STREAM_MP3_DECODED = $(addprefix $(REPACK_STREAM_DECODED_DIR)/, $(STREAM_MP3:.mp3=.wav))
 STREAM_WAV_DECODED = $(addprefix $(REPACK_STREAM_DECODED_DIR)/, $(STREAM_WAV))
 
-.PRECIOUS: $(SFX_ORIG) $(SFX_REPACK_DC) $(STREAM_MP3_DECODED) $(STREAM_WAV_DECODED)
+.PRECIOUS: $(SFX_ORIG) $(SFX_REPACK_DC) $(STREAM_MP3_DECODED) $(STREAM_ADF_DECODED) $(STREAM_WAV_DECODED)
 
 $(REPACK_DIR)/repacked: $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir $(LOOSE_FILES_DC) $(STREAM_ADPCM_DC) $(SFX_DC_RAW) $(SFX_DC_DSC)
 	mkdir -p $(@D)
@@ -518,11 +522,15 @@ $(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
+$(REPACK_STREAM_DECODED_DIR)/%.mp3: $(GTA_MOD_LOOSE_DIR)/Audio/%.adf adf2mp3
+	@mkdir -p $(@D)
+	./adf2mp3 $< $@
+
 $(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.adf aud2adpcm
+$(REPACK_GTA_DIR)/stream/%.APM: $(REPACK_STREAM_DECODED_DIR)/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
@@ -531,9 +539,18 @@ $(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/Audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
+$(REPACK_STREAM_DECODED_DIR)/%.mp3: $(GTA_DIR)/Audio/%.adf adf2mp3
+	@mkdir -p $(@D)
+	./adf2mp3 $< $@
+
 $(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/Audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
+
+$(REPACK_GTA_DIR)/stream/%.APM: $(REPACK_STREAM_DECODED_DIR)/%.mp3 aud2adpcm
+	@mkdir -p $(@D)
+	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
+
 
 # Note: This is last so it has least priority, files should be processed if possible
 $(REPACK_GTA_DIR)/%: $(GTA_DIR)/%

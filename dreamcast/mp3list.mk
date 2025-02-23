@@ -1,3 +1,14 @@
+STREAM_ADF = \
+  EMOTION.adf \
+  ESPANT.adf \
+  FEVER.adf \
+  FLASH.adf \
+  KCHAT.adf \
+  VCPR.adf \
+  VROCK.adf \
+  WAVE.adf \
+  WILD.adf
+
 STREAM_MP3 = \
   cnt_1b.mp3 \
   int_b.mp3 \
