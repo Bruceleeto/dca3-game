@@ -182,7 +182,7 @@ enum Config {
 #	define EXTERNAL_3D_SOUND
 #	define AUDIO_REVERB
 #	ifndef GTA_HANDHELD
-#		define PC_PLAYER_CONTROLS	// mouse player/cam mode
+// #		define PC_PLAYER_CONTROLS	// mouse player/cam mode
 #	endif
 //#	define GTA_REPLAY
 //#	define GTA_SCENE_EDIT
