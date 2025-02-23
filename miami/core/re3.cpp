@@ -1245,7 +1245,7 @@ void re3_assert(const char *expr, const char *filename, unsigned int lineno, con
 }
 #endif
 
-void re3_debug(const char *format, ...)
+void (re3_debug)(const char *format, ...)
 {
 #ifndef MASTER
 	va_list va;
@@ -1263,7 +1263,7 @@ void re3_debug(const char *format, ...)
 }
 
 #ifndef MASTER
-void re3_trace(const char *filename, unsigned int lineno, const char *func, const char *format, ...)
+void (re3_trace)(const char *filename, unsigned int lineno, const char *func, const char *format, ...)
 {
 	char buff[re3_buffsize *2];
 	va_list va;
@@ -1285,7 +1285,7 @@ void re3_trace(const char *filename, unsigned int lineno, const char *func, cons
 #endif
 
 #ifndef MASTER
-void re3_usererror(const char *format, ...)
+void (re3_usererror)(const char *format, ...)
 {
 	va_list va;
 	va_start(va, format);
