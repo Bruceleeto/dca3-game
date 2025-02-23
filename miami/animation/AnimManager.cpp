@@ -17,7 +17,6 @@ CAnimBlendHierarchy CAnimManager::ms_aAnimations[NUMANIMATIONS];
 int32 CAnimManager::ms_numAnimBlocks;
 int32 CAnimManager::ms_numAnimations;
 CAnimBlendAssocGroup *CAnimManager::ms_aAnimAssocGroups;
-CLinkList<CAnimBlendHierarchy*> CAnimManager::ms_animCache;
 
 AnimAssocDesc aStdAnimDescs[] = {
 	{ ANIM_STD_WALK, ASSOC_REPEAT | ASSOC_MOVEMENT | ASSOC_HAS_TRANSLATION | ASSOC_WALK },
@@ -972,7 +971,6 @@ CAnimManager::Initialise(void)
 {
 	ms_numAnimations = 0;
 	ms_numAnimBlocks = 0;
-	ms_animCache.Init(25);
 }
 
 void
@@ -986,46 +984,10 @@ CAnimManager::Shutdown(void)
 	for(i = 0; i < ms_numAnimations; i++)
 		ms_aAnimations[i].Shutdown();
 
-	ms_animCache.Shutdown();
 
 	delete[] ms_aAnimAssocGroups;
 }
 
-void
-CAnimManager::UncompressAnimation(CAnimBlendHierarchy *hier)
-{
-	if(hier->keepCompressed){
-		if(hier->totalLength == 0.0f)
-			hier->CalcTotalTimeCompressed();
-	}else{
-		if(!hier->compressed){
-			if(hier->linkPtr){
-				hier->linkPtr->Remove();
-				ms_animCache.head.Insert(hier->linkPtr);
-			}
-		}else{
-			CLink<CAnimBlendHierarchy*> *link = ms_animCache.Insert(hier);
-			if(link == nil){
-				CAnimBlendHierarchy *lastHier = ms_animCache.tail.prev->item;
-				lastHier->RemoveUncompressedData();
-				ms_animCache.Remove(ms_animCache.tail.prev);
-				lastHier->linkPtr = nil;
-				link = ms_animCache.Insert(hier);
-			}
-			hier->linkPtr = link;
-			hier->Uncompress();
-		}
-	}
-}
-
-void
-CAnimManager::RemoveFromUncompressedCache(CAnimBlendHierarchy *hier)
-{
-	if(hier->linkPtr){
-		ms_animCache.Remove(hier->linkPtr);
-		hier->linkPtr = nil;
-	}
-}
 
 CAnimBlock*
 CAnimManager::GetAnimationBlock(const char *name)
@@ -1226,7 +1188,6 @@ CAnimManager::BlendAnimation(RpClump *clump, AssocGroupId groupId, AnimationId a
 		found->blendAmount = 0.0f;
 		found->blendDelta = delta;
 	}
-	UncompressAnimation(found->hierarchy);
 	return found;
 }
 
@@ -1321,11 +1282,8 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 		RwStreamRead(stream, buf, name.size);
 		hier->SetName(buf);
 
-#ifdef ANIM_COMPRESSION
 		bool compressHier = compress;
-#else
-		bool compressHier = false;
-#endif
+
 		if (uncompressedAnims) {
 			for (int i = 0; uncompressedAnims[i][0]; i++) {
 				if (!CGeneral::faststricmp(uncompressedAnims[i], hier->name)){
@@ -1334,10 +1292,6 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 				}
 			}
 		}
-
-		hier->compressed = compressHier;
-		hier->keepCompressed = false;
-
 		// DG info has number of nodes/sequences
 		RwStreamRead(stream, (char*)&dgan, sizeof(IfpHeader));
 		ROUNDSIZE(dgan.size);
@@ -1377,6 +1331,8 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 			if(strstr(seq->name, "L Toe"))
 				debug("anim %s has toe keyframes\n", hier->name); // BUG: seq->name
 
+			float *frameTimes = (float*)RwMalloc(sizeof(float) * numFrames);
+
 			for(l = 0; l < numFrames; l++){
 				if(hasScale){
 					RwStreamRead(stream, buf, 0x2C);
@@ -1384,58 +1340,47 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 					rot.Invert();
 					CVector trans(fbuf[4], fbuf[5], fbuf[6]);
 
-					if(compressHier){
-						KeyFrameTransCompressed *kf = (KeyFrameTransCompressed*)seq->GetKeyFrameCompressed(l);
-						kf->SetRotation(rot);
-						kf->SetTranslation(trans);
-						// scaling ignored
-						kf->SetTime(fbuf[10]);	// absolute time here
-					}else{
-						KeyFrameTrans *kf = (KeyFrameTrans*)seq->GetKeyFrame(l);
-						kf->rotation = rot;
-						kf->translation = trans;
-						// scaling ignored
-						kf->deltaTime = fbuf[10];	// absolute time here
-					}
+					seq->SetRotation(l, rot);
+					seq->SetTranslation(l, trans);
+					// scaling ignored
+					frameTimes[l] = fbuf[10];	// absolute time here
 				}else if(hasTranslation){
 					RwStreamRead(stream, buf, 0x20);
 					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
 					rot.Invert();
 					CVector trans(fbuf[4], fbuf[5], fbuf[6]);
 
-					if(compressHier){
-						KeyFrameTransCompressed *kf = (KeyFrameTransCompressed*)seq->GetKeyFrameCompressed(l);
-						kf->SetRotation(rot);
-						kf->SetTranslation(trans);
-						kf->SetTime(fbuf[7]);	// absolute time here
-					}else{
-						KeyFrameTrans *kf = (KeyFrameTrans*)seq->GetKeyFrame(l);
-						kf->rotation = rot;
-						kf->translation = trans;
-						kf->deltaTime = fbuf[7];	// absolute time here
-					}
+					seq->SetRotation(l, rot);
+					seq->SetTranslation(l, trans);
+					frameTimes[l] = fbuf[7];	// absolute time here
 				}else{
 					RwStreamRead(stream, buf, 0x14);
 					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
 					rot.Invert();
 
-					if(compressHier){
-						KeyFrameCompressed *kf = (KeyFrameCompressed*)seq->GetKeyFrameCompressed(l);
-						kf->SetRotation(rot);
-						kf->SetTime(fbuf[4]);	// absolute time here
-					}else{
-						KeyFrame *kf = (KeyFrame*)seq->GetKeyFrame(l);
-						kf->rotation = rot;
-						kf->deltaTime = fbuf[4];	// absolute time here
-					}
+					seq->SetRotation(l, rot);
+					frameTimes[l] = fbuf[4];	// absolute time here
 				}
 			}
+
+			// convert absolute time to deltas
+			float running_sum = 0.0f;
+			for (l = 0; l < numFrames; l++) {
+				auto dt = frameTimes[l] - running_sum;
+				seq->SetDeltaTime(l, dt);
+				assert(seq->GetDeltaTime(l) <= dt);
+				running_sum += seq->GetDeltaTime(l);
+				// if (seq->GetDeltaTime(l) == 0.0f && dt != 0.0f) {
+				// 	seq->SetDeltaTime(l, KF_MINDELTA);
+				// }
+
+				// assert(seq->GetDeltaTime(l) != 0.0f || dt == 0.0f);
+			}
+			RwFree(frameTimes);
 		}
 
-		if(!compressHier){
-			hier->RemoveQuaternionFlips();
-			hier->CalcTotalTime();
-		}
+		hier->RemoveQuaternionFlips();
+		hier->CalcTotalTime();
 	}
 	if(animIndex > ms_numAnimations)
 		ms_numAnimations = animIndex;

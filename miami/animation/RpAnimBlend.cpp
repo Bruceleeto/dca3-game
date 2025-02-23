@@ -474,7 +474,6 @@ RpAnimBlendClumpUpdateAnimations(RpClump *clump, float timeDelta, bool doRender)
 		assoc = CAnimBlendAssociation::FromLink(link);
 		if(assoc->UpdateBlend(timeDelta)){
 			if(assoc->hierarchy->sequences){
-				CAnimManager::UncompressAnimation(assoc->hierarchy);
 				if(i < 11)
 					updateData.nodes[i++] = assoc->GetNode(0);
 				if(assoc->flags & ASSOC_MOVEMENT){
@@ -494,14 +493,6 @@ RpAnimBlendClumpUpdateAnimations(RpClump *clump, float timeDelta, bool doRender)
 
 	updateData.nodes[i] = nil;
 
-#ifdef ANIM_COMPRESSION
-	if(clumpData->frames[0].flag & AnimBlendFrameData::COMPRESSED){
-		if(IsClumpSkinned(clump))
-			clumpData->ForAllFrames(FrameUpdateCallBackSkinnedCompressed, &updateData);
-		else
-			clumpData->ForAllFrames(FrameUpdateCallBackNonSkinnedCompressed, &updateData);
-	}else
-#endif
 	if(doRender){
 		if(clumpData->frames[0].flag & AnimBlendFrameData::UPDATE_KEYFRAMES)
 			RpAnimBlendNodeUpdateKeyframes(clumpData->frames, &updateData, clumpData->numFrames);
