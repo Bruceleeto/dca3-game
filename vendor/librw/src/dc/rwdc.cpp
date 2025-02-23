@@ -4929,7 +4929,7 @@ writeNativeTexture(Texture *tex, Stream *stream)
 }
 #endif
 
-#define DC_MODEL_VERSION 5
+#define DC_MODEL_VERSION 6
 
 void*
 destroyNativeData(void *object, int32, int32)
