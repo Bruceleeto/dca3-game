@@ -860,20 +860,20 @@ CVisibilityPlugins::PluginAttach(void)
 //
 
 void*
-CVisibilityPlugins::AtomicConstructor(void *object, int32, int32)
+CVisibilityPlugins::AtomicConstructor(void *object, RwInt32, RwInt32)
 {
 	ATOMICEXT(object)->modelInfo = nil;
 	return object;
 }
 
 void*
-CVisibilityPlugins::AtomicDestructor(void *object, int32, int32)
+CVisibilityPlugins::AtomicDestructor(void *object, RwInt32, RwInt32)
 {
 	return object;
 }
 
 void*
-CVisibilityPlugins::AtomicCopyConstructor(void *dst, const void *src, int32, int32)
+CVisibilityPlugins::AtomicCopyConstructor(void *dst, const void *src, RwInt32, RwInt32)
 {
 	*ATOMICEXT(dst) = *ATOMICEXT(src);
 	return dst;
@@ -930,20 +930,20 @@ CVisibilityPlugins::SetAtomicRenderCallback(RpAtomic *atomic, RpAtomicCallBackRe
 //
 
 void*
-CVisibilityPlugins::FrameConstructor(void *object, int32, int32)
+CVisibilityPlugins::FrameConstructor(void *object, RwInt32, RwInt32)
 {
 	FRAMEEXT(object)->id = 0;
 	return object;
 }
 
 void*
-CVisibilityPlugins::FrameDestructor(void *object, int32, int32)
+CVisibilityPlugins::FrameDestructor(void *object, RwInt32, RwInt32)
 {
 	return object;
 }
 
 void*
-CVisibilityPlugins::FrameCopyConstructor(void *dst, const void *src, int32, int32)
+CVisibilityPlugins::FrameCopyConstructor(void *dst, const void *src, RwInt32, RwInt32)
 {
 	*FRAMEEXT(dst) = *FRAMEEXT(src);
 	return dst;
@@ -967,7 +967,7 @@ CVisibilityPlugins::GetFrameHierarchyId(RwFrame *frame)
 //
 
 void*
-CVisibilityPlugins::ClumpConstructor(void *object, int32, int32)
+CVisibilityPlugins::ClumpConstructor(void *object, RwInt32, RwInt32)
 {
 	ClumpExt *ext = CLUMPEXT(object);
 	ext->visibilityCB = DefaultVisibilityCB;
@@ -976,13 +976,13 @@ CVisibilityPlugins::ClumpConstructor(void *object, int32, int32)
 }
 
 void*
-CVisibilityPlugins::ClumpDestructor(void *object, int32, int32)
+CVisibilityPlugins::ClumpDestructor(void *object, RwInt32, RwInt32)
 {
 	return object;
 }
 
 void*
-CVisibilityPlugins::ClumpCopyConstructor(void *dst, const void *src, int32, int32)
+CVisibilityPlugins::ClumpCopyConstructor(void *dst, const void *src, RwInt32, RwInt32)
 {
 	CLUMPEXT(dst)->visibilityCB = CLUMPEXT(src)->visibilityCB;
 	return dst;
