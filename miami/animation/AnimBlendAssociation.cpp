@@ -142,15 +142,6 @@ CAnimBlendAssociation::SetCurrentTime(float time)
 			break;
 		}
 
-	CAnimManager::UncompressAnimation(hierarchy);
-#ifdef ANIM_COMPRESSION
-	// strangely PC has this but android doesn't
-	if(hierarchy->keepCompressed){
-		for(i = 0; i < numNodes; i++)
-			if(nodes[i].sequence)
-				nodes[i].SetupKeyFrameCompressed();
-	}else
-#endif
 	{
 		for(i = 0; i < numNodes; i++)
 			if(nodes[i].sequence)
