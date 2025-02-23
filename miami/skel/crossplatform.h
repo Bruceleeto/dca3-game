@@ -23,7 +23,8 @@ char *_strdate(char *buf);
 // NOTE: It's perfectly fine to include <Windows.h> here, but it can increase build size and time in *some* conditions, and maybe substantially in future if we'll use crossplatform.h more.
 #ifndef _INC_WINDOWS
 	#ifndef __MWERKS__
-		#include <IntSafe.h>
+		// #include <IntSafe.h> // DreamSDK doesn't have IntSafe.h
+        #include <Windows.h>
 	#else
 		#include <Windows.h>
 	#endif
