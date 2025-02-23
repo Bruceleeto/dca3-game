@@ -2744,7 +2744,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					} while(--count != 0);
 				}
 			} else if (!(flags & 0x80)) {
-				int count = flags & 0x7FFF;
+				int count = (flags & 0x7F) + 1;
 				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
 
 				do {
@@ -2835,7 +2835,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					} while(--count != 0);
 				}
 			} else if (!(flags & 0x80)) {
-				int count = flags & 0x7FFF;
+				int count = (flags & 0x7F) + 1;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
 
 				do {
@@ -5439,8 +5439,9 @@ void processGeom(Geometry *geo) {
 					}
 
 					assert(spanCount);
+					assert(spanCount < 0x80);
 					
-					skinningIndexData.write<uint16_t>(0x8000 | spanCount);			// count + clear flag
+					skinningIndexData.write<uint16_t>(0x8000 | (spanCount-1));			// count + clear flag
 					skinningIndexData.write<uint16_t>(spanStartIdx * 64);			// dst offset
 					assert(spanStartIdx + spanCount <= meshlet.vertices.size());
 
@@ -5469,7 +5470,8 @@ void processGeom(Geometry *geo) {
 					spanCount++;
 				}
 				if (spanCount) {
-					skinningIndexData.write<uint16_t>(0x8000 | spanCount);			// count + clear flag
+					assert(spanCount <= 0x80);
+					skinningIndexData.write<uint16_t>(0x8000 | (spanCount - 1));			// count + clear flag
 					skinningIndexData.write<uint16_t>(spanStartIdx * 64);			// dst offset
 				}
 				
@@ -5495,7 +5497,7 @@ void processGeom(Geometry *geo) {
 							assert(skinMatrix0Only[currentMtx0Idx++] == (startVtx + k));
 						}
 					} else if (!(flags & 0x80)) {
-						int count = flags & 0x7FFF;
+						int count = (flags & 0x7F) + 1;
 						int dstVertex = skinningIndexData[skinningIndexDataStart] | (skinningIndexData[skinningIndexDataStart + 1] << 8);
 						skinningIndexDataStart += 2;
 						texconvf("%s: Clear: count %d, dst %d\n", currentFile, count, dstVertex/64);
