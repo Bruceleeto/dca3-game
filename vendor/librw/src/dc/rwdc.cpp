@@ -39,6 +39,7 @@ extern const char* currentFile;
 
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
+bool re3EmergencyRemoveModel();
 
 // #include "rwdcimpl.h"
 
@@ -3777,6 +3778,10 @@ pvr_ptr_t allocTexture(DcRaster* ctx, size_t size) {
 				break;
 			}
 			dbglog(DBG_CRITICAL, "failed to free or defrag vram, sz: %lu, cont: %lu, free: %lu\n", size, alloc_count_continuous(), alloc_count_free());
+			if (re3EmergencyRemoveModel()) {
+				dbglog(DBG_CRITICAL, "Managed to re3EmergencyRemoveModel, sz: %lu, cont: %lu, free: %lu\n", size, alloc_count_continuous(), alloc_count_free());
+				continue;
+			}
 			return 0;
 		}
 		rv = alloc_malloc(ctx, size);

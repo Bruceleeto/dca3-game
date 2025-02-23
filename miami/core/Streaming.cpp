@@ -1377,7 +1377,13 @@ found:
 }
 
 bool re3RemoveLeastUsedModel() {
-	return CStreaming::RemoveLeastUsedModel(0);
+	return CStreaming::RemoveLeastUsedModel(STREAMFLAGS_20);
+}
+
+bool re3EmergencyRemoveModel() {
+	auto usedmem = CStreaming::ms_memoryUsed;
+	CStreaming::DeleteRwObjectsBehindCamera(CStreaming::ms_memoryUsed-1);
+	return usedmem != CStreaming::ms_memoryUsed;
 }
 
 bool
