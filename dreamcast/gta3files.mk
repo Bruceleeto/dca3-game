@@ -26,7 +26,6 @@ MISC_FILES = \
   \
   models/fonts.txd \
   models/hud.txd \
-  models/coll \
   models/coll/weapons.col \
   models/coll/peds.col \
   models/coll/vehicles.col \

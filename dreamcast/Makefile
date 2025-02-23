@@ -370,6 +370,7 @@ STREAM_ADPCM_DC = $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_WAV:.wav=.APM)
 
 IMG_TEXTURES_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MODELS))
+IMG_MISC_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MISC))
 
 SFX_ORIG = $(addprefix $(REPACK_SFX_ORIG_DIR)/, $(SFX_WAV))
 SFX_ORIG_LOOP = $(addprefix $(REPACK_SFX_ORIG_DIR)/, $(SFX_LOOP_WAV))
@@ -391,7 +392,7 @@ $(REPACK_DIR)/unpacked: imgtool $(GTA_DIR)/models/gta3.img $(GTA_DIR)/models/gta
 	./imgtool unpack "$(GTA_DIR)/models/gta3" "$(REPACK_IMG_ORIG_DIR)"
 	@touch $@
 
-$(IMG_TEXTURES_ORIG) $(IMG_MODELS_ORIG): $(REPACK_DIR)/unpacked
+$(IMG_TEXTURES_ORIG) $(IMG_MODELS_ORIG) $(IMG_MISC_ORIG): $(REPACK_DIR)/unpacked
 	@test -f $@
 	@touch $@
 
