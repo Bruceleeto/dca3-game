@@ -4876,6 +4876,9 @@ bool isDegenerateByIndex(uint16_t idx1, uint16_t idx2, uint16_t idx3) {
 	return idx1 == idx2 || idx1 == idx3 || idx2 == idx3;
 }
 static int8_t packFloat8(float f) {
+	if (std::isnan(f)) {
+		f = 0;
+	}
 	auto rounded =  lroundf(f * 127);
 
 	assert(rounded >= -127 && rounded <= 127);
@@ -4903,8 +4906,16 @@ struct write_vector: std::vector<uint8_t> {
 		std::copy(p, p + sizeof(T), begin() + offset);
 	}
 
-	void packVertex(RwSphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
-		if (big_vertex) {
+	void packVertex(RwSphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv, bool tiny_vertex) {
+		if (tiny_vertex) {
+			assert(!big_vertex);
+			assert(!big_uv);
+			assert(!pad_xyz);
+
+			write<int8_t>(packFloat8((vertex->x - volume->center.x) / volume->radius));
+			write<int8_t>(packFloat8((vertex->y - volume->center.y) / volume->radius));
+			write<int8_t>(packFloat8((vertex->z - volume->center.z) / volume->radius));
+		} else if (big_vertex) {
 			write<float>(vertex->x);
 			write<float>(vertex->y);
 			write<float>(vertex->z);
@@ -4924,8 +4935,8 @@ struct write_vector: std::vector<uint8_t> {
 				float16 v = texcoord->v;
 				write<uint32_t>((u.raw << 16) | v.raw);
 			} else {
-				write<int8_t>(lroundf(texcoord->u * 127));
-				write<int8_t>(lroundf(texcoord->v * 127));
+				write<int8_t>(packFloat8(texcoord->u));
+				write<int8_t>(packFloat8(texcoord->v));
 			}
 		}
 
@@ -4938,9 +4949,9 @@ struct write_vector: std::vector<uint8_t> {
 				printf("*WARNING* invalid normal\n");
 			}
 			
-			int8_t nxi = lroundf(normaly.x * 127);
-			int8_t nyi = lroundf(normaly.y * 127);
-			int8_t nzi = lroundf(normaly.z * 127);
+			int8_t nxi = packFloat8(normaly.x);
+			int8_t nyi = packFloat8(normaly.y);
+			int8_t nzi = packFloat8(normaly.z);
 			
 			V3d normal2 = { static_cast<float32>(nxi), static_cast<float32>(nyi), static_cast<float32>(nzi) };
 
@@ -4951,7 +4962,9 @@ struct write_vector: std::vector<uint8_t> {
 			write<int8_t>(nxi);
 			write<int8_t>(nyi);
 			write<int8_t>(nzi);
-			write<int8_t>(0);
+			if (!tiny_vertex) {
+				write<int8_t>(0);
+			}
 		}
 		
 		if (color) {
@@ -4959,6 +4972,10 @@ struct write_vector: std::vector<uint8_t> {
 		}
 	}
 };
+
+bool isNotTinyVertex(const V3d& vtx) {
+	return vtx.x > 1 || vtx.y > 1 || vtx.z > 1 || vtx.x < -1 || vtx.y < -1 || vtx.z < -1;
+}
 
 bool isBigVertex(const V3d& vtx) {
 	return vtx.x > 127 || vtx.y > 127 || vtx.z > 127 || vtx.x < -127 || vtx.y < -127 || vtx.z < -127;
@@ -4968,8 +4985,13 @@ bool isBigUV(const TexCoords& uv) {
 	return uv.u > 1 || uv.v > 1 || uv.u < -1 || uv.v < -1;
 }
 
-void adjustFlagsForAlingment(bool textured, bool colored, bool& big_vertex, bool& big_uv, bool& pad_xyz) {
+void adjustFlagsForAlingment(bool textured, bool colored, bool& big_vertex, bool& big_uv, bool& pad_xyz, bool tiny_vertex) {
 	pad_xyz = false;
+	if (tiny_vertex) {
+		assert(!big_vertex);
+		assert(!big_uv);
+		return;
+	}
 
 	if (textured) {
 		if (big_vertex && !big_uv) {
@@ -4982,7 +5004,13 @@ void adjustFlagsForAlingment(bool textured, bool colored, bool& big_vertex, bool
 	}
 }
 
-unsigned caluclateVertexAlignment(bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz) {
+unsigned caluclateVertexAlignment(bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz, bool tiny_vertex) {
+	if (tiny_vertex) {
+		assert(!big_vertex);
+		assert(!big_uv);
+		return 1;
+	}
+
 	if (big_vertex) {
 		return 4;
 	} else if (textured && big_uv) {
@@ -4991,8 +5019,27 @@ unsigned caluclateVertexAlignment(bool textured, bool normaled, bool colored, bo
 		return 2;
 	}
 }
-unsigned caluclateVertexSize(bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz) {
+unsigned caluclateVertexSize(bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz, bool tiny_vertex) {
 	uint32_t vertexBytes = 0; //xyz
+
+	if (tiny_vertex) {
+		assert(!big_vertex);
+		assert(!big_uv);
+
+		vertexBytes += 3;
+
+		if (textured) {
+			vertexBytes += 2;
+		}
+
+		if (normaled) {
+			vertexBytes += 3;
+		}
+	
+		if (colored) {
+			vertexBytes += 4;
+		}
+	}
 
 	if (big_vertex) {
 		vertexBytes += 4 * 3;
@@ -5062,6 +5109,16 @@ struct meshlet {
 			}
 		}
 		return false;
+	}
+
+	bool isOfTinyVertex(V3d* vertexData, Sphere* volume) {
+		return false;
+		for (auto v : vertices) {
+			if (isNotTinyVertex(sub(vertexData[v], volume->center))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	bool isOfBigUV(TexCoords* uvData) {
@@ -5359,18 +5416,30 @@ void processGeom(Geometry *geo) {
 
 			bool big_vertex = meshlet.isOfBigVertex(vertices, &boundingSphere);
 			bool big_uv = texcoorded && meshlet.isOfBigUV(texcoords);
-			bool pad_xyz;
-			adjustFlagsForAlingment(texcoorded, colored, big_vertex, big_uv, pad_xyz);
-			uint8_t vertexSize = caluclateVertexSize(texcoorded, normaled, colored, big_vertex, big_uv, pad_xyz);
-			uint8_t vertexAlignment = caluclateVertexAlignment(texcoorded, normaled, colored, big_vertex, big_uv, pad_xyz);
+			bool tiny_vertex = !big_uv && meshlet.isOfTinyVertex(vertices, &boundingSphere);
 
-			assert(vertexSize % vertexAlignment == 0);
-			assert(vertexData.size() % vertexAlignment == 0);
+			if (tiny_vertex) {
+				fprintf(stderr, "\n***************OMG TINY VERTEX***************\n");
+			}
+
+			bool pad_xyz;
+			adjustFlagsForAlingment(texcoorded, colored, big_vertex, big_uv, pad_xyz, tiny_vertex);
+			uint8_t vertexSize = caluclateVertexSize(texcoorded, normaled, colored, big_vertex, big_uv, pad_xyz, tiny_vertex);
+			uint8_t vertexAlignment = caluclateVertexAlignment(texcoorded, normaled, colored, big_vertex, big_uv, pad_xyz, tiny_vertex);
+
+			assert(vertexSize % vertexAlignment == 0 || vertexSize % vertexAlignment == vertexAlignment);
+			if (vertexData.size() % vertexAlignment && vertexAlignment != 1) {
+				auto count = vertexAlignment - vertexData.size() % vertexAlignment;
+				for (unsigned i = 0; i < count; i++) {
+					vertexData.write<uint8_t>(0);
+				}
+			}
+			assert(vertexData.size() % vertexAlignment == 0 || vertexData.size() % vertexAlignment == vertexAlignment);
 
 			meshlet.vertexDataOffset = vertexData.size();
 
 			for (auto &&idx: meshlet.vertices) {
-				vertexData.packVertex(&boundingSphere, &vertices[idx], texcoorded ? &texcoords[idx] : nullptr, normaled ? &normals[idx] : nullptr, colored ? &colors[idx] : nullptr, big_vertex, pad_xyz, big_uv);
+				vertexData.packVertex(&boundingSphere, &vertices[idx], texcoorded ? &texcoords[idx] : nullptr, normaled ? &normals[idx] : nullptr, colored ? &colors[idx] : nullptr, big_vertex, pad_xyz, big_uv, tiny_vertex);
 			}
 
 			// write out index data
@@ -5540,7 +5609,7 @@ void processGeom(Geometry *geo) {
 			// write out meshlet data
 			meshletData.write(boundingSphere);
 			//isTextured, isNormaled, isColored, small_xyz, pad_xyz, small_uv
-			uint16_t flags = texcoorded | (normaled << 1) | (colored << 2) | (!big_vertex << 3) | (pad_xyz << 4) | (!big_uv << 5);
+			uint16_t flags = texcoorded | (normaled << 1) | (colored << 2) | (!big_vertex << 3) | (pad_xyz << 4) | (!big_uv << 5) | (tiny_vertex << 6);
 			meshletData.write<uint16_t>(flags);
 			meshletData.write<uint8_t>(0);
 			//bool textured, bool normaled, bool colored, bool big_vertex, bool big_uv, bool pad_xyz
@@ -5568,9 +5637,15 @@ void processGeom(Geometry *geo) {
 
 	bool isIdx8 = geo->numVertices < 256;
 
+	// align for skinWeightBase
+	if (vertexData.size() % 2) {
+		vertexData.write<uint8_t>(0);
+	}
+	
 	auto dataSize = meshData.size() + meshletData.size() + vertexData.size() + skinningIndexData.size() + skinningWeightData.size() + indexData.size();
 
 	auto vertexBase = meshData.size() + meshletData.size();
+
 	auto skinIndexBase = vertexBase + vertexData.size();
 	auto skinWeightBase = skinIndexBase + skinningIndexData.size();
 	assert(skinWeightBase % 2 == 0);

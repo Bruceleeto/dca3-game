@@ -7,7 +7,7 @@
       "program": "${workspaceFolder}/dreamcast/dca3-sim.elf",
       "args": [],
       "stopAtEntry": false,
-      "cwd": "${fileDirname}",
+      "cwd": "${workspaceFolder}/dreamcast",
       "environment": [],
       "externalConsole": false,
       "MIMode": "gdb",
