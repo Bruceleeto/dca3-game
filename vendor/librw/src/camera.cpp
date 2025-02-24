@@ -440,6 +440,50 @@ Camera::frustumTestSphere(const Sphere *s) const
 	return res;
 }
 
+int32
+Camera::frustumTestSphereNear(const Sphere *s) const
+{
+	int32 res = SPHEREINSIDE;
+	const FrustumPlane *p = this->frustumPlanes;
+
+	// far
+	float32 dist = dot(p->plane.normal, s->center) - p->plane.distance;
+	if(s->radius < dist)
+		return SPHEREOUTSIDE;
+	p++;
+
+	// near
+	dist = dot(p->plane.normal, s->center) - p->plane.distance;
+	if(s->radius < dist)
+		return SPHEREOUTSIDE;
+	if(s->radius > -dist)
+		res = SPHEREBOUNDARY_NEAR;
+	p++;
+
+	// others
+	dist = dot(p->plane.normal, s->center) - p->plane.distance;
+	if(s->radius < dist)
+		return SPHEREOUTSIDE;
+	p++;
+
+	dist = dot(p->plane.normal, s->center) - p->plane.distance;
+	if(s->radius < dist)
+		return SPHEREOUTSIDE;
+	p++;
+
+	dist = dot(p->plane.normal, s->center) - p->plane.distance;
+	if(s->radius < dist)
+		return SPHEREOUTSIDE;
+	p++;
+
+	dist = dot(p->plane.normal, s->center) - p->plane.distance;
+	if(s->radius < dist)
+		return SPHEREOUTSIDE;
+	p++;
+
+	return res;
+}
+
 struct CameraChunkData
 {
 	V2d viewWindow;
