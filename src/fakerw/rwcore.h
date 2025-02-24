@@ -375,7 +375,7 @@ enum RwFrustumTestResult
 {
 	rwSPHEREOUTSIDE = 0,
 	rwSPHEREBOUNDARY = 1,
-	rwSPHEREINSIDE = 2
+	rwSPHEREINSIDE = 2,
 };
 
 RwCamera    *RwCameraBeginUpdate(RwCamera * camera);

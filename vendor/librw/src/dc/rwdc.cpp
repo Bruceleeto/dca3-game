@@ -3162,9 +3162,9 @@ void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertex
 }
 
 
-inline  __attribute__((always_inline))  RwFrustumTestResult AtomicFrustumSphereCB(Atomic *atomic, rw::Camera *cam)
+inline  __attribute__((always_inline))  int32 AtomicFrustumSphereNearCB(Atomic *atomic, rw::Camera *cam)
 {
-    return RwCameraFrustumTestSphere(cam, atomic->getWorldBoundingSphere());
+	return cam->frustumTestSphereNear(atomic->getWorldBoundingSphere());
 }
 
 static constexpr void (*tnlMeshletTransformSelector[6])(uint8_t* dst, const uint8_t* vertexData, uint32_t vertexCount, uint32_t vertexSize) {
@@ -3526,7 +3526,7 @@ size_t vertexBufferFree() {
 void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
     rw::Camera *cam = engine->currentCamera;
     // Frustum Culling
-    auto global_frustumTestResult = AtomicFrustumSphereCB(atomic, cam);
+    auto global_frustumTestResult = AtomicFrustumSphereNearCB(atomic, cam);
 
 	if (global_frustumTestResult == rwSPHEREOUTSIDE) {
 		return;
@@ -3764,25 +3764,21 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					unsigned clippingRequired = 0;
 
 					if (!global_needsNoClip) {
-						RwSphere sphere = meshlet->boundingSphere;
-						RwV3dTransformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
-						auto local_frustumTestResult = RwCameraFrustumTestSphere(cam, &sphere);
-						if ( local_frustumTestResult == rwSPHEREOUTSIDE) {
-							// printf("Outside frustum cull\n");
-							continue;
-						}
-
-						if (local_frustumTestResult == rwSPHEREBOUNDARY) {
-							// printf("meshlet %d, vertexOffset %d, indexOffset %d, vertexCount %d, indexCount %d\n", meshletNum, meshlet->vertexOffset, meshlet->indexOffset, meshlet->vertexCount, meshlet->indexCount);
-							mat_load(&worldView);  // Number of cycles: ~11.
+						if (!skin) {
+							RwSphere sphere = meshlet->boundingSphere;
+							RwV3dTransformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
 							
-							float x, y, z, w;
-							
-							mat_trans_nodiv_nomod(meshlet->boundingSphere.center.x, meshlet->boundingSphere.center.y, meshlet->boundingSphere.center.z, x, y, z, w);
-
-							if (z < meshlet->boundingSphere.radius) {
+							auto local_frustumTestResult = cam->frustumTestSphereNear(&sphere);;
+							if ( local_frustumTestResult == Camera::SPHEREOUTSIDE) {
+								// printf("Outside frustum cull\n");
+								continue;
+							}
+	
+							if (local_frustumTestResult == Camera::SPHEREBOUNDARY_NEAR) {
 								clippingRequired = 1 + textured;
 							}
+						} else {
+							clippingRequired = 1 + textured;
 						}
 					}
 

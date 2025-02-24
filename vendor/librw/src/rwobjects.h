@@ -744,7 +744,7 @@ struct Camera
 	enum { PERSPECTIVE = 1, PARALLEL };
 	enum { CLEARIMAGE = 0x1, CLEARZ = 0x2, CLEARSTENCIL = 0x4 };
 	// return value of frustumTestSphere
-	enum { SPHEREOUTSIDE, SPHEREBOUNDARY, SPHEREINSIDE };
+	enum { SPHEREOUTSIDE, SPHEREBOUNDARY, SPHEREINSIDE, SPHEREBOUNDARY_NEAR /* frustumTestSphereEx only */};
 
 	ObjectWithFrame object;
 	void (*beginUpdateCB)(Camera*);
@@ -802,6 +802,9 @@ struct Camera
 	void setViewOffset(const V2d *offset);
 	void setProjection(int32 proj);
 	int32 frustumTestSphere(const Sphere *s) const;
+
+	//considers SPHEREBOUNDARY as SPHEREINSIDE, returns SPHEREBOUNDARY_NEAR for near plane
+	int32 frustumTestSphereNear(const Sphere *s) const;
 	static Camera *streamRead(Stream *stream);
 	bool streamWrite(Stream *stream);
 	uint32 streamGetSize(void);
