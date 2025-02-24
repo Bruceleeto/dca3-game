@@ -174,7 +174,8 @@ volatile uint32 nPedSfxReqNextId = 1;
 
 #ifdef FIX_BUGS
 uint32 gPlayerTalkSfx = UINT32_MAX;
-void *gPlayerTalkData = 0;
+uintptr_t gPlayerTalkData = 0;
+uint32 gPlayerTalkReqId = 0;
 #endif
 
 struct WavHeader {
@@ -659,7 +660,10 @@ cSampleManager::IsMissionAudioLoaded(uint8 nSlot, uint32 nSample)
 {
 	ASSERT(nSlot == MISSION_AUDIO_PLAYER_COMMENT); // only MISSION_AUDIO_PLAYER_COMMENT is supported on PC
 	
-	return nSample == gPlayerTalkSfx ? LOADING_STATUS_LOADED : LOADING_STATUS_NOT_LOADED;
+	if (nSample == gPlayerTalkSfx)
+		return gPlayerTalkReqId <= nPedSfxReqReadId ? LOADING_STATUS_LOADED : LOADING_STATUS_LOADING;
+	else
+		return LOADING_STATUS_NOT_LOADED;
 }
 
 bool8
@@ -668,11 +672,26 @@ cSampleManager::LoadMissionAudio(uint8 nSlot, uint32 nSample)
 	ASSERT(nSlot == MISSION_AUDIO_PLAYER_COMMENT); // only MISSION_AUDIO_PLAYER_COMMENT is supported on PC
 	ASSERT(nSample < TOTAL_AUDIO_SAMPLES);
 	
-	// if (fseek(fpSampleDataHandle, m_aSamples[nSample].nOffset, SEEK_SET) != 0)
-	// 	return FALSE;
+	debugf("Loading mission audio comment %d, offset: %d, size: %d\n", nSample, m_aSamples[nSample].nFileOffset, m_aSamples[nSample].nByteSize);
+	CdStreamQueueAudioRead(nSample, (void*)gPlayerTalkData, m_aSamples[nSample].nByteSize, m_aSamples[nSample].nFileOffset, [](AudioReadCmd* cmd) {
+		fs_seek(fdPedSfx, cmd->seek, SEEK_SET);
 
-	// if (fread(gPlayerTalkData, 1, m_aSamples[nSample].nSize, fpSampleDataHandle) != m_aSamples[nSample].nSize)
-	// 	return FALSE;
+		// TODO: When we can dma directly to AICA, we can use this instead
+		// fs_read(fdPedSfx, SPU_BASE_U8 + (uintptr_t)cmd->dest, cmd->size);
+
+		void* stagingBuffer = memalign(32, cmd->size);
+		assert(stagingBuffer != 0);
+		debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
+		int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
+		debugf("Read %d bytes, expected %d\n", rs, cmd->size);
+		assert(rs == cmd->size);
+
+		spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
+		free(stagingBuffer);
+		nPedSfxReqReadId = nPedSfxReqReadId + 1;
+	});
+	
+	gPlayerTalkReqId = ++nPedSfxReqNextId;
 
 	gPlayerTalkSfx = nSample;
 
@@ -746,8 +765,8 @@ cSampleManager::LoadPedComment(uint32 nComment)
 
 	assert(m_aSamples[nComment].nByteSize < PED_BLOCKSIZE_ADPCM);
 
+	debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
 	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
-		debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
 		fs_seek(fdPedSfx, cmd->seek, SEEK_SET);
 
 
@@ -848,24 +867,38 @@ cSampleManager::InitialiseChannel(uint32 nChannel, uint32 nSfx, uint8 nBank)
 	verbosef("InitialiseChannel %ld %ld %d\n", nChannel, nSfx, nBank);
 
 	if (nBank == SFX_BANK_PED_COMMENTS) {
-		int32 i;
-		for ( i = 0; i < _TODOCONST(3); i++ )
-		{
-			int32 slot = nCurrentPedSlot - i - 1;
-#ifdef FIX_BUGS
-			if (slot < 0)
-				slot += ARRAY_SIZE(nPedSlotSfx);
-#endif
-			if ( nSfx == nPedSlotSfx[slot] )
-			{
-				channels[nChannel].ptr = nPedSlotSfxAddr[slot];
-				break;
-			}
-		}
 
-		if (i == _TODOCONST(3))
-			return FALSE;
-		debugf("Channel %d is using ped comment %d, buffer %p, samples: %d\n", nChannel, nSfx, channels[nChannel].ptr, m_aSamples[nSfx].nByteSize*2);
+#ifdef FIX_BUGS
+		if ( nSfx >= PLAYER_COMMENTS_START && nSfx <= PLAYER_COMMENTS_END )
+		{
+			if ( IsMissionAudioLoaded(MISSION_AUDIO_PLAYER_COMMENT, nSfx) != LOADING_STATUS_LOADED )
+				return FALSE;
+
+			debugf("Channel %d is using mission audio comment %d, buffer %p, samples: %d\n", nChannel, nSfx, channels[nChannel].ptr, m_aSamples[nSfx].nByteSize*2);
+
+			channels[nChannel].ptr = gPlayerTalkData;
+		} else
+#endif
+		{
+			int32 i;
+			for ( i = 0; i < _TODOCONST(3); i++ )
+			{
+				int32 slot = nCurrentPedSlot - i - 1;
+	#ifdef FIX_BUGS
+				if (slot < 0)
+					slot += ARRAY_SIZE(nPedSlotSfx);
+	#endif
+				if ( nSfx == nPedSlotSfx[slot] )
+				{
+					channels[nChannel].ptr = nPedSlotSfxAddr[slot];
+					break;
+				}
+			}
+
+			if (i == _TODOCONST(3))
+				return FALSE;
+			debugf("Channel %d is using ped comment %d, buffer %p, samples: %d\n", nChannel, nSfx, channels[nChannel].ptr, m_aSamples[nSfx].nByteSize*2);
+		}
 	} else {
 		channels[nChannel].ptr = sfx_banks[nBank].effects[nSfx - BankStartOffset[nBank]];
 	}
@@ -1292,6 +1325,19 @@ cSampleManager::InitialiseSampleBanks(void)
 		channels[i].nSfx = -1;
 		channels[i].nBank = -1;
 	}
+
+#ifdef FIX_BUGS
+	// Find biggest player comment
+	uint32 nMaxPlayerSize = 0;
+	for (uint32 i = PLAYER_COMMENTS_START; i <= PLAYER_COMMENTS_END; i++)
+	nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
+
+	debugf(stderr, "Max player comment size: %d\n", nMaxPlayerSize);
+	gPlayerTalkData = snd_mem_malloc(nMaxPlayerSize);
+	ASSERT(gPlayerTalkData != 0);
+
+	gPlayerTalkReqId = 0;
+#endif
 
 	LoadSampleBank(SFX_BANK_0);
 	
