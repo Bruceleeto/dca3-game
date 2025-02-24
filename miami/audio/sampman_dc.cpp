@@ -568,7 +568,7 @@ cSampleManager::LoadSampleBank(uint8 nBank)
 		int fd = fs_open(SampleBankDataFilename, O_RDONLY);
 		assert(fd >= 0);
 		// this is very wasteful and temporary
-		void* stagingBuffer = memalign(32, 32 * 2048);
+		void* stagingBuffer = memalign(32, 8 * 2048);
 		assert(stagingBuffer != 0);
 
 		// Ideally, we'd suspend the CdStream thingy here or read via that instead
@@ -576,7 +576,7 @@ cSampleManager::LoadSampleBank(uint8 nBank)
 		fs_seek(fd, fileStart, SEEK_SET);
 
 		while (fileSize > 0) {
-			size_t readSize = fileSize > 32 * 2048 ? 32 * 2048 : fileSize;
+			size_t readSize = fileSize > 8 * 2048 ? 8 * 2048 : fileSize;
 			int rs = fs_read(fd, stagingBuffer, readSize);
 			debugf("Read %d bytes, expected %d\n", rs, readSize);
 			assert(rs == readSize);
