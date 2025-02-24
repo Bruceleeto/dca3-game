@@ -37,6 +37,7 @@ extern const char* currentFile;
 #include <functional>
 #include <fstream>
 
+#define errorf(...) dbglog(DBG_CRITICAL, __VA_ARGS__)
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
 bool re3EmergencyRemoveModel();
@@ -168,8 +169,6 @@ static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
 
 #define MATH_Fast_Invert(x) ({ (((x) < 0.0f)? -1.0f : 1.0f) * frsqrt((x) * (x)); }) 
-
-#define logf(...) // printf(__VA_ARGS__)
 
 static pvr_dr_state_t drState;
 
@@ -4062,28 +4061,28 @@ rasterCreate(Raster* raster)
 	auto natras = GETDCRASTEREXT(raster);
 
     if (raster->type != Raster::TEXTURE && raster->type != Raster::CAMERATEXTURE && raster->type != Raster::ZBUFFER) {
-        printf("rasterCreate: unsupported type %d\n", raster->type);
+        logf("rasterCreate: unsupported type %d\n", raster->type);
     }
 
 	if (raster->width < 8) {
-		printf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
+		logf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
 		raster->width = 8;
 	}
 
 	if (raster->height < 8) {
-		printf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
+		logf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
 		raster->height = 8;
 	}
 
 	if (raster->type == Raster::CAMERATEXTURE) {
-		fprintf(stderr, "CameraTexture: %d x %d\n", raster->width, raster->height);
+		logf("CameraTexture: %d x %d\n", raster->width, raster->height);
 	} else if (raster->type == Raster::CAMERA) {
-		fprintf(stderr, "Camera: %d x %d  (ignored)\n", raster->width, raster->height);
+		logf("Camera: %d x %d  (ignored)\n", raster->width, raster->height);
 		raster->flags |= Raster::DONTALLOCATE;
 		raster->stride = 0;
         return raster;	
 	} else if (raster->type == Raster::ZBUFFER) {
-		fprintf(stderr, "ZBuffer: %d x %d (ignored)\n", raster->width, raster->height);
+		logf("ZBuffer: %d x %d (ignored)\n", raster->width, raster->height);
 		raster->flags |= Raster::DONTALLOCATE;
 		raster->stride = 0;
         return raster;	
@@ -4100,7 +4099,7 @@ rasterCreate(Raster* raster)
 
 	if (raster->type == Raster::CAMERATEXTURE) {
 		if (rasterFmt == Raster::DEFAULT && raster->depth == 0) {
-			fprintf(stderr, "CameraTexture: Default means 565?\n");
+			logf("CameraTexture: Default means 565?\n");
 			raster->depth = 16;
 			raster->format |= Raster::C565;
 		}
@@ -4111,7 +4110,7 @@ rasterCreate(Raster* raster)
 	// assert(raster->depth == 16);
 	if (raster->depth != 16) {
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
+		errorf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
 		raster->depth = 16;
 	}
 
@@ -4821,7 +4820,7 @@ readNativeTexture(Stream *stream)
 		cached->second->refs++;
 		natras->raster = cached->second;
 		stream->seek(pvr_size);
-		printf("Raster reused for texture %s\n", tex->name);
+		logf("Raster reused for texture %s\n", tex->name);
 	} else {
 		natras->raster = (DcRaster*)malloc(sizeof(DcRaster));
 		memset(natras->raster, 0, sizeof(DcRaster));
@@ -4887,7 +4886,7 @@ readNativeTexture(Stream *stream)
 			}
 		} else {
 			stream->seek(pvr_size);
-			printf("Failed to allocate raster pixels for texture %s\n", tex->name);
+			errorf("Failed to allocate raster pixels for texture %s\n", tex->name);
 		}
 	}
 
