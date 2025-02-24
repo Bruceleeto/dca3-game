@@ -48,11 +48,9 @@ MISC_FILES = \
   anim/cuts.img \
   anim/cuts.dir \
   anim/ped.ifp \
-  title.rgl \
   \
   Icons/app.ico \
   Icons/bin.ico \
-  index.bin \
   \
   skins/texture_guide.jpg \
   \
