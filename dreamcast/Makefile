@@ -295,27 +295,24 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 #### Repacking ####
 
 TXD_OPTS_fonts = 256 256
+TXD_OPTS_fronten1 = 512 512
+TXD_OPTS_fronten2 = 512 512
+# TXD_OPTS_generic = 512 512
+# TXD_OPTS_wheels = 512 512
 TXD_OPTS_hud = 128 128
-TXD_OPTS_menu = 512 512
+TXD_OPTS_INTRO = 512 512
+# TXD_OPTS_MISC = 512 512
+# TXD_OPTS_particle = 512 512
+TXD_OPTS_intro1 = 512 512
+TXD_OPTS_intro2 = 512 512
+TXD_OPTS_INTRO3 = 512 512
+TXD_OPTS_intro4 = 512 512
 TXD_OPTS_LOADSC0 = 512 512
 TXD_OPTS_LOADSC1 = 512 512
 TXD_OPTS_LOADSC10 = 512 512
 TXD_OPTS_LOADSC11 = 512 512
 TXD_OPTS_LOADSC12 = 512 512
 TXD_OPTS_LOADSC13 = 512 512
-TXD_OPTS_LOADSC14 = 512 512
-TXD_OPTS_LOADSC15 = 512 512
-TXD_OPTS_LOADSC16 = 512 512
-TXD_OPTS_LOADSC17 = 512 512
-TXD_OPTS_LOADSC18 = 512 512
-TXD_OPTS_LOADSC19 = 512 512
-TXD_OPTS_LOADSC2 = 512 512
-TXD_OPTS_LOADSC20 = 512 512
-TXD_OPTS_LOADSC21 = 512 512
-TXD_OPTS_LOADSC22 = 512 512
-TXD_OPTS_LOADSC23 = 512 512
-TXD_OPTS_LOADSC24 = 512 512
-TXD_OPTS_LOADSC25 = 512 512
 TXD_OPTS_LOADSC3 = 512 512
 TXD_OPTS_LOADSC4 = 512 512
 TXD_OPTS_LOADSC5 = 512 512
@@ -323,27 +320,11 @@ TXD_OPTS_LOADSC6 = 512 512
 TXD_OPTS_LOADSC7 = 512 512
 TXD_OPTS_LOADSC8 = 512 512
 TXD_OPTS_LOADSC9 = 512 512
-TXD_OPTS_mainsc1 = 512 512
-TXD_OPTS_mainsc2 = 512 512
-TXD_OPTS_NEWS = 512 512
+TXD_OPTS_NEWS = 128 128
+TXD_OPTS_outro = 512 512
 TXD_OPTS_SPLASH1 = 512 512
 TXD_OPTS_SPLASH2 = 512 512
 TXD_OPTS_SPLASH3 = 512 512
-TXD_OPTS_frontend = 512 512 \
-	--delete-tex "fe_arrows4" \
-	--delete-tex "fe_arrows2" \
-	--delete-tex "fe_arrows1" \
-	--delete-tex "fe_controllersh" \
-	--delete-tex "fe_controller" \
-	\
-	--include-tex assets/dc_ps2d.png dc_ps2d \
-	--include-tex assets/dc_ps2f.png dc_ps2f \
-	--include-tex assets/dc_xboxd.png dc_xboxd \
-	--include-tex assets/dc_xboxf.png dc_xboxf \
-	--include-tex assets/ps4_d.png ps4_d \
-	--include-tex assets/ps4_f.png ps4_f \
-	--include-tex assets/xbox_d.png xbox_d \
-	--include-tex assets/xbox_f.png xbox_f
 
 DEFAULT_RES = 512
 
