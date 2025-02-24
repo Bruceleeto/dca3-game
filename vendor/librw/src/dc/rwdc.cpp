@@ -1023,6 +1023,8 @@ void allocDefrag(int iterations);
 
 void endUpdate(Camera* cam) {
 
+	// TODO: Fix KOS RTT instead
+	if (cam->frameBuffer->type != Raster::CAMERATEXTURE) {
 	#if !defined(DC_SIM) && defined(SKIP_FRAMES)
 	if (pvr_check_ready() >= 0)
 	#endif
@@ -1078,6 +1080,7 @@ void endUpdate(Camera* cam) {
 		// allocDefrag(1);
 		pvr_scene_finish();
 		leave_oix();
+	}
 	}
 	opCallbacks.clear();
 	ptCallbacks.clear();
