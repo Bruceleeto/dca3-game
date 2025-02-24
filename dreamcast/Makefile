@@ -86,7 +86,8 @@ OBJS_TEXCONV += \
 	../vendor/librw/src/d3d-x/d3d8render.texconv.o \
 	../vendor/librw/src/bmp.texconv.o \
 	../vendor/librw/src/png.texconv.o \
-	../vendor/librw/src/lodepng/lodepng.texconv.o
+	../vendor/librw/src/lodepng/lodepng.texconv.o \
+	../vendor/tlsf/tlsf.texconv.o
 
 # Add compilation units to this list to explicity compile them with
 # -O3 optimizations, while the rest get the default (-Os) treatment
@@ -286,6 +287,9 @@ aud2adpcm: aud2adpcm.c
 
 texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if you change it
 	$(CXX) -o $@ $(OBJS_TEXCONV)
+
+%.texconv.o: %.c
+	$(CXX) -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
 
 %.texconv.o: %.cpp
 	$(CXX) -std=c++2a -c -O0 -g -MMD -MP -o $@ -I../vendor/koshle -I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM $(TEXCONV_FLAGS) $<
