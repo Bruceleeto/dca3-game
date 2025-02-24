@@ -1100,13 +1100,13 @@ CRadar::LoadTextures()
 	WaypointSprite.SetTexture("radar_waypoint");
 	if(!WaypointSprite.m_pTexture) {
 		// create the texture if it's missing in TXD
-#define WAYPOINT_R (255)
-#define WAYPOINT_G (72)
-#define WAYPOINT_B (77)
+#define WAYPOINT_R (255>>4)
+#define WAYPOINT_G (72>>4)
+#define WAYPOINT_B (77>>4)
 
-		RwRaster *raster = RwRasterCreate(16, 16, 0, rwRASTERTYPETEXTURE | rwRASTERFORMAT8888);
+		RwRaster *raster = RwRasterCreate(16, 16, 16, rwRASTERTYPETEXTURE | rwRASTERFORMAT4444);
 
-		RwUInt32 *pixels = (RwUInt32 *)RwRasterLock(raster, 0, rwRASTERLOCKWRITE);
+		RwUInt16 *pixels = (RwUInt16 *)RwRasterLock(raster, 0, rwRASTERLOCKWRITE);
 		for(int x = 0; x < 16; x++)
 			for(int y = 0; y < 16; y++)
 			{
@@ -1117,13 +1117,9 @@ CRadar::LoadTextures()
 					|| (x2 < 1 && y2 == 1)) // one pixel on each side of second to first/last line is transparent
 					pixels[x + y * 16] = 0;
 				else if((x2 == 2 && y2 >= 2)|| (y2 == 2 && x2 >= 2) )// colored square inside
-#ifdef RW_GL3
-					pixels[x + y * 16] = WAYPOINT_R | (WAYPOINT_G << 8) | (WAYPOINT_B << 16) | (255 << 24);
-#else
-					pixels[x + y * 16] = WAYPOINT_B | (WAYPOINT_G << 8) | (WAYPOINT_R << 16) | (255 << 24);
-#endif
+					pixels[x + y * 16] = WAYPOINT_B | (WAYPOINT_G << 4) | (WAYPOINT_R << 8) | (255 << 12);
 				else
-					pixels[x + y * 16] = 0xFF000000; // black
+					pixels[x + y * 16] = 0xF000; // black
 			}
 		RwRasterUnlock(raster);
 		WaypointSprite.m_pTexture = RwTextureCreate(raster);
