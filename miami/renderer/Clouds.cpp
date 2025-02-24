@@ -349,7 +349,7 @@ CClouds::RenderBackground(int16 topred, int16 topgreen, int16 topblue,
 		}
 		ms_colourBottom = ms_colourTop;
 		CRect r(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-		CSprite2d::DrawRect(r, ms_colourBottom, ms_colourBottom, ms_colourTop, ms_colourTop);
+		CSprite2d::DrawRect(r, ms_colourBottom, ms_colourBottom, ms_colourTop, ms_colourTop, DRAW_FAR);
 	}else{
 		ms_horizonZ = CSprite::CalcHorizonCoors();
 
@@ -375,7 +375,7 @@ CClouds::RenderBackground(int16 topred, int16 topgreen, int16 topblue,
 		float topleft = botleft - gradheight;
 
 		CSprite2d::DrawAnyRect(0.0f, topleft,  SCREEN_WIDTH, topright,  0.0f, botleft,  SCREEN_WIDTH, botright,
-			 ms_colourTop, ms_colourTop, ms_colourBottom, ms_colourBottom);
+			 ms_colourTop, ms_colourTop, ms_colourBottom, ms_colourBottom, DRAW_FAR);
 
 		// draw the small stripe (whatever it's supposed to be)
 		ms_colourTop.r = fogr;
@@ -387,7 +387,7 @@ CClouds::RenderBackground(int16 topred, int16 topgreen, int16 topblue,
 		botright = topright + SMALLSTRIPHEIGHT;
 		botleft = topleft + SMALLSTRIPHEIGHT;
 		CSprite2d::DrawAnyRect(0.0f, topleft,  SCREEN_WIDTH, topright,  0.0f, botleft,  SCREEN_WIDTH, botright,
-			ms_colourTop, ms_colourTop, ms_colourTop, ms_colourTop);
+			ms_colourTop, ms_colourTop, ms_colourTop, ms_colourTop, DRAW_FAR);
 
 		// Only top
 		if(ms_horizonZ + ms_HorizonTilt - gradheight > 0.0f ||
@@ -411,7 +411,7 @@ CClouds::RenderBackground(int16 topred, int16 topgreen, int16 topblue,
 			}
 
 			CSprite2d::DrawAnyRect(0.0f, topleft,  SCREEN_WIDTH, topright,  0.0f, botleft,  SCREEN_WIDTH, botright,
-				ms_colourTop, ms_colourTop, ms_colourTop, ms_colourTop);
+				ms_colourTop, ms_colourTop, ms_colourTop, ms_colourTop, DRAW_FAR);
 		}
 
 		// Set both to fog colour for RenderHorizon
@@ -443,7 +443,7 @@ CClouds::RenderHorizon(void)
 	float botleft = topleft + SMALLSTRIPHEIGHT;
 
 	CSprite2d::DrawAnyRect(0.0f, topleft,  SCREEN_WIDTH, topright,  0.0f, botleft,  SCREEN_WIDTH, botright,
-		ms_colourTop, ms_colourTop, ms_colourBottom, ms_colourBottom);
+		ms_colourTop, ms_colourTop, ms_colourBottom, ms_colourBottom, DRAW_FAR);
 
 
 	ms_colourBkGrd.r = 128.0f*CTimeCycle::GetAmbientRed();
@@ -458,7 +458,7 @@ CClouds::RenderHorizon(void)
 	botleft = topleft + horzstrip;
 
 	CSprite2d::DrawAnyRect(0.0f, topleft,  SCREEN_WIDTH, topright,  0.0f, botleft,  SCREEN_WIDTH, botright,
-		ms_colourBottom, ms_colourBottom, ms_colourBkGrd, ms_colourBkGrd);
+		ms_colourBottom, ms_colourBottom, ms_colourBkGrd, ms_colourBkGrd, DRAW_FAR);
 
 
 	topright = botright;
@@ -467,7 +467,7 @@ CClouds::RenderHorizon(void)
 	botleft = Max(topleft, SCREEN_HEIGHT);
 
 	CSprite2d::DrawAnyRect(0.0f, topleft,  SCREEN_WIDTH, topright,  0.0f, botleft,  SCREEN_WIDTH, botright,
-		ms_colourBkGrd, ms_colourBkGrd, ms_colourBkGrd, ms_colourBkGrd);
+		ms_colourBkGrd, ms_colourBkGrd, ms_colourBkGrd, ms_colourBkGrd, DRAW_FAR);
 
 	POP_RENDERGROUP();
 }

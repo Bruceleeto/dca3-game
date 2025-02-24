@@ -1,10 +1,20 @@
 #pragma once
 
+enum DrawType {
+	DRAW_FAR,
+	DRAW_NEAR
+};
+
 class CSprite2d
 {
 	static float RecipNearClip;
 	static float NearScreenZ;
 	static float NearCamZ;	// not original
+
+	static float RecipFarClip;
+	static float FarScreenZ;
+	static float FarCamZ;	// not original
+
 	static int nextBufferVertex;
 	static int nextBufferIndex;
 	static RwIm2DVertex maVertices[8];
@@ -32,17 +42,17 @@ public:
 	static void SetVertices(const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3,
 		float u0, float v0, float u1, float v1, float u3, float v3, float u2, float v2);
 	static void SetVertices(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
-		const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3);
+		const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3, DrawType dt = DRAW_NEAR);
 	static void SetVertices(int n, float *positions, float *uvs, const CRGBA &col);
 	static void SetMaskVertices(int n, float *positions);
 	static void SetVertices(RwIm2DVertex *verts, const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3,
 		float u0, float v0, float u1, float v1, float u3, float v3, float u2, float v2);
 
-	static void DrawRect(const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3);
+	static void DrawRect(const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3, DrawType dt = DRAW_NEAR);
 	static void DrawRect(const CRect &r, const CRGBA &col);
 	static void DrawRectXLU(const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3);
 	static void DrawAnyRect(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
-		const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3);
+		const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3, DrawType dt = DRAW_NEAR);
 
 	static void Draw2DPolygon(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, const CRGBA &color);
 
