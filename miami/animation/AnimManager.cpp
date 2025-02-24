@@ -1269,6 +1269,9 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 	}
 
 	debug("Loading ANIMS %s\n", animBlock->name);
+
+	bool stub_out = strcmp(animBlock->name, "law_1b") == 0;
+
 	animBlock->isLoaded = true;
 
 	int animIndex = animBlock->firstIndex;
@@ -1321,12 +1324,12 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 			RwStreamRead(stream, &info, sizeof(info));
 			if(strncmp(info.ident, "KRTS", 4) == 0){
 				hasScale = true;
-				seq->SetNumFrames(numFrames, true, compressHier);
+				seq->SetNumFrames(stub_out ? 1 : numFrames, true, compressHier);
 			}else if(strncmp(info.ident, "KRT0", 4) == 0){
 				hasTranslation = true;
-				seq->SetNumFrames(numFrames, true, compressHier);
+				seq->SetNumFrames(stub_out ? 1 : numFrames, true, compressHier);
 			}else if(strncmp(info.ident, "KR00", 4) == 0){
-				seq->SetNumFrames(numFrames, false, compressHier);
+				seq->SetNumFrames(stub_out ? 1 : numFrames, false, compressHier);
 			}
 			if(strstr(seq->name, "L Toe"))
 				debug("anim %s has toe keyframes\n", hier->name); // BUG: seq->name
@@ -1339,9 +1342,10 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
 					rot.Invert();
 					CVector trans(fbuf[4], fbuf[5], fbuf[6]);
-
-					seq->SetRotation(l, rot);
-					seq->SetTranslation(l, trans);
+					if (!stub_out || l ==0) {
+						seq->SetRotation(l, rot);
+						seq->SetTranslation(l, trans);
+					}
 					// scaling ignored
 					frameTimes[l] = fbuf[10];	// absolute time here
 				}else if(hasTranslation){
@@ -1350,15 +1354,18 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 					rot.Invert();
 					CVector trans(fbuf[4], fbuf[5], fbuf[6]);
 
-					seq->SetRotation(l, rot);
-					seq->SetTranslation(l, trans);
+					if (!stub_out || l ==0) {
+						seq->SetRotation(l, rot);
+						seq->SetTranslation(l, trans);
+					}
 					frameTimes[l] = fbuf[7];	// absolute time here
 				}else{
 					RwStreamRead(stream, buf, 0x14);
 					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
 					rot.Invert();
-
-					seq->SetRotation(l, rot);
+					if (!stub_out || l ==0) {
+						seq->SetRotation(l, rot);
+					}
 					frameTimes[l] = fbuf[4];	// absolute time here
 				}
 			}
@@ -1367,9 +1374,11 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 			float running_sum = 0.0f;
 			for (l = 0; l < numFrames; l++) {
 				auto dt = frameTimes[l] - running_sum;
-				seq->SetDeltaTime(l, dt);
-				assert(seq->GetDeltaTime(l) <= dt);
-				running_sum += seq->GetDeltaTime(l);
+				if (!stub_out || l ==0) {
+					seq->SetDeltaTime(l, dt);
+					assert(seq->GetDeltaTime(l) <= dt);
+					running_sum += seq->GetDeltaTime(l);
+				}
 				// if (seq->GetDeltaTime(l) == 0.0f && dt != 0.0f) {
 				// 	seq->SetDeltaTime(l, KF_MINDELTA);
 				// }
