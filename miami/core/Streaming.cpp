@@ -676,7 +676,7 @@ CStreaming::ConvertBufferToObject(int8 *buf, int32 streamId)
 	if(ms_aInfoForModel[streamId].m_loadState != STREAMSTATE_STARTED){
 		ms_aInfoForModel[streamId].m_loadState = STREAMSTATE_LOADED;
 #ifndef USE_CUSTOM_ALLOCATOR
-		if(streamId < STREAM_OFFSET_TXD) {
+		if (streamId < STREAM_OFFSET_TXD || streamId >= STREAM_OFFSET_COL) {
 			ms_memoryUsed += ms_aInfoForModel[streamId].GetCdSize() * CDSTREAM_SECTOR_SIZE;
 			memory_logf("ConvertBufferToObject: Memory used: %d\n", ms_memoryUsed);
 		}
@@ -746,7 +746,7 @@ CStreaming::FinishLoadingLargeFile(int8 *buf, int32 streamId)
 
 	ms_aInfoForModel[streamId].m_loadState = STREAMSTATE_LOADED;
 #ifndef USE_CUSTOM_ALLOCATOR
-	if(streamId < STREAM_OFFSET_TXD) {
+	if (streamId < STREAM_OFFSET_TXD || streamId >= STREAM_OFFSET_COL) {
 		ms_memoryUsed += ms_aInfoForModel[streamId].GetCdSize() * CDSTREAM_SECTOR_SIZE;
 		memory_logf("FinishLoadingLargeFile: Memory used: %d\n", ms_memoryUsed);
 	}
@@ -1113,7 +1113,7 @@ CStreaming::RemoveModel(int32 id)
 			assert(id < NUMSTREAMINFO);
 			CAnimManager::RemoveAnimBlock(id - STREAM_OFFSET_ANIM);
 		}
-		if (id < STREAM_OFFSET_TXD) {
+		if (id < STREAM_OFFSET_TXD || id >= STREAM_OFFSET_COL) {
 			ms_memoryUsed -= ms_aInfoForModel[id].GetCdSize()*CDSTREAM_SECTOR_SIZE;
 			memory_logf("Remove Model: %d\n", ms_memoryUsed);
 		}
