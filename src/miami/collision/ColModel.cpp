@@ -5,6 +5,10 @@
 #include "MemoryHeap.h"
 #include "Pools.h"
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+void* obj_move(void* ptr);
+
 CColModel::CColModel(void)
 {
 	numSpheres = 0;
@@ -44,11 +48,11 @@ void
 CColModel::RemoveCollisionVolumes(void)
 {
 	if(ownsCollisionVolumes){
-		RwFree(spheres);
-		RwFree(lines);
-		RwFree(boxes);
-		RwFree(vertices);
-		RwFree(triangles);
+		obj_free(spheres);
+		obj_free(lines);
+		obj_free(boxes);
+		obj_free(vertices);
+		obj_free(triangles);
 		CCollision::RemoveTrianglePlanes(this);
 	}
 	numSpheres = 0;
@@ -68,7 +72,7 @@ CColModel::CalculateTrianglePlanes(void)
 	PUSH_MEMID(MEMID_COLLISION);
 
 	// HACK: allocate space for one more element to stuff the link pointer into
-	trianglePlanes = (CColTrianglePlane*)RwMalloc(sizeof(CColTrianglePlane) * (numTriangles+1));
+	trianglePlanes = (CColTrianglePlane*)obj_alloc(sizeof(CColTrianglePlane) * (numTriangles+1), (void**)&trianglePlanes);
 	REGISTER_MEMPTR(&trianglePlanes);
 	for(int i = 0; i < numTriangles; i++)
 		trianglePlanes[i].Set(vertices, triangles[i]);
@@ -79,7 +83,7 @@ CColModel::CalculateTrianglePlanes(void)
 void
 CColModel::RemoveTrianglePlanes(void)
 {
-	RwFree(trianglePlanes);
+	obj_free(trianglePlanes);
 	trianglePlanes = nil;
 }
 
@@ -117,15 +121,15 @@ CColModel::operator=(const CColModel &other)
 		if(numSpheres != other.numSpheres){
 			numSpheres = other.numSpheres;
 			if(spheres)
-				RwFree(spheres);
-			spheres = (CColSphere*)RwMalloc(numSpheres*sizeof(CColSphere));
+				obj_free(spheres);
+			spheres = (CColSphere*)obj_alloc(numSpheres*sizeof(CColSphere), (void**)&spheres);
 		}
 		for(i = 0; i < numSpheres; i++)
 			spheres[i] = other.spheres[i];
 	}else{
 		numSpheres = 0;
 		if(spheres)
-			RwFree(spheres);
+		obj_free(spheres);
 		spheres = nil;
 	}
 
@@ -134,15 +138,15 @@ CColModel::operator=(const CColModel &other)
 		if(numLines != other.numLines){
 			numLines = other.numLines;
 			if(lines)
-				RwFree(lines);
-			lines = (CColLine*)RwMalloc(numLines*sizeof(CColLine));
+			obj_free(lines);
+			lines = (CColLine*)obj_alloc(numLines*sizeof(CColLine), (void**)&lines);
 		}
 		for(i = 0; i < numLines; i++)
 			lines[i] = other.lines[i];
 	}else{
 		numLines = 0;
 		if(lines)
-			RwFree(lines);
+			obj_free(lines);
 		lines = nil;
 	}
 
@@ -151,15 +155,15 @@ CColModel::operator=(const CColModel &other)
 		if(numBoxes != other.numBoxes){
 			numBoxes = other.numBoxes;
 			if(boxes)
-				RwFree(boxes);
-			boxes = (CColBox*)RwMalloc(numBoxes*sizeof(CColBox));
+				obj_free(boxes);
+			boxes = (CColBox*)obj_alloc(numBoxes*sizeof(CColBox), (void**)&boxes);
 		}
 		for(i = 0; i < numBoxes; i++)
 			boxes[i] = other.boxes[i];
 	}else{
 		numBoxes = 0;
 		if(boxes)
-			RwFree(boxes);
+			obj_free(boxes);
 		boxes = nil;
 	}
 
@@ -177,9 +181,9 @@ CColModel::operator=(const CColModel &other)
 		}
 		numVerts++;
 		if(vertices)
-			RwFree(vertices);
+			obj_free(vertices);
 		if(numVerts){
-			vertices = (CompressedVector*)RwMalloc(numVerts*sizeof(CompressedVector));
+			vertices = (CompressedVector*)obj_alloc(numVerts*sizeof(CompressedVector), (void**)&vertices);
 			for(i = 0; i < numVerts; i++)
 				vertices[i] = other.vertices[i];
 		}
@@ -188,18 +192,18 @@ CColModel::operator=(const CColModel &other)
 		if(numTriangles != other.numTriangles){
 			numTriangles = other.numTriangles;
 			if(triangles)
-				RwFree(triangles);
-			triangles = (CColTriangle*)RwMalloc(numTriangles*sizeof(CColTriangle));
+				obj_free(triangles);
+			triangles = (CColTriangle*)obj_alloc(numTriangles*sizeof(CColTriangle), (void**)&triangles);
 		}
 		for(i = 0; i < numTriangles; i++)
 			triangles[i] = other.triangles[i];
 	}else{
 		numTriangles = 0;
 		if(triangles)
-			RwFree(triangles);
+			obj_free(triangles);
 		triangles = nil;
 		if(vertices)
-			RwFree(vertices);
+			obj_free(vertices);
 		vertices = nil;
 	}
 	return *this;

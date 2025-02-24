@@ -10,6 +10,10 @@
 #include "ModelInfo.h"
 #include "custompipes.h"
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+void* obj_move(void* ptr);
+
 void
 CPedModelInfo::DeleteRwObject(void)
 {
@@ -78,7 +82,7 @@ CPedModelInfo::CreateHitColModelSkinned(RpClump *clump)
 {
 	RpHAnimHierarchy *hier = GetAnimHierarchyFromSkinClump(clump);
 	CColModel *colmodel = new CColModel;
-	CColSphere *spheres = (CColSphere*)RwMalloc(NUMPEDINFONODES*sizeof(CColSphere));
+	CColSphere *spheres = (CColSphere*)obj_alloc(NUMPEDINFONODES*sizeof(CColSphere), (void**) &colmodel->spheres);
 	RwFrame *root = RpClumpGetFrame(m_clump);
 	RwMatrix *invmat = RwMatrixCreate();
 	RwMatrix *mat = RwMatrixCreate();

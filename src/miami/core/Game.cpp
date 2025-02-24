@@ -841,8 +841,12 @@ void CGame::InitialiseWhenRestarting(void)
 #endif
 }
 
+bool obj_relocate();
+
 void CGame::Process(void) 
 {
+	obj_relocate();
+	
 	CPad::UpdatePads();
 #ifdef USE_CUSTOM_ALLOCATOR
 	ProcessTidyUpMemory();

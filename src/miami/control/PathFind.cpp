@@ -33,6 +33,9 @@ int32 NumTempExternalNodes;
 int32 NumDetachedPedNodeGroups;
 int32 NumDetachedCarNodeGroups;
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+
 bool 
 CPedPath::CalcPedRoute(int8 pathType, CVector position, CVector destination, CVector *pointPoses, int16 *pointsFound, int16 maxPoints)
 {
@@ -264,15 +267,20 @@ CPathFind::Init(void)
 void
 CPathFind::AllocatePathFindInfoMem(int16 numPathGroups)
 {
-	delete[] InfoForTileCars;
-	InfoForTileCars = nil;
-	delete[] InfoForTilePeds;
-	InfoForTilePeds = nil;
+	if (InfoForTileCars) {
+		obj_free(InfoForTileCars);
+		InfoForTileCars = nil;
+	}
+	
+	if (InfoForTilePeds) {
+		obj_free(InfoForTilePeds);
+		InfoForTilePeds = nil;
+	}
 
 	// NB: MIAMI doesn't use numPathGroups here but hardcodes PATHNODESIZE
-	InfoForTileCars = new CPathInfoForObject[12*PATHNODESIZE];
+	InfoForTileCars = (CPathInfoForObject*) obj_alloc(sizeof(CPathInfoForObject)*12*PATHNODESIZE, nil);
 	memset(InfoForTileCars, 0, 12*PATHNODESIZE*sizeof(CPathInfoForObject));
-	InfoForTilePeds = new CPathInfoForObject[12*PATHNODESIZE];
+	InfoForTilePeds = (CPathInfoForObject*) obj_alloc(sizeof(CPathInfoForObject)*12*PATHNODESIZE, nil);
 	memset(InfoForTilePeds, 0, 12*PATHNODESIZE*sizeof(CPathInfoForObject));
 
 	delete[] DetachedInfoForTileCars;
@@ -512,10 +520,15 @@ CPathFind::PreparePathData(void)
 		CountFloodFillGroups(PATH_CAR);
 		CountFloodFillGroups(PATH_PED);
 
-		delete[] InfoForTileCars;
-		InfoForTileCars = nil;
-		delete[] InfoForTilePeds;
-		InfoForTilePeds = nil;
+		if (InfoForTileCars) {
+			obj_free(InfoForTileCars);
+			InfoForTileCars = nil;
+		}
+		
+		if (InfoForTilePeds) {
+			obj_free(InfoForTilePeds);
+			InfoForTilePeds = nil;
+		}
 
 		delete[] DetachedInfoForTileCars;
 		DetachedInfoForTileCars = nil;

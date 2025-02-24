@@ -3,6 +3,10 @@
 #include "AnimBlendSequence.h"
 #include "MemoryHeap.h"
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+void* obj_move(void* ptr);
+
 CAnimBlendSequence::CAnimBlendSequence(void)
 {
 	type = 0;
@@ -14,7 +18,7 @@ CAnimBlendSequence::CAnimBlendSequence(void)
 CAnimBlendSequence::~CAnimBlendSequence(void)
 {
 	if(keyFrames)
-		RwFree(keyFrames);
+		obj_free(keyFrames);
 }
 
 void

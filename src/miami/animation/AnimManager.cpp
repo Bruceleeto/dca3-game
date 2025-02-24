@@ -12,6 +12,10 @@
 #include "AnimManager.h"
 #include "Streaming.h"
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+void* obj_move(void* ptr);
+
 CAnimBlock CAnimManager::ms_aAnimBlocks[NUMANIMBLOCKS];
 CAnimBlendHierarchy CAnimManager::ms_aAnimations[NUMANIMATIONS];
 int32 CAnimManager::ms_numAnimBlocks;
@@ -1312,7 +1316,7 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 			uint16_t flags;
 			RwStreamRead(stream, &flags, sizeof(flags));
 
-			seq->keyFrames = RwMalloc(dataSize);
+			seq->keyFrames = obj_alloc(dataSize, &seq->keyFrames);
 			assert(seq->keyFrames);
 			RwStreamRead(stream, seq->keyFrames, dataSize - sizeof(flags));
 			seq->type = flags;

@@ -285,7 +285,10 @@ RE3_OBJS = \
 	../vendor/miniLZO/minilzo.o \
 	\
 	../src/common/vmu/vmu.o \
-	../src/common/thread/thread.o
+	\
+	../src/common/thread/thread.o \
+	\
+	../vendor/tlsf/tlsf.o
 
 # Excluded \
 	../src/miami/extras/custompipes.o \
@@ -401,7 +404,9 @@ INCLUDE = \
 \
 -I../src/common \
 \
--Igit-version
+-Igit-version \
+\
+-I../vendor/tlsf
 
 DEFINES = -DRW_DC -DLIBRW $(if $(WITH_LOGGING),-DWITH_LOGGING) $(if $(WITH_DCLOAD),-DDC_CHDIR=/pc) \
 	$(if $(WITH_BEEPS),-DWITH_BEEPS)

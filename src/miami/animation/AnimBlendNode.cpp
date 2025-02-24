@@ -23,7 +23,7 @@ void CAnimBlendNode::Destroy(void) {
 bool
 CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 {
-	assert (player && player->keyFrames == sequence->keyFrames);
+	assert (player);
 
 	bool looped = false;
 
@@ -84,7 +84,7 @@ CAnimBlendNode::NextKeyFrame(void)
 			looped = true;
 			frameA = 0;
 		}
-		player->AdvanceFrame();
+		player->AdvanceFrame(sequence->keyFrames);
 		remainingTime += player->GetNextTimeDelta();
 	}
 
@@ -105,16 +105,14 @@ CAnimBlendNode::FindKeyFrame(float t)
 		return false;
 
 	frameA = 0;
-	player->SeekToStart();
-
-	assert (player->keyFrames == sequence->keyFrames);
+	player->SeekToStart(sequence->keyFrames);
 
 	if(player->numFrames == 1){
 		remainingTime = 0.0f;
 	}else{
 		// advance until t is between frameB and frameA
 		frameA++;
-		player->AdvanceFrame();
+		player->AdvanceFrame(sequence->keyFrames);
 		while (t > player->GetNextTimeDelta()) {
 			t -= player->GetNextTimeDelta();
 			if (frameA + 1 >= player->numFrames) {
@@ -128,10 +126,10 @@ CAnimBlendNode::FindKeyFrame(float t)
 				// Frame 0 is effectively skipped here
 				// Looks like an re3 / game bug?
 				frameA = 0;
-				player->SeekToStart();
+				player->SeekToStart(sequence->keyFrames);
 			}
 			frameA++;
-			player->AdvanceFrame();
+			player->AdvanceFrame(sequence->keyFrames);
 		}
 
 		remainingTime = player->GetNextTimeDelta() - t;

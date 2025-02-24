@@ -26,7 +26,6 @@ struct CAnimBlendPlayer {
 	};
 
 	int32 type;
-	void* keyFrames;
 	int32 curFrame;
 	int32 numFrames;
 	CQuaternion currentRotation;
@@ -42,7 +41,7 @@ struct CAnimBlendPlayer {
 	float nextDeltaTime;
 
 	template <typename T>
-	T read_unaligned(uint32_t ro) {
+	T read_unaligned(void* keyFrames, uint32_t ro) {
 		T rv;
 		for (unsigned i = 0; i < sizeof(T); i++) {
 			((uint8_t*)&rv)[i] = ((uint8_t*)keyFrames)[ro];
@@ -52,16 +51,16 @@ struct CAnimBlendPlayer {
 		return rv;
 	}
 	template <typename T>
-	__always_inline T read() {
+	__always_inline T read(void* keyFrames) {
 		if (!(readOffset & (sizeof(T) -1))) {
-			return read_aligned<T>();
+			return read_aligned<T>(keyFrames);
 		} else {
-			return read_unaligned<T>(readOffset);
+			return read_unaligned<T>(keyFrames, readOffset);
 		}
 	}
 
 	template <typename T>
-	__always_inline T read_aligned() {
+	__always_inline T read_aligned(void* keyFrames) {
 		T rv;
 		rv = *(T*)((uint8_t*)keyFrames + readOffset);
 		readOffset += sizeof(T);
@@ -103,11 +102,11 @@ struct CAnimBlendPlayer {
 		return q;
 	}
 
-	void AdvanceFrame() {
+	void AdvanceFrame(void* keyFrames) {
 		if (++curFrame == numFrames){
 			currentRotation = nextRotation;
 			currentTranslation = nextTranslation;
-			SeekToStart();
+			SeekToStart(keyFrames);
 			return;
 		}
 
@@ -117,9 +116,9 @@ struct CAnimBlendPlayer {
 			
 			// For rotation Y:
 			if (type & FLAGS_HAS_ROT_Y) {
-				uint8_t byteVal = read<uint8_t>();
+				uint8_t byteVal = read<uint8_t>(keyFrames);
 				if (byteVal == 128) {
-					predicted_y = read<uint16_t>();
+					predicted_y = read<uint16_t>(keyFrames);
 				} else {
 					int8_t diff = static_cast<int8_t>(byteVal);
 					predicted_y += diff * 8;
@@ -127,9 +126,9 @@ struct CAnimBlendPlayer {
 			}
 			// For rotation P:
 			if (type & FLAGS_HAS_ROT_P) {
-				uint8_t byteVal = read<uint8_t>();
+				uint8_t byteVal = read<uint8_t>(keyFrames);
 				if (byteVal == 128) {
-					predicted_p = read<uint16_t>();
+					predicted_p = read<uint16_t>(keyFrames);
 				} else {
 					int8_t diff = static_cast<int8_t>(byteVal);
 					predicted_p += diff * 8;
@@ -137,9 +136,9 @@ struct CAnimBlendPlayer {
 			}
 			// For rotation R:
 			if (type & FLAGS_HAS_ROT_R) {
-				uint8_t byteVal = read<uint8_t>();
+				uint8_t byteVal = read<uint8_t>(keyFrames);
 				if (byteVal == 128) {
-					predicted_r = read<uint16_t>();
+					predicted_r = read<uint16_t>(keyFrames);
 				} else {
 					int8_t diff = static_cast<int8_t>(byteVal);
 					predicted_r += diff * 8;
@@ -153,13 +152,13 @@ struct CAnimBlendPlayer {
 		if (type & KF_TRANS) {
 			currentTranslation = nextTranslation;
 			if (type & FLAGS_HAS_TRANS_X) {
-				uint8_t byteVal = read<uint8_t>();
+				uint8_t byteVal = read<uint8_t>(keyFrames);
 				if (byteVal == 128) {
-					uint16_t diff = read<uint16_t>();
+					uint16_t diff = read<uint16_t>(keyFrames);
 					if (diff != 32768) {
 						predicted_tx += static_cast<int16_t>(diff) / 128.f;
 					} else {
-						predicted_tx = read<float>();
+						predicted_tx = read<float>(keyFrames);
 					}
 				} else {
 					int8_t diff = static_cast<int8_t>(byteVal);
@@ -168,13 +167,13 @@ struct CAnimBlendPlayer {
 			}
 			// Translation Y:
 			if (type & FLAGS_HAS_TRANS_Y) {
-				uint8_t byteVal = read<uint8_t>();
+				uint8_t byteVal = read<uint8_t>(keyFrames);
 				if (byteVal == 128) {
-					uint16_t diff = read<uint16_t>();
+					uint16_t diff = read<uint16_t>(keyFrames);
 					if (diff != 32768) {
 						predicted_ty += static_cast<int16_t>(diff) / 128.f;
 					} else {
-						predicted_ty = read<float>();
+						predicted_ty = read<float>(keyFrames);
 					}
 				} else {
 					int8_t diff = static_cast<int8_t>(byteVal);
@@ -183,13 +182,13 @@ struct CAnimBlendPlayer {
 			}
 			// Translation Z:
 			if (type & FLAGS_HAS_TRANS_Z) {
-				uint8_t byteVal = read<uint8_t>();
+				uint8_t byteVal = read<uint8_t>(keyFrames);
 				if (byteVal == 128) {
-					uint16_t diff = read<uint16_t>();
+					uint16_t diff = read<uint16_t>(keyFrames);
 					if (diff != 32768) {
 						predicted_tz += static_cast<int16_t>(diff) / 128.f;
 					} else {
-						predicted_tz = read<float>();
+						predicted_tz = read<float>(keyFrames);
 					}
 				} else {
 					int8_t diff = static_cast<int8_t>(byteVal);
@@ -202,11 +201,11 @@ struct CAnimBlendPlayer {
 	
 		// time delta + quaternion flips
 		{
-			uint8_t byteValPacked = read<uint8_t>();
+			uint8_t byteValPacked = read<uint8_t>(keyFrames);
 			uint8_t byteVal = byteValPacked & 127;
 			float diff;
 			if (byteVal == 127) {
-				uint16_t fixed_diff = read<uint16_t>();
+				uint16_t fixed_diff = read<uint16_t>(keyFrames);
 				diff = fixed_diff / 256.f;
 			} else {
 				diff = byteVal / 256.f;
@@ -237,48 +236,47 @@ struct CAnimBlendPlayer {
 	}
 
 	void Init(void* kf, int32 tp, int nF) {
-		keyFrames = kf;
 		type = tp;
 		numFrames = nF;
 
-		SeekToStart();
+		SeekToStart(kf);
 		currentTranslation = nextTranslation;
 		currentRotation = nextRotation;
 	}
 
-	void SeekToStart() {
+	void SeekToStart(void* keyFrames) {
 		readOffset = 0;
-		float startTime = read_aligned<float>();
-		float endTime = read_aligned<float>();
+		float startTime = read_aligned<float>(keyFrames);
+		float endTime = read_aligned<float>(keyFrames);
 
 		if (type & KF_TRANS) {
 			CVector startTranslation;
 			if (type & FLAGS_HAS_TRANS_LARGE) {
-				startTranslation.x = read_aligned<float>();
-				startTranslation.y = read_aligned<float>();
-				startTranslation.z = read_aligned<float>();
+				startTranslation.x = read_aligned<float>(keyFrames);
+				startTranslation.y = read_aligned<float>(keyFrames);
+				startTranslation.z = read_aligned<float>(keyFrames);
 				predicted_tx = startTranslation.x;
 				predicted_ty = startTranslation.y;
 				predicted_tz = startTranslation.z;
 
 				CVector endTranslation;
 				// Read final translation (may be used for verification or ignored)
-				endTranslation.x = read_aligned<float>();
-				endTranslation.y = read_aligned<float>();
-				endTranslation.z = read_aligned<float>();
+				endTranslation.x = read_aligned<float>(keyFrames);
+				endTranslation.y = read_aligned<float>(keyFrames);
+				endTranslation.z = read_aligned<float>(keyFrames);
 			} else {
-				startTranslation.x = read_aligned<int16_t>() / 128.f;
-				startTranslation.y = read_aligned<int16_t>() / 128.f;
-				startTranslation.z = read_aligned<int16_t>() / 128.f;
+				startTranslation.x = read_aligned<int16_t>(keyFrames) / 128.f;
+				startTranslation.y = read_aligned<int16_t>(keyFrames) / 128.f;
+				startTranslation.z = read_aligned<int16_t>(keyFrames) / 128.f;
 				predicted_tx = startTranslation.x;
 				predicted_ty = startTranslation.y;
 				predicted_tz = startTranslation.z;
 
 				CVector endTranslation;
 				// Read final translation (for completeness)
-				endTranslation.x = read_aligned<int16_t>() / 128.f;
-				endTranslation.y = read_aligned<int16_t>() / 128.f;
-				endTranslation.z = read_aligned<int16_t>() / 128.f;
+				endTranslation.x = read_aligned<int16_t>(keyFrames) / 128.f;
+				endTranslation.y = read_aligned<int16_t>(keyFrames) / 128.f;
+				endTranslation.z = read_aligned<int16_t>(keyFrames) / 128.f;
 			}
 
 			nextTranslation = startTranslation;
@@ -288,9 +286,9 @@ struct CAnimBlendPlayer {
 			nextTranslation = startTranslation;
 		}
 
-		predicted_y = read_aligned<uint16_t>();
-		predicted_p = read_aligned<uint16_t>();
-		predicted_r = read_aligned<uint16_t>();
+		predicted_y = read_aligned<uint16_t>(keyFrames);
+		predicted_p = read_aligned<uint16_t>(keyFrames);
+		predicted_r = read_aligned<uint16_t>(keyFrames);
 		nextRotation = fromSphericalFixed(predicted_y, predicted_p, predicted_r);
 
 		if (type & FLAGS_QUAT0_NEG) {

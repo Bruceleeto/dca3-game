@@ -30,6 +30,11 @@
 #include "ColStore.h"
 #include "Occlusion.h"
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+void* obj_move(void* ptr);
+
+
 char CFileLoader::ms_line[256];
 
 const char*
@@ -196,11 +201,11 @@ CFileLoader::LoadCollisionFile(const char *filename, uint8 colSlot)
 		mi = CModelInfo::GetModelInfo(modelname, nil);
 		if(mi){
 			if(mi->GetColModel() && mi->DoesOwnColModel()){
-				LoadCollisionModel(work_buff+24, *mi->GetColModel(), modelname);
+				LoadCollisionModel(work_buff+24, *mi->GetColModel(), modelname, CStreaming::CanRemoveCol(colSlot));
 			}else{
 				CColModel *model = new CColModel;
 				model->level = colSlot;
-				LoadCollisionModel(work_buff+24, *model, modelname);
+				LoadCollisionModel(work_buff+24, *model, modelname, CStreaming::CanRemoveCol(colSlot));
 				mi->SetColModel(model, true);
 			}
 		}else{
@@ -240,7 +245,7 @@ CFileLoader::LoadCollisionFileFirstTime(uint8 *buffer, uint32 size, uint8 colSlo
 			CColStore::IncludeModelIndex(colSlot, modelIndex);
 			CColModel *model = new CColModel;
 			model->level = colSlot;
-			LoadCollisionModel(work_buff, *model, modelname);
+			LoadCollisionModel(work_buff, *model, modelname, CStreaming::CanRemoveCol(colSlot));
 			mi->SetColModel(model, true);
 		}else{
 			debug("colmodel %s can't find a modelinfo\n", modelname);
@@ -272,11 +277,11 @@ CFileLoader::LoadCollisionFile(uint8 *buffer, uint32 size, uint8 colSlot)
 		mi = CModelInfo::GetModelInfo(modelname, CColStore::GetSlot(colSlot)->minIndex, CColStore::GetSlot(colSlot)->maxIndex);
 		if(mi){
 			if(mi->GetColModel()){
-				LoadCollisionModel(work_buff, *mi->GetColModel(), modelname);
+				LoadCollisionModel(work_buff, *mi->GetColModel(), modelname, CStreaming::CanRemoveCol(colSlot));
 			}else{
 				CColModel *model = new CColModel;
 				model->level = colSlot;
-				LoadCollisionModel(work_buff, *model, modelname);
+				LoadCollisionModel(work_buff, *model, modelname, CStreaming::CanRemoveCol(colSlot));
 				mi->SetColModel(model, true);
 			}
 		}else{
@@ -287,7 +292,7 @@ CFileLoader::LoadCollisionFile(uint8 *buffer, uint32 size, uint8 colSlot)
 }
 
 void
-CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
+CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname, bool canRemove)
 {
 	int i;
 
@@ -301,10 +306,11 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.boundingBox.max.x = *(float*)(buf+28);
 	model.boundingBox.max.y = *(float*)(buf+32);
 	model.boundingBox.max.z = *(float*)(buf+36);
+
 	model.numSpheres = *(int16*)(buf+40);
 	buf += 44;
 	if(model.numSpheres > 0){
-		model.spheres = (CColSphere*)RwMalloc(model.numSpheres*sizeof(CColSphere));
+		model.spheres = (CColSphere*)obj_alloc(model.numSpheres*sizeof(CColSphere), (void**)&model.spheres);
 		REGISTER_MEMPTR(&model.spheres);
 		for(i = 0; i < model.numSpheres; i++){
 			model.spheres[i].Set(*(float*)buf, *(CVector*)(buf+4), buf[16], buf[17]);
@@ -330,7 +336,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.numBoxes = *(int16*)buf;
 	buf += 4;
 	if(model.numBoxes > 0){
-		model.boxes = (CColBox*)RwMalloc(model.numBoxes*sizeof(CColBox));
+		model.boxes = (CColBox*)obj_alloc(model.numBoxes*sizeof(CColBox), (void**)&model.boxes);
 		REGISTER_MEMPTR(&model.boxes);
 		for(i = 0; i < model.numBoxes; i++){
 			model.boxes[i].Set(*(CVector*)buf, *(CVector*)(buf+12), buf[24], buf[25]);
@@ -342,7 +348,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	int32 numVertices = *(int16*)buf;
 	buf += 4;
 	if(numVertices > 0){
-		model.vertices = (CompressedVector*)RwMalloc(numVertices*sizeof(CompressedVector));
+		model.vertices = (CompressedVector*)obj_alloc(numVertices*sizeof(CompressedVector), (void**)&model.vertices);
 		REGISTER_MEMPTR(&model.vertices);
 		for(i = 0; i < numVertices; i++){
 			model.vertices[i].SetFixed(*(int16*)buf, *(int16*)(buf+2), *(int16*)(buf+4));
@@ -360,7 +366,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.numTriangles = *(int16*)buf;
 	buf += 4;
 	if(model.numTriangles > 0){
-		model.triangles = (CColTriangle*)RwMalloc(model.numTriangles*sizeof(CColTriangle));
+		model.triangles = (CColTriangle*)obj_alloc(model.numTriangles*sizeof(CColTriangle), (void**)&model.triangles);
 		REGISTER_MEMPTR(&model.triangles);
 		for(i = 0; i < model.numTriangles; i++){
 			model.triangles[i].Set(*(uint16*)buf, *(uint16*)(buf+2), *(uint16*)(buf+4), buf[6]);
