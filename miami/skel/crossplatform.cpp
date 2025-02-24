@@ -194,6 +194,10 @@ char* casepath(char const* path, bool checkPathFirst)
     }
 
     size_t l = strlen(path);
+    if (l > 2 && path[0] == '.' && (path[1] == '/' || path[1] == '\\')) {
+        // remove ./ from the start of the path
+        path += 2;
+    }
     char* p = (char*)alloca(l + 1);
     char* out = (char*)malloc(l + 3); // for extra ./
     strcpy(p, path);
