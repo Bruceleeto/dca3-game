@@ -1073,14 +1073,22 @@ cSampleManager::PreloadStreamedFile(uint32 nFile, uint8 nStream, uint32_t seek_b
 	{
 		std::lock_guard<std::mutex> lk(streams[nStream].mtx);
 
-		// Do we gotta stop it here?
-		assert(!streams[nStream].playing);
+		// Stop if playing
+		// Keep in sync with StopStreamedFile
+
+		if (streams[nStream].playing) {
+			streams[nStream].playing = false;
+			aica_stop_chn(streams[nStream].mapped_ch[0]);
+			aica_stop_chn(streams[nStream].mapped_ch[1]);
+			
+			if (streams[nStream].fd >= 0) {
+				CdStreamDiscardAudioRead(streams[nStream].fd);
+				fs_close(streams[nStream].fd);
+			}
+		}
+
 		streams[nStream].rate = hdr.samplesPerSec;
 		streams[nStream].stereo = hdr.numOfChan == 2;
-		if (streams[nStream].fd >= 0) {
-			CdStreamDiscardAudioRead(streams[nStream].fd);
-			fs_close(streams[nStream].fd);
-		}
 		streams[nStream].fd = f;
 		streams[nStream].playing = false;
 		streams[nStream].total_samples = hdr.dataSize * 2 / hdr.numOfChan;
@@ -1218,6 +1226,8 @@ cSampleManager::StopStreamedFile(uint8 nStream)
 	ASSERT( nStream < MAX_STREAMS );
 	verbosef("StopStreamedFile(%d)\n", nStream);
 	std::lock_guard<std::mutex> lk(streams[nStream].mtx);
+
+	// Keep in sync with PreloadStreamedFile
 	streams[nStream].playing = false;
 	
 	aica_stop_chn(streams[nStream].mapped_ch[0]);
