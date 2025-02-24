@@ -7,6 +7,16 @@
 #endif
 
 // TODO: put them somewhere else?
+static int16 checked_f2i8(float f) {
+	assert(f >= -128 && f <= 127);
+	return f;
+}
+
+static uint8 checked_f2u8(float f) {
+	assert(f >= 0 && f <= 255);
+	return f;
+}
+
 static int16 checked_f2i16(float f) {
 	assert(f >= -32768 && f <= 32767);
 	return f;
@@ -20,18 +30,18 @@ static uint16 checked_f2u16(float f) {
 #define KF_MINDELTA (1/256.f)
 
 struct KeyFrame {
-	int16 rot[4];		// 4096
+	int8 rot[4];		// 127
 	uint16 dltTime;	// 256
 
 	CQuaternion rotation_() {
-		return { rot[0] * (1/4096.f), rot[1] * (1/4096.f), rot[2] * (1/4096.f), rot[3] * (1/4096.f) };
+		return { rot[0] * (1/127.f), rot[1] * (1/127.f), rot[2] * (1/127.f), rot[3] * (1/127.f) };
 	}
 
 	void rotation_(const CQuaternion& q) {
-		rot[0] = checked_f2i16(q.x * 4096.0f);
-		rot[1] = checked_f2i16(q.y * 4096.0f);
-		rot[2] = checked_f2i16(q.z * 4096.0f);
-		rot[3] = checked_f2i16(q.w * 4096.0f);
+		rot[0] = checked_f2i8(q.x * 127.0f);
+		rot[1] = checked_f2i8(q.y * 127.0f);
+		rot[2] = checked_f2i8(q.z * 127.0f);
+		rot[3] = checked_f2i8(q.w * 127.0f);
 	}
 
 	float deltaTime_() {
@@ -45,27 +55,35 @@ struct KeyFrame {
 
 struct KeyFrameTransUncompressed : KeyFrame {
 	// Some animations use bigger range, eg during the intro
-	CVector trans;
+	// CVector trans;
+	int8_t x, y, z;
+	float scale;
 	CVector translation_() {
-		return trans;
+		CVector n = { x * (1/127.f), y * (1/127.f), z * (1/127.f) };
+		return n * scale;
 	}
 
 	void translation_(const CVector &v) {
-		trans = v;
+		CVector n = v;
+		n.Normalise();
+		x = checked_f2i8(n.x * 127.0f);
+		y = checked_f2i8(n.y * 127.0f);
+		z = checked_f2i8(n.z * 127.0f);
+		scale = v.Magnitude();
 	}
 };
 
 struct KeyFrameTransCompressed : KeyFrame {
-	int16 trans[3];		// 128
+	int8 trans[3];		// 128
 
 	CVector translation_() {
-		return { trans[0] * (1/128.f), trans[1] * (1/128.f), trans[2] * (1/128.f)};
+		return { trans[0] * (1.f), trans[1] * (1.f), trans[2] * (1.f)};
 	}
 
 	void translation_(const CVector &v) {
-		trans[0] = checked_f2i16(v.x * 128.f);
-		trans[1] = checked_f2i16(v.y * 128.f);
-		trans[2] = checked_f2i16(v.z * 128.f);
+		trans[0] = checked_f2i8(v.x );
+		trans[1] = checked_f2i8(v.y );
+		trans[2] = checked_f2i8(v.z );
 	}
 };
 
