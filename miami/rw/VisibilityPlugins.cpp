@@ -235,6 +235,9 @@ CVisibilityPlugins::RenderFadingEntities(CLinkList<AlphaObjectInfo> &list)
 		if(mi->GetModelType() == MITYPE_SIMPLE && mi->m_noZwrite)
 			RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, FALSE);
 
+		if(!mi->IsClump())
+			rw::SetRenderState(rw::ALPHATESTREF, 129);
+
 		if(e->bDistanceFade){
 			DeActivateDirectional();
 			SetAmbientColours();
@@ -245,6 +248,9 @@ CVisibilityPlugins::RenderFadingEntities(CLinkList<AlphaObjectInfo> &list)
 			e->bImBeingRendered = false;
 		}else
 			CRenderer::RenderOneNonRoad(e);
+
+		if(!mi->IsClump())
+			rw::SetRenderState(rw::ALPHATESTREF, 3);
 
 		if(mi->GetModelType() == MITYPE_SIMPLE && mi->m_noZwrite)
 			RwRenderStateSet(rwRENDERSTATEZWRITEENABLE, (void*)TRUE);
