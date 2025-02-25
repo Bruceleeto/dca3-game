@@ -418,6 +418,66 @@ void leave_oix_() {
 	#endif
 }
 
+void enter_ocr_() {
+	#if defined(DC_SH4)
+	auto mask = irq_disable();
+	dcache_purge_all();
+	volatile uint32_t * CCN_CCR = (uint32_t *)0xFF00001C;
+	*CCN_CCR |= (1 << 5); // enable OCR (ORA)
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+
+	irq_restore(mask);
+	#endif
+}
+
+void leave_ocr_() {
+	#if defined(DC_SH4)
+	auto mask = irq_disable();
+	dcache_inval_range(0x92000000, 8192);
+	dcache_purge_all();
+	volatile uint32_t * CCN_CCR = (uint32_t *)0xFF00001C;
+	*CCN_CCR &= ~( 1 << 5); // disable OCR (ORA)
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	irq_restore(mask);
+	#endif
+}
+
 #if defined(DC_SH4)
 #define FLUSH_TA_DATA(src) do { __asm__ __volatile__("ocbwb @%0" : : "r" (src) : "memory"); } while(0)
 #else
@@ -2362,6 +2422,36 @@ __attribute__ ((noinline)) void submitMeshlet(uint8_t* OCR, const int8_t* indexD
 	} while(--indexCount);
 }
 
+template<bool textured>
+__attribute__ ((noinline)) void submitMeshletFallback(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) {
+	struct SQBUF {
+		union {
+			uint32_t flags;
+			uint64_t data[4];
+			uint8_t data8[32];
+		};
+	};
+
+	SQBUF* sq = (SQBUF*)pvr_dr_target(drState);
+
+	static_assert(sizeof(SQBUF) == 32);
+ 
+	do {
+		auto idx = *indexData++;
+		auto flags = idx & 0x80 ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+		auto lookup_idx = idx & 0x7F;
+
+		auto src = (SQBUF*)(OCR +  lookup_idx * 64);
+		src[0].flags = flags;
+		*sq = src[0];
+		pvr_dr_commit(sq);
+		if (textured) {
+			*sq = src[1];
+			pvr_dr_commit(sq);
+		}
+	} while(--indexCount);
+}
+
 
 #if defined(DC_SH4)
 template<>
@@ -2441,7 +2531,7 @@ __attribute__ ((noinline)) void submitMeshlet<true>(uint8_t* OCR, const int8_t* 
 
 // 8 kb in total
 #if defined(DC_SH4)
-uint8_t* OCR_SPACE = (uint8_t*)0x92000000;
+uint8_t* OCR_SPACE;
 #else
 uint8_t OCR_SPACE[32 * 256] __attribute__((aligned(32)));
 #endif
@@ -2672,6 +2762,159 @@ __attribute__ ((noinline)) void clipAndsubmitMeshlet(uint8_t* vertexData, const 
 			}
 		};
 	} while(indexCount != 0);
+
+	#undef FILLVERT
+	#undef SUBMIT_VTX
+	#undef SUBMIT_INTERPOLATE
+}
+
+
+template<bool textured>
+__attribute__ ((noinline)) void clipAndsubmitMeshletFallback(uint8_t* vertexData, const int8_t* indexData, uint32_t indexCount) {
+
+	struct SQBUF {
+		union {
+			uint32_t flags;
+			uint64_t data[4];
+			uint8_t data8[32];
+		};
+	};
+
+	static_assert(sizeof(SQBUF) == 32);
+
+	SQBUF* sq = (SQBUF*)pvr_dr_target(drState);
+
+	constexpr int8_t VERTEX = 0;
+	constexpr int8_t VERTEX_EOL = 0x80;
+	
+	#define FILLVERT(n) \
+		do { \
+			auto idx = *indexData++; \
+			auto local_idx = idx & 0x7f; \
+			eol_now = idx & 0x80; \
+			auto local_ptr = (vertexData + local_idx * 64); \
+			vpp[n] = local_ptr; \
+			auto v = (const pvr_vertex64_t*)local_ptr; \
+			vismask >>= 1; \
+			if((textured?v->tex_z:v->o_b) >= -v->o_g) vismask |= 0b100;	\
+			indexCount--; \
+			currentCount++; \
+		} while(0)
+
+	#define SUBMIT_VTX(vid, eolf) \
+		do { \
+			auto src = (SQBUF*) vpp[vid]; \
+			src[0].flags = eolf ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX; \
+			*sq = src[0]; \
+			pvr_dr_commit(sq); \
+			if (textured) { \
+				*sq = src[1]; \
+				pvr_dr_commit(sq); \
+			} \
+		} while(0)
+
+	#define SUBMIT_INTERPOLATE(vid1, vid2, eolf) \
+		do { \
+			sq = (SQBUF*)interpolateAndSubmit<textured>(sq, vpp[vid1], vpp[vid2], eolf ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX); \
+		} while(0)
+
+	uint32_t vismask = 0;
+
+	uint8_t* vpp[3];
+
+	int8_t eol = 0;
+	int8_t eol_now = 0;
+
+	do {
+		uint32_t currentCount = -1;
+
+		FILLVERT(0);
+		FILLVERT(1);
+		FILLVERT(2);
+
+		if (vismask & 1) {
+			SUBMIT_VTX(0, VERTEX);
+			if (vismask & 2) {
+				// both first verts visible
+				SUBMIT_VTX(1, VERTEX);
+			} else {
+				// 0 visible, 1 hidden
+				SUBMIT_INTERPOLATE(0, 1, VERTEX);
+			}
+		} else if (vismask & 2) {
+			// 0 hidden, 1 visible
+			SUBMIT_INTERPOLATE(1, 0, VERTEX);
+			SUBMIT_VTX(1, VERTEX);
+		}
+
+		eol = 0;
+		// each remaining vertex of the strip
+		while(!eol) {
+			// "ring buffery" indices
+			uint8_t vertZeroIdx = (currentCount - 2) % 3;
+			uint8_t vertOneIdx = (currentCount - 1) % 3;
+			uint8_t vertTwoIdx = currentCount % 3;
+			//dcache_pref_block(&vph[vertZeroIdx]); not sure where to put this honestly -jaxyn
+
+			eol = eol_now;
+
+			if (!vismask) {
+				if (!eol) {
+					// "ring buffery" filling
+					FILLVERT(vertZeroIdx);
+				}
+				continue;
+			}
+
+			if (vismask == 7) {
+				// all visible
+				SUBMIT_VTX(vertTwoIdx, eol);
+				if (!eol) {
+					// "ring buffery" filling
+					FILLVERT(vertZeroIdx);
+				}
+				continue;
+			}
+
+			switch (vismask) {
+				case 1: // 0 visible, 1 and 2 hidden
+					// pause strip
+					SUBMIT_INTERPOLATE(vertZeroIdx, vertTwoIdx, VERTEX_EOL);
+					break;
+				case 3: // 0 and 1 visible, 2 hidden
+					SUBMIT_INTERPOLATE(vertZeroIdx, vertTwoIdx, VERTEX);
+					SUBMIT_VTX(vertOneIdx, VERTEX);
+				case 2: // 0 hidden, 1 visible, 2 hidden
+					SUBMIT_INTERPOLATE(vertOneIdx, vertTwoIdx, eol);
+					break;
+				case 4: // 0 and 1 hidden, 2 visible
+					SUBMIT_INTERPOLATE(vertTwoIdx, vertZeroIdx, VERTEX);
+					if (currentCount & 0x01) { // flip directionality
+				case 5: // 0 visible, 1 hidden, 2 visible
+						SUBMIT_VTX(vertTwoIdx, VERTEX);
+					}
+					SUBMIT_INTERPOLATE(vertTwoIdx, vertOneIdx, VERTEX);
+					SUBMIT_VTX(vertTwoIdx, eol);
+					break;
+				case 6: // 0 hidden, 1 and 2 visible
+					SUBMIT_INTERPOLATE(vertTwoIdx, vertZeroIdx, VERTEX);
+					SUBMIT_VTX(vertOneIdx, VERTEX);
+					SUBMIT_VTX(vertTwoIdx, eol);
+					break;
+				default:
+					break;
+			}
+
+			if (!eol) {
+				// "ring buffery" filling
+				FILLVERT(vertZeroIdx);
+			}
+		};
+	} while(indexCount != 0);
+
+	#undef FILLVERT
+	#undef SUBMIT_VTX
+	#undef SUBMIT_INTERPOLATE
 }
 
 
@@ -2938,14 +3181,24 @@ static constexpr void (*tnlMeshletDiffuseColorSelector[8])(uint8_t* dstCol, cons
 	&tnlMeshletDiffuseColor<4, true>,
 };
 
-static constexpr void (*submitMeshletSelector[2])(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) = {
+static void (*submitMeshletSelector[2])(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) = {
 	&submitMeshlet<false>,
 	&submitMeshlet<true>,
 };
 
-static constexpr void (*clipAndsubmitMeshletSelector[2])(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) = {
+static void (*submitMeshletSelectorFallback[2])(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) = {
+	&submitMeshletFallback<false>,
+	&submitMeshletFallback<true>,
+};
+
+static void (*clipAndsubmitMeshletSelector[2])(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) = {
 	&clipAndsubmitMeshlet<false>,
 	&clipAndsubmitMeshlet<true>,
+};
+
+static void (*clipAndsubmitMeshletSelectorFallback[2])(uint8_t* OCR, const int8_t* indexData, uint32_t indexCount) = {
+	&clipAndsubmitMeshletFallback<false>,
+	&clipAndsubmitMeshletFallback<true>,
 };
 
 static constexpr void(*tnlMeshletSkinVerticesSelector[4])(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* vertex, const uint8_t* normals, const uint8_t* skinWeights, const uint8_t* skinIndexes, int vertexCount, int vertexSize, Matrix* skinMatrices) = {
@@ -4382,6 +4635,34 @@ ObjPipeline* makeDefaultPipeline(void)
 static void*
 driverOpen(void *o, int32, int32)
 {
+	#if defined(DC_SH4)
+	OCR_SPACE = (uint8_t*)0x92000000;
+
+	bool has_oix = true;
+	enter_oix();
+	*(volatile uint8_t*)OCR_SPACE = 1;
+	if (*(volatile uint8_t*)OCR_SPACE != 1) {
+		has_oix = false;
+	}
+	leave_oix();
+
+	if (!has_oix) {
+		dbglog(DBG_CRITICAL, "You appear to be using an emulator that does not support OIX. Attempting fallback to OCR\n");
+		OCR_SPACE = (uint8_t*)0x7c001000;
+		enter_oix = (void(*)())(((uintptr_t)&enter_ocr_) - 0x8c000000 + 0xAc000000);
+		leave_oix = (void(*)())(((uintptr_t)&leave_ocr_) - 0x8c000000 + 0xAc000000);
+
+		for (size_t i = 0; i < ARRAY_SIZE(submitMeshletSelector); i++) {
+			submitMeshletSelector[i] = submitMeshletSelectorFallback[i];
+		}
+
+		for (size_t i = 0; i < ARRAY_SIZE(clipAndsubmitMeshletSelector); i++) {
+			clipAndsubmitMeshletSelector[i] = clipAndsubmitMeshletSelectorFallback[i];
+		}
+	}
+	#endif
+	
+
     pvr_init(&pvr_params);
 
 	fake_tex = pvr_mem_malloc(sizeof(fake_tex_data));
