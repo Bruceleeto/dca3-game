@@ -41,6 +41,8 @@
 #include "Timecycle.h"
 #include "Fluff.h"
 
+#include "../vmu/vmu.h"
+
 #define BLOCK_COUNT 22
 #define SIZE_OF_SIMPLEVARS 0xE4
 
@@ -94,11 +96,10 @@ PopulateRadioStationPositionList()
 
 #define LoadSaveDataBlock()\
 do {\
-	if (!ReadDataFromFile(file, (uint8 *) &size, 4))\
-		return false;\
-	size = align4bytes(size);\
-	if (!ReadDataFromFile(file, work_buff, size))\
-		return false;\
+	size = C_PcSave::PcClassLoadRoutine(file, work_buff); \
+	if (!size) {\
+		return false; \
+	} \
 	buf = work_buff;\
 } while (0)
 
@@ -285,6 +286,7 @@ GenericSave(int file)
 bool
 GenericLoad()
 {
+	printf("GenericLoad\n");
 	uint8 *buf;
 	int32 file;
 	uint32 size;
@@ -299,12 +301,14 @@ GenericLoad()
 	CheckSum = 0;
 	CDate dummy; // unused
 	CPad::ResetCheats();
-	if (!ReadInSizeofSaveFileBuffer(file, size))
-		return false;
-	size = align4bytes(size);
-	ReadDataFromFile(file, work_buff, size);
+
+	file = CFileMgr::OpenFile(LoadFileName, "rb");
+	assert(file != 0);
+	size = C_PcSave::PcClassLoadRoutine(file, work_buff);
+	assert(size != 0);
 	buf = (work_buff + 0x40);
 	ReadDataFromBufferPointer(buf, saveSize);
+
 #ifdef MISSION_REPLAY // a hack to keep compatibility but get new data from save
 	qs = saveSize >> 24;
 #endif
@@ -562,13 +566,8 @@ CheckDataNotCorrupt(int32 slot, char *name)
 	strcpy(name, filename);
 	while (SIZE_OF_ONE_GAME_IN_BYTES - sizeof(uint32) > bytes_processed && blocknum < 40) {
 		int32 blocksize;
-		if (!ReadDataFromFile(file, (uint8*)&blocksize, sizeof(blocksize))) {
-			CloseFile(file);
-			return false;
-		}
-		if (blocksize > align4bytes(sizeof(work_buff)))
-			blocksize = sizeof(work_buff) - sizeof(uint32);
-		if (!ReadDataFromFile(file, work_buff, align4bytes(blocksize))) {
+		blocksize = C_PcSave::PcClassLoadRoutine(file, work_buff);
+		if (blocksize == 0) {
 			CloseFile(file);
 			return false;
 		}
@@ -606,14 +605,16 @@ CheckDataNotCorrupt(int32 slot, char *name)
 bool
 RestoreForStartLoad()
 {
-	uint8 buf[999];
-
 	int file = CFileMgr::OpenFile(LoadFileName, "rb");
 	if (file == 0) {
 		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_OPEN;
 		return false;
 	}
-	ReadDataFromFile(file, buf, sizeof(buf));
+
+	uint32_t size = C_PcSave::PcClassLoadRoutine(file, work_buff);
+	assert(size != 0);
+	uint8 *buf = work_buff;
+
 	if (CFileMgr::GetErrorReadWrite(file)) {
 		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_READ;
 		if (!CloseFile(file))
