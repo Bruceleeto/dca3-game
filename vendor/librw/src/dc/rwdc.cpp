@@ -742,8 +742,9 @@ std::vector<std::function<void()>> blendCallbacks;
 std::vector<std::function<void()>> ptCallbacks;
 
 void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
-	
 	uint32_t col = (a << 24) | (r << 16) | (g << 8) | b;
+	int strip_width = SCREEN_WIDTH / 320;
+	int strip_mult = SCREEN_WIDTH / 640;
 
 	blendCallbacks.emplace_back([=]() {
 		pvr_poly_cxt_t cxt;
@@ -758,8 +759,6 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		auto addr1 = (pvr_ptr_t)&emu_vram[addr64b];
 		auto addr2 = (pvr_ptr_t)&emu_vram[addr64b + 640 * 2];
 	#endif
-
-
 
 		PVR_SET(PVR_TEXTURE_MODULO, 640/32);
 
@@ -785,23 +784,23 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 			pvr_dr_commit(vtx);
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
-			vtx->flags = PVR_CMD_VERTEX;
+			//vtx->flags = PVR_CMD_VERTEX;
 			vtx->x = x;
 			vtx->y = y+h;
-			vtx->z = 1000000.0f;
+			//vtx->z = 1000000.0f;
 			vtx->u = tx/1024.f;
 			vtx->v = (ty+th)/512.0f;
-			vtx->argb = col;
+			//vtx->argb = col;
 			pvr_dr_commit(vtx);
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX_EOL;
 			vtx->x = x+w;
 			vtx->y = y+h;
-			vtx->z = 1000000.0f;
+			//vtx->z = 1000000.0f;
 			vtx->u = (tx+tw)/1024.f;
 			vtx->v = (ty+th)/512.0f;
-			vtx->argb = col;
+			//vtx->argb = col;
 			pvr_dr_commit(vtx);
 		};
 		{
@@ -823,8 +822,8 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 			pvr_poly_compile(hdr, &cxt);
 			pvr_dr_commit(hdr);
 		}
-		for (int x = 0; x < SCREEN_WIDTH / 2; x+=2) {
-			doquad(x, 0, 2, 480, x*2 + (is_bank1 ? 2 : 0), 0, 2, 480);
+		for (int x = 0; x < 320; x+=2) {
+			doquad(x*strip_mult, 0, strip_width, 480, x*2 + (is_bank1 ? 2 : 0), 0, 2, 480);
 		}
 		{
 			pvr_poly_cxt_txr(&cxt, 
@@ -845,8 +844,8 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 			pvr_poly_compile(hdr, &cxt);
 			pvr_dr_commit(hdr);
 		}
-		for (int x = 0; x < SCREEN_WIDTH / 2; x+=2) {
-			doquad(320+x, 0, 2, 480, x*2 + (is_bank1 ? 2 : 0), 0, 2, 480);
+		for (int x = 0; x < 320; x+=2) {
+			doquad(SCREEN_WIDTH/2 + x*strip_mult, 0, strip_width, 480, x*2 + (is_bank1 ? 2 : 0), 0, 2, 480);
 		}
 	});
 }
@@ -889,23 +888,23 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 			pvr_dr_commit(vtx);
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
-			vtx->flags = PVR_CMD_VERTEX;
+			//vtx->flags = PVR_CMD_VERTEX;
 			vtx->x = x;
 			vtx->y = y+h;
-			vtx->z = z;
+			//vtx->z = z;
 			vtx->u = umin;
 			vtx->v = vmax;
-			vtx->argb = col;
+			//vtx->argb = col;
 			pvr_dr_commit(vtx);
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX_EOL;
 			vtx->x = x+w;
 			vtx->y = y+h;
-			vtx->z = z;
+			//vtx->z = z;
 			vtx->u = umax;
 			vtx->v = vmax;
-			vtx->argb = col;
+			//vtx->argb = col;
 			pvr_dr_commit(vtx);
 		};
 
@@ -943,10 +942,10 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 2e6f, SCREEN_WIDTH / 2, 480.0f,
+		doquad(0.0f, 0.0f, 2e6f, SCREEN_WIDTH / 2.0f, 480.0f,
 		       0.0f, 640.0f / 1024.0f,
 		       0.0f, 960.0f / 1024.0f, col);
-		doquad(320.0f, 0.0f, 2e6f, SCREEN_WIDTH / 2, 480.0f,
+		doquad(SCREEN_WIDTH / 2.0f, 0.0f, 2e6f, SCREEN_WIDTH / 2.0f, 480.0f,
 		       0.0f, 640.0f / 1024.0f,
 		       1.0f / 1024.0f, 961.0f / 1024.0f, col);
 
@@ -957,10 +956,10 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		pvr_poly_compile(hdr, &cxt);
 		pvr_dr_commit(hdr);
 
-		doquad(0.0f, 0.0f, 3e6f, SCREEN_WIDTH / 2, 480.0f,
+		doquad(0.0f, 0.0f, 3e6f, SCREEN_WIDTH / 2.0f, 480.0f,
 		       -1.0f / 1024.0f, 639.0f / 1024.0f,
 		       0.0f, 960.0f / 1024.0f, col);
-		doquad(320.0f, 0.0f, 3e6f, SCREEN_WIDTH / 2, 480.0f,
+		doquad(SCREEN_WIDTH / 2.0f, 0.0f, 3e6f, SCREEN_WIDTH / 2.0f, 480.0f,
 		       -1.0f / 1024.0f, 639.0f / 1024.0f,
 		       1.0f / 1024.0f, 961.0f / 1024.0f, col);
 
