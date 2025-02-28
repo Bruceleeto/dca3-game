@@ -164,8 +164,18 @@ struct alignas(32) pvr_vertex32_ut {
 static_assert(sizeof(pvr_vertex16_t) == 32, "pvr_vertex16_t size mismatch");
 static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
+#define MATH_Very_Fast_Invert(x) ({ 1.0f / sqrtf((x) * (x)); })
 
-#define MATH_Fast_Invert(x) ({ (((x) < 0.0f)? -1.0f : 1.0f) * frsqrt((x) * (x)); }) 
+static inline __attribute__((always_inline)) float MATH_Fast_Invert(float x) {
+	bool neg = 0;
+
+	if(x < 0.0f)
+	    neg = true;
+
+	x = MATH_Very_Fast_Invert(x*x); // 1.0f / sqrt(x^2)
+
+	return (neg)? -x : x;
+}
 
 #define logf(...) // printf(__VA_ARGS__)
 
@@ -221,19 +231,21 @@ static pvr_dr_state_t drState;
 				frchg
 
 				fmov        @%[mtx]+, dr0
-
 				fldi0 		fr12
-				fldi0 		fr13
 
 				fmov        @%[mtx]+, dr2
-				fmov        @%[mtx]+, dr4
-				fmov        @%[mtx]+, dr6
-				fmov        @%[mtx]+, dr8
-				fmov        @%[mtx]+, dr10
+				fldi0 	    fr13
 
+				fmov        @%[mtx]+, dr4
 				fldi0	    fr3
+
+				fmov        @%[mtx]+, dr6
 				fldi0	    fr7
+
+				fmov        @%[mtx]+, dr8
 				fldi0	    fr11
+
+				fmov        @%[mtx]+, dr10
 				fmov        dr12, dr14
 
 				fschg
@@ -666,7 +678,7 @@ struct atomic_context_t {
 __always_inline void DCE_RenderSubmitVertex(const pvr_vertex_t *v, uint32_t flags) {
     auto *sq  = reinterpret_cast<uint32_t *>(pvr_dr_target(drState));
     auto *src = reinterpret_cast<const uint32_t *>(v);
-    float sz  = MATH_Fast_Invert(v->z);
+    float sz  = MATH_Very_Fast_Invert(v->z);
     float sx  = v->x * sz;
     float sy  = v->y * sz;
     
@@ -693,7 +705,7 @@ __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w,
 {
     auto *sq   = reinterpret_cast<uint32_t *>(pvr_dr_target(drState));
     auto *uv32 = reinterpret_cast<const uint32_t *>(uv);
-    float sz   = MATH_Fast_Invert(w);
+    float sz   = MATH_Very_Fast_Invert(w);
     float sx   = x * sz;
     float sy   = y * sz;
 
@@ -1489,7 +1501,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x;
 			pvrVert->y	   = gtaVert.y;
-			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->z 	   = MATH_Very_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
 			pvrVert->u 	   = gtaVert.u;
 			pvrVert->v 	   = gtaVert.v;
 			pvrVert->argb  = (gtaVert.a << 24) |
