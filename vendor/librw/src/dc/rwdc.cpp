@@ -166,13 +166,13 @@ static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
 #define MATH_Very_Fast_Invert(x) ({ 1.0f / sqrtf((x) * (x)); })
 
-static inline __attribute__((always_inline)) float MATH_Fast_Invert(float x) {
+__always_inline float MATH_Fast_Invert(float x) {
 	bool neg = 0;
 
 	if(x < 0.0f)
 	    neg = true;
 
-	x = MATH_Very_Fast_Invert(x*x); // 1.0f / sqrt(x^2)
+	x = MATH_Very_Fast_Invert(x); // 1.0f / sqrt(x^2)
 
 	return (neg)? -x : x;
 }
