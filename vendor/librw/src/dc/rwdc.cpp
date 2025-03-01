@@ -1128,6 +1128,8 @@ static float fogStart = 0.0f;
 static uint32 cullModePvr;
 
 static inline unsigned pvrCullMode(uint32_t cullMode) {
+	// PH3NOM - Prevents missing geometry
+	return PVR_CULLING_NONE;
 	switch(cullMode) {
 		case CULLNONE: return PVR_CULLING_SMALL;
 		case CULLBACK: return PVR_CULLING_CW;
