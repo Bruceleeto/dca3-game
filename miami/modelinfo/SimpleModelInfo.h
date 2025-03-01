@@ -30,6 +30,9 @@ public:
 	uint16  m_ignoreDrawDist   : 1;
 	uint16  m_isCodeGlass      : 1;
 	uint16  m_isArtistGlass    : 1;
+#ifdef RW_DC
+	bool m_isAlphaTest;
+#endif
 
 	CSimpleModelInfo(void) : CBaseModelInfo(MITYPE_SIMPLE) {}
 	CSimpleModelInfo(ModelInfoType id) : CBaseModelInfo(id) {}
