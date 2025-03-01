@@ -8,11 +8,11 @@
 enum Config {
 	NUMPLAYERS = 1,
 
-	NUMCDIMAGES = 6, // gta3.img duplicates (not used on PC)
-	MAX_CDIMAGES = 8, // additional cdimages
-	MAX_CDCHANNELS = 5,
+	NUMCDIMAGES = 1, // default = 6 // gta3.img duplicates (not used on PC)
+	MAX_CDIMAGES = 1, // default = 8 // additional cdimages
+	MAX_CDCHANNELS = 2, // default = 5
 
-	MODELINFOSIZE = 6500,	// 4900 on PS2
+	MODELINFOSIZE = 4900,	// default = 6500 // 4900 on PS2
 	TXDSTORESIZE = 1385,
 	COLSTORESIZE = 31,
 	EXTRADIRSIZE = 256,
@@ -26,15 +26,15 @@ enum Config {
 	VEHICLEMODELSIZE = 110,
 	TWODFXSIZE = 1210,
 
-	MAXVEHICLESLOADED = 50, // 70 on mobile
+	MAXVEHICLESLOADED = 25, // default = 50 // 70 on mobile
 
 	NUMOBJECTINFO = 210,
 
 	// Pool sizes
-	NUMPTRNODES = 50000,
-	NUMENTRYINFOS = 3200,
-	NUMPEDS = 140,
-	NUMVEHICLES = 110,
+	NUMPTRNODES = 27500, // default = 50000
+	NUMENTRYINFOS = 3200, // default = 3200
+	NUMPEDS = 30, // default = 140
+	NUMVEHICLES = 30, // default = 110
 	NUMBUILDINGS = 7000,
 	NUMTREADABLES = 1,
 	NUMOBJECTS = 460,
@@ -125,8 +125,8 @@ enum Config {
 	NUMROADBLOCKS = 300,
 	NUM_SCRIPT_ROADBLOCKS = 16,
 
-	NUMVISIBLEENTITIES = 2000,
-	NUMINVISIBLEENTITIES = 150,
+	NUMVISIBLEENTITIES = 1000,  // default = 2000
+	NUMINVISIBLEENTITIES = 100, // default = 150
 
 	NUM_AUDIOENTITY_EVENTS = 4,
 	NUM_PED_COMMENTS_SLOTS = 20,
@@ -311,7 +311,7 @@ enum Config {
 #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
-#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
+//#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
 #define DISABLE_VSYNC_ON_TEXTURE_CONVERSION // make texture conversion work faster by disabling vsync
 #define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
 //#define USE_TEXTURE_POOL
@@ -373,7 +373,7 @@ enum Config {
 
 #	ifdef CUSTOM_FRONTEND_OPTIONS
 #		define GRAPHICS_MENU_OPTIONS // otherwise Display settings will be scrollable
-#		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU
+//#		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU
 #		define CUTSCENE_BORDERS_SWITCH
 #		define MULTISAMPLING		// adds MSAA option
 #		define INVERT_LOOK_FOR_PAD // enable the hidden option
