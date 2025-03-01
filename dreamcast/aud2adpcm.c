@@ -558,6 +558,7 @@ void usage() {
     printf("based on wav2adpcm: 16bit mono wav to aica adpcm and vice-versa (c)2002 BERO\n"
            " wav2adpcm -q <infile.wav/mp3/ima adpcm> <outfile.wav>   (To adpcm long stream)\n"
            " wav2adpcm -t <infile.wav/mp3/ima adpcm> <outfile.wav>   (To adpcm long stream)\n"
+           " wav2adpcm -m <infile.wav/mp3/ima adpcm> <outfile.wav>   (To adpcm MONO long stream)\n"           
            " wav2adpcm -raw <infile.wav/mp3/ima adpcm> <outfile.raw>   (To adpcm sfx)\n"
            "\n"
            "If you are having trouble with your input wav file you can run it"
@@ -571,8 +572,10 @@ int main(int argc, char **argv) {
     if (argc == 4) {
         if (!strcmp(argv[1], "-t")) {
             return aud2adpcm(argv[2], argv[3], 1, 0, 0);
+        } else if (!strcmp(argv[1], "-m")) {
+            return aud2adpcm(argv[2], argv[3], 1, 1, 0);    
         } else if (!strcmp(argv[1], "-q")) {
-            return aud2adpcm(argv[2], argv[3], 1, 1, 1);
+            return aud2adpcm(argv[2], argv[3], 1, 1, 1);      
         } else if (!strcmp(argv[1], "-raw")) {
             return aud2adpcm(argv[2], argv[3], 0, 0, 0);
         } else {
