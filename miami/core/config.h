@@ -31,7 +31,7 @@ enum Config {
 	NUMOBJECTINFO = 210,
 
 	// Pool sizes
-	NUMPTRNODES = 27500, // default = 50000
+	NUMPTRNODES = 40000, // default = 50000
 	NUMENTRYINFOS = 3200, // default = 3200
 	NUMPEDS = 30, // default = 140
 	NUMVEHICLES = 30, // default = 110
