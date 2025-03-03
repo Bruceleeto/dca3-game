@@ -890,10 +890,6 @@ psSelectDevice()
 		
 		/* Get the default selection */
 		GcurSel = RwEngineGetCurrentSubSystem();
-#ifdef IMPROVED_VIDEOMODE
-		if(FrontEndMenuManager.m_nPrefsSubsystem < GnumSubSystems)
-			GcurSel = FrontEndMenuManager.m_nPrefsSubsystem;
-#endif
 	}
 	
 	/* Set the driver to use the correct sub system */
@@ -902,11 +898,6 @@ psSelectDevice()
 		return FALSE;
 	}
 
-#ifdef IMPROVED_VIDEOMODE
-	FrontEndMenuManager.m_nPrefsSubsystem = GcurSel;
-#endif
-
-#ifndef IMPROVED_VIDEOMODE
 	if ( !useDefault )
 	{
 		if ( _psGetVideoModeList()[FrontEndMenuManager.m_nDisplayVideoMode] && FrontEndMenuManager.m_nDisplayVideoMode )
@@ -916,97 +907,11 @@ psSelectDevice()
 		}
 		else
 		{
-#ifdef DEFAULT_NATIVE_RESOLUTION
-			// get the native video mode
-			HDC hDevice = GetDC(NULL);
-			int w = GetDeviceCaps(hDevice, HORZRES);
-			int h = GetDeviceCaps(hDevice, VERTRES);
-			int d = GetDeviceCaps(hDevice, BITSPIXEL);
-#else
-			const int w = 640;
-			const int h = 480;
-			const int d = 16;
-#endif
-			while ( !modeFound && GcurSelVM < RwEngineGetNumVideoModes() )
-			{
-				RwEngineGetVideoModeInfo(&vm, GcurSelVM);
-				if ( defaultFullscreenRes	&& vm.width	 != w 
-											|| vm.height != h
-											|| vm.depth	 != d
-											|| !(vm.flags & rwVIDEOMODEEXCLUSIVE) )
-					++GcurSelVM;
-				else
-					modeFound = TRUE;
-			}
-			
-			if ( !modeFound )
-			{
-#ifdef DEFAULT_NATIVE_RESOLUTION
-				GcurSelVM = 1;
-#else
-				printf("WARNING: Cannot find 640x480 video mode, selecting device cancelled\n");
-				return FALSE;
-#endif
-			}
+			GcurSelVM = 0;
 		}
 	}
-#else
-	if ( !useDefault )
-	{
-		if(FrontEndMenuManager.m_nPrefsWidth == 0 ||
-		   FrontEndMenuManager.m_nPrefsHeight == 0 ||
-		   FrontEndMenuManager.m_nPrefsDepth == 0){
-			// Defaults if nothing specified
-			// const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-			FrontEndMenuManager.m_nPrefsWidth = 640; //mode->width;
-			FrontEndMenuManager.m_nPrefsHeight = 480; //mode->height;
-			FrontEndMenuManager.m_nPrefsDepth = 16;
-			FrontEndMenuManager.m_nPrefsWindowed = 0;
-		}
-
-		// Find the videomode that best fits what we got from the settings file
-		RwInt32 bestFsMode = -1;
-		RwInt32 bestWidth = -1;
-		RwInt32 bestHeight = -1;
-		RwInt32 bestDepth = -1;
-		for(GcurSelVM = 0; GcurSelVM < RwEngineGetNumVideoModes(); GcurSelVM++){
-			RwEngineGetVideoModeInfo(&vm, GcurSelVM);
-			bestWndMode = GcurSelVM;
-			bestWidth = vm.width;
-			bestHeight = vm.height;
-			bestDepth = vm.depth;
-			bestFsMode = GcurSelVM;
-			break;
-		}
-
-		if(bestFsMode < 0){
-			printf("WARNING: Cannot find desired video mode, selecting device cancelled\n");
-			return FALSE;
-		}
-		GcurSelVM = bestFsMode;
-
-		FrontEndMenuManager.m_nDisplayVideoMode = GcurSelVM;
-		FrontEndMenuManager.m_nPrefsVideoMode = FrontEndMenuManager.m_nDisplayVideoMode;
-
-		FrontEndMenuManager.m_nSelectedScreenMode = FrontEndMenuManager.m_nPrefsWindowed;
-	}
-#endif
 
 	RwEngineGetVideoModeInfo(&vm, GcurSelVM);
-
-#ifdef IMPROVED_VIDEOMODE
-	if (FrontEndMenuManager.m_nPrefsWindowed)
-		GcurSelVM = bestWndMode;
-
-	// Now GcurSelVM is 0 but vm has sizes(and fullscreen flag) of the video mode we want, that's why we changed the rwVIDEOMODEEXCLUSIVE conditions below
-	FrontEndMenuManager.m_nPrefsWidth = vm.width;
-	FrontEndMenuManager.m_nPrefsHeight = vm.height;
-	FrontEndMenuManager.m_nPrefsDepth = vm.depth;
-#endif
-
-#ifndef PS2_MENU
-	FrontEndMenuManager.m_nCurrOption = 0;
-#endif
 	
 	/* Set up the video mode and set the apps window
 	* dimensions to match */
@@ -1029,25 +934,6 @@ psSelectDevice()
 		}
 	}
 	*/
-#ifndef IMPROVED_VIDEOMODE
-	if (vm.flags & rwVIDEOMODEEXCLUSIVE)
-	{
-		RsGlobal.maximumWidth = vm.width;
-		RsGlobal.maximumHeight = vm.height;
-		RsGlobal.width = vm.width;
-		RsGlobal.height = vm.height;
-		
-		PSGLOBAL(fullScreen) = TRUE;
-	}
-#else
-		RsGlobal.maximumWidth = FrontEndMenuManager.m_nPrefsWidth;
-		RsGlobal.maximumHeight = FrontEndMenuManager.m_nPrefsHeight;
-		RsGlobal.width = FrontEndMenuManager.m_nPrefsWidth;
-		RsGlobal.height = FrontEndMenuManager.m_nPrefsHeight;
-		
-		PSGLOBAL(fullScreen) = !FrontEndMenuManager.m_nPrefsWindowed;
-#endif
-
 #ifdef MULTISAMPLING
 	RwD3D8EngineSetMultiSamplingLevels(1 << FrontEndMenuManager.m_nPrefsMSAALevel);
 #endif
@@ -2126,6 +2012,11 @@ const char* getExecutableTag() {
 int
 main(int argc, char *argv[])
 {
+	/*
+	dbgio_dev_select("fb");
+    bfont_set_foreground_color(0x00000000);
+    bfont_set_background_color(0xFFFFFFFF);
+*/
     dbglog(DBG_CRITICAL, "DCA3: %s\n", getExecutableTag());
 	#if !defined(DC_SIM)
 	std::set_terminate([]() {
