@@ -193,7 +193,7 @@ C_PcSave::PopulateSlotInfo()
 			CFileMgr::CloseFile(file);
 		}
 #if defined(RW_DC)		
-		return;
+		continue;
 #endif
 		if (Slots[i] == SLOT_OK) {
 			if (CheckDataNotCorrupt(i, savename)) {
