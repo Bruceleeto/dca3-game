@@ -384,6 +384,7 @@ dreamcast/extract-sfx*
 dreamcast/pack-sfx*
 dreamcast/analyze-profile*
 dreamcast/aud2adpcm*
+dreamcast/adf2mp3*
 dreamcast/repack-data
 dreamcast/output.map
 dreamcast/dca3.ds.iso
