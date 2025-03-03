@@ -4336,7 +4336,7 @@ static pvr_init_params_t pvr_params = {
 				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
 				PVR_BINSIZE_8
 	},
-	.vertex_buf_size = (1024 + 1024) * 1024,
+	.vertex_buf_size = (1024 + 512) * 1024,
 	.dma_enabled = 0,
 	.fsaa_enabled = 0,
 	.autosort_disabled = true,
