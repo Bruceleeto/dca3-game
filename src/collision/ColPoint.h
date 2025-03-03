@@ -1,12 +1,12 @@
 #pragma once
 
-struct CColPoint
+struct alignas(8) CColPoint
 {
-	CVector point;
-	int pad1;
+	alignas(8) CVector point;
+	float pad1 = 0.0f;
 	// the surface normal on the surface of point
-	CVector normal;
-	int pad2;
+	alignas(8) CVector normal;
+	float pad2 = 0.0f;
 	uint8 surfaceA;
 	uint8 pieceA;
 	uint8 surfaceB;

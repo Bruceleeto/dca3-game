@@ -9,5 +9,10 @@ struct CColSphere
 	float radius;
 	uint8 surface;
 	uint8 piece;
+	void Set(float radius, uint8 surf = SURFACE_DEFAULT, uint8 piece = 0) {
+		this->radius = radius;
+		this->surface = surf;
+		this->piece = piece;
+	}
 	void Set(float radius, const CVector &center, uint8 surf = SURFACE_DEFAULT, uint8 piece = 0);
 };

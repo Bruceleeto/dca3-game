@@ -80,7 +80,6 @@ __always_inline void TransformPoint(CVuVector &out, const CMatrix &mat, const Rw
 
 __always_inline void TransformPoints(CVuVector *out, int n, const CMatrix &mat, const RwV3d *in, int stride)
 {
-	assert(false);
 #ifdef GTA_PS2
 	__asm__ __volatile__("\n\
 		paddub	$3,%4,$0\n\
@@ -110,9 +109,11 @@ __always_inline void TransformPoints(CVuVector *out, int n, const CMatrix &mat, 
 		": : "r" (out) , "r" (n), "r" (&mat), "r" (in), "r" (stride): "memory");
 #elif defined(DC_SH4)
     mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
-	mat_transform(reinterpret_cast<vector_t *>(const_cast<RwV3d *>(in)),
-	              reinterpret_cast<vector_t *>(out), 
-				  n, stride - sizeof(vector_t));
+	while(n--) {
+		mat_trans_single3_nodiv_nomod(in->x, in->y, in->z, out->x, out->y, out->z);
+		in = reinterpret_cast<const RwV3d *>(reinterpret_cast<const uint8_t *>(in) + stride);
+		++out;
+	}
 #else
 	while(n--){
 		*out = mat * *in;

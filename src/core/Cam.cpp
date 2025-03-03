@@ -4009,7 +4009,7 @@ void
 CCam::Process_ModelView(const CVector &CameraTarget, float, float, float)
 {
 	CVector TargetCoors = CameraTarget;
-	float Angle = Atan2(Front.x, Front.y);
+	float Angle = Atan2<false>(Front.x, Front.y);
 	FOV = DefaultFOV;
 
 	Angle += CPad::GetPad(0)->GetLeftStickX()/1280.0f;

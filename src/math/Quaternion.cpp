@@ -39,10 +39,9 @@ CQuaternion::Slerp(const CQuaternion &q1, const CQuaternion &q2, float theta, fl
 void
 CQuaternion::Multiply(const CQuaternion &q1, const CQuaternion &q2)
 {
-	x = (q2.z * q1.y) - (q1.z * q2.y) + (q1.x * q2.w) + (q2.x * q1.w);
-	y = (q2.x * q1.z) - (q1.x * q2.z) + (q1.y * q2.w) + (q2.y * q1.w);
-	z = (q2.y * q1.x) - (q1.y * q2.x) + (q1.z * q2.w) + (q2.z * q1.w);
-	w = (q2.w * q1.w) - (q2.x * q1.x) - (q2.y * q1.y) - (q2.z * q1.z);
+	quat_mult(reinterpret_cast<quaternion_t *>(this), 
+			  reinterpret_cast<const quaternion_t &>(q1),
+			  reinterpret_cast<const quaternion_t &>(q2));
 }
 
 void
@@ -50,10 +49,11 @@ CQuaternion::Get(RwV3d *axis, float *angle)
 {
 	*angle = Acos(w);
 	float s = Sin(*angle);
+	float invS = dc::Invert(s);
 
-	axis->x = x * (1.0f / s);
-	axis->y = y * (1.0f / s);
-	axis->z = z * (1.0f / s);
+	axis->x = x * invS;
+	axis->y = y * invS;
+	axis->z = z * invS;
 }
 
 void
@@ -104,7 +104,7 @@ CQuaternion::Set(const RwMatrix &matrix)
 	if (f >= 0.0f) {
 		s = Sqrt(f + 1.0f);
 		w = 0.5f * s;
-		m = 0.5f / s;
+		m = Div<true, false>(0.5f, s);
 		x = (matrix.up.z - matrix.at.y) * m;
 		y = (matrix.at.x - matrix.right.z) * m;
 		z = (matrix.right.y - matrix.up.x) * m;
@@ -115,7 +115,7 @@ CQuaternion::Set(const RwMatrix &matrix)
 	if (f >= 0.0f) {
 		s = Sqrt(f + 1.0f);
 		x = 0.5f * s;
-		m = 0.5f / s;
+		m = Div<true, false>(0.5f, s);
 		y = (matrix.up.x + matrix.right.y) * m;
 		z = (matrix.at.x + matrix.right.z) * m;
 		w = (matrix.up.z - matrix.at.y) * m;
@@ -126,7 +126,7 @@ CQuaternion::Set(const RwMatrix &matrix)
 	if (f >= 0.0f) {
 		s = Sqrt(f + 1.0f);
 		y = 0.5f * s;
-		m = 0.5f / s;
+		m = Div<true, false>(0.5f, s);
 		w = (matrix.at.x - matrix.right.z) * m;
 		x = (matrix.up.x - matrix.right.y) * m;
 		z = (matrix.at.y + matrix.up.z) * m;
@@ -136,7 +136,7 @@ CQuaternion::Set(const RwMatrix &matrix)
 	f = matrix.at.z - (matrix.up.y + matrix.right.x);
 	s = Sqrt(f + 1.0f);
 	z = 0.5f * s;
-	m = 0.5f / s;
+	m = Div<true, false>(0.5f, s);
 	w = (matrix.right.y - matrix.up.x) * m;
 	x = (matrix.at.x + matrix.right.z) * m;
 	y = (matrix.at.y + matrix.up.z) * m;

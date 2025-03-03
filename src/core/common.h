@@ -82,9 +82,6 @@
 
 #define rwVENDORID_ROCKSTAR 0x0253F2
 
-__always_inline auto Max(auto a, auto b) { return ((a > b)? a : b); }
-__always_inline auto Min(auto a, auto b) { return ((a < b)? a : b); }
-
 // Use this to add const that wasn't there in the original code
 #define Const const
 
@@ -299,15 +296,6 @@ extern int strcasecmp(const char *str1, const char *str2);
 
 extern wchar *AllocUnicode(const char*src);
 
-template<typename T>
-__always_inline T Clamp(T v, auto low, auto high) {
-	return std::clamp(v, static_cast<T>(low), static_cast<T>(high));
-}
-
-__always_inline auto Clamp2(auto v, auto center, auto radius) {
-	return (v > center) ? Min(v, center + radius) : Max(v, center - radius);
-}
-
 #define SQR(x) ((x) * (x))
 __always_inline auto sq(auto x) { return SQR(x); }
 
@@ -418,15 +406,8 @@ template<int s, int t> struct check_size {
 #endif
 #define BIT(num)                         (1<<(num))
 
-#define ABS(a) std::abs(a)
+#define ABS(a) Abs(a)
 
-__always_inline auto norm(auto value, auto min, auto max) {
-	return (Clamp(value, min, max) - min) / (max - min);
-}
 // we use std::lerp now
 //#define lerp(norm, min, max) ( (norm) * ((max) - (min)) + (min) )
 
-#define STRINGIFY(x)                    #x
-#define STR(x)                          STRINGIFY(x)
-#define CONCAT_(x,y) x##y
-#define CONCAT(x,y) CONCAT_(x,y)

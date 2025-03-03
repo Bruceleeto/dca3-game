@@ -53,9 +53,6 @@ static_assert(PVR_TXRFMT_STRIDE == (1 << 25), "PVR_TXRFMT_STRIDE is bugged in yo
 // TODO: probably needs a better place to be
 bool doEnvironmentMaps = true;
 
-#define fclamp0_1(n) ((n) > 1.0f ? 1.0f : n < 0.0f ? 0.0f : n)
-#define fclamp1(n) ((n) > 1.0f ? 1.0f : n)
-
 struct alignas(32) pvr_vertex16_t {
 	uint32_t flags;			/**< \brief TA command (vertex flags) */
 	float	 x;				/**< \brief X coordinate */
@@ -164,181 +161,11 @@ struct alignas(32) pvr_vertex32_ut {
 static_assert(sizeof(pvr_vertex16_t) == 32, "pvr_vertex16_t size mismatch");
 static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
-
-#define MATH_Fast_Invert(x) ({ (((x) < 0.0f)? -1.0f : 1.0f) * frsqrt((x) * (x)); }) 
-
 #define logf(...) // printf(__VA_ARGS__)
 
 static pvr_dr_state_t drState;
 
 #include <kos/dbglog.h>
-
-#if !defined(DC_TEXCONV) && !defined(DC_SIM)
-#include <kos.h>
-
-#define VIDEO_MODE_WIDTH  vid_mode->width
-#define VIDEO_MODE_HEIGHT vid_mode->height
-
-#define mat_trans_nodiv_nomod(x, y, z, x2, y2, z2, w2) do { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        register float __w __asm__("fr15") = 1.0f; \
-        __asm__ __volatile__( "ftrv  xmtrx, fv12\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
-                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
-        x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
-    } while(false)
-
-#define mat_trans_nodiv_nomod_zerow(x, y, z, x2, y2, z2, w2) do { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        register float __w __asm__("fr15") = 0.0f; \
-        __asm__ __volatile__( "ftrv  xmtrx, fv12\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
-                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
-        x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
-    } while(false)
-
-#define mat_trans_w_nodiv_nomod(x, y, z, w) do { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        register float __w __asm__("fr15") = 1.0f; \
-        __asm__ __volatile__( "ftrv  xmtrx, fv12\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
-                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
-        w = __w; \
-    } while(false)
-
-	// no declspec naked, so can't do rts / fschg. instead compiler pads with nop?
-
-	inline void rw_mat_load_3x3(const rw::Matrix* mtx) {
-		__asm__ __volatile__ (
-			R"(
-				fschg
-				frchg
-
-				fmov        @%[mtx]+, dr0
-
-				fldi0 		fr12
-				fldi0 		fr13
-
-				fmov        @%[mtx]+, dr2
-				fmov        @%[mtx]+, dr4
-				fmov        @%[mtx]+, dr6
-				fmov        @%[mtx]+, dr8
-				fmov        @%[mtx]+, dr10
-
-				fldi0	    fr3
-				fldi0	    fr7
-				fldi0	    fr11
-				fmov        dr12, dr14
-
-				fschg
-				frchg
-			)"
-			: [mtx] "+r" (mtx)
-		);
-	}
-
-	// sets pos.w to 1
-	inline void rw_mat_load_4x4(const rw::Matrix* mtx) {
-		__asm__ __volatile__ (
-			R"(
-				fschg
-				frchg
-				fmov        @%[mtx]+, dr0
-
-				fmov        @%[mtx]+, dr2
-				fmov        @%[mtx]+, dr4
-				fmov        @%[mtx]+, dr6
-				fmov        @%[mtx]+, dr8
-				fmov        @%[mtx]+, dr10
-				fmov        @%[mtx]+, dr12
-				fmov        @%[mtx]+, dr14
-				fldi1 	 	fr15
-
-				fschg
-				frchg
-			)"
-			: [mtx] "+r" (mtx)
-		);
-	}
-
-#else
-extern matrix_t XMTRX;
-
-void rw_mat_load_3x3(rw::Matrix* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[0][3] = 0.0f;
-	XMTRX[1][3] = 0.0f;
-	XMTRX[2][3] = 0.0f;
-
-	XMTRX[3][0] = 0.0f;
-	XMTRX[3][1] = 0.0f;
-	XMTRX[3][2] = 0.0f;
-	XMTRX[3][3] = 0.0f;
-}
-
-void rw_mat_load_4x4(rw::Matrix* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[3][3] = 1.0f;
-}
-
-#include <dc/matrix.h>
-#define VIDEO_MODE_WIDTH		640
-#define VIDEO_MODE_HEIGHT 		480
-#define frsqrt(a) 				(1.0f/sqrt(a))
-#define dcache_pref_block(a)	__builtin_prefetch(a)
-
-#ifndef __always_inline
-#define __always_inline 		__attribute__((always_inline)) inline
-#endif
-
-#ifdef DC_TEXCONV
-#define mat_transform(a, b, c, d)
-#define mat_apply(a)
-#define mat_load(a)
-#define mat_store(a)
-#define mat_identity(a)
-#define pvr_fog_table_color(a,r,g,b)
-#define pvr_fog_table_linear(s,e)
-#define pvr_fog_table_exp(d)
-#define pvr_fog_table_custom(d)
-#endif
-
-#define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
-		vector_t tmp = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp, &tmp, 1, 0); \
-		z2 = 1.0f / tmp.w; \
-		x2 = tmp.x * z2; \
-		y2 = tmp.y * z2; \
-	} while(false)
-
-#define mat_trans_nodiv_nomod(x_, y_, z_, x2, y2, z2, w2) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
-	} while(false)
-
-#define mat_trans_nodiv_nomod_zerow(x_, y_, z_, x2, y2, z2, w2) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 0.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
-	} while(false)
-
-#define mat_trans_w_nodiv_nomod(x_, y_, z_, w_) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		w_ = tmp1233123.w; \
-	} while(false)
-
-#define memcpy4 memcpy
-
-// END STUBS
-#endif
 
 static pvr_ptr_t fake_tex;
 
@@ -666,7 +493,7 @@ struct atomic_context_t {
 __always_inline void DCE_RenderSubmitVertex(const pvr_vertex_t *v, uint32_t flags) {
     auto *sq  = reinterpret_cast<uint32_t *>(pvr_dr_target(drState));
     auto *src = reinterpret_cast<const uint32_t *>(v);
-    float sz  = MATH_Fast_Invert(v->z);
+    float sz  = Invert<true, false>(v->z);
     float sx  = v->x * sz;
     float sy  = v->y * sz;
     
@@ -693,7 +520,7 @@ __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w,
 {
     auto *sq   = reinterpret_cast<uint32_t *>(pvr_dr_target(drState));
     auto *uv32 = reinterpret_cast<const uint32_t *>(uv);
-    float sz   = MATH_Fast_Invert(w);
+    float sz   = Invert<true, false>(w);
     float sx   = x * sz;
     float sy   = y * sz;
 
@@ -714,7 +541,7 @@ __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w,
 
 
 #if defined(DC_TEXCONV)
-void malloc_stats() { }
+void (malloc_stats)() { }
 #endif
 
 #if 0
@@ -1489,7 +1316,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x;
 			pvrVert->y	   = gtaVert.y;
-			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->z 	   = Invert<true, false>(gtaVert.w); // this is perfect for almost every case...
 			pvrVert->u 	   = gtaVert.u;
 			pvrVert->v 	   = gtaVert.v;
 			pvrVert->argb  = (gtaVert.a << 24) |
@@ -1544,8 +1371,10 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 	auto idx = (unsigned short*)indices;
 	auto vtx = (Im2DVertex*)vertices;
 
-    std::vector<Im2DVertex> vertData(numIndices);
+    static std::vector<Im2DVertex> vertData(numIndices);
 
+	vertData.resize(numIndices);
+	__builtin_prefetch(idx);
 	for (int32 i = 0; i < numIndices; i++) {
 		vertData[i] = vtx[idx[i]];
 	}
@@ -1554,6 +1383,9 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 }
 
 static std::vector<Im3DVertex> im3dVertices; 
+//static std::array<std::byte, sizeof(uint16_t) * 1024 * 2> imd3dIndicesBuffer;
+//std::pmr::monotonic_buffer_resource_pool{ im3dIndicesBuffer.data(), im3dIndicesBuffer.size() };
+
 void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 flags) {
     // UNIMPL_LOGV("start %d", numVertices);
     if(worldMat == nil){
@@ -1562,31 +1394,43 @@ void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 f
 		worldMat = &ident;
 	}
 	
-	rw::RawMatrix mtx, proj, world, worldview;
 	rw::Camera *cam = engine->currentCamera;
-
+#if 0
+	rw::RawMatrix mtx, proj, world, worldview;
 	rw::convMatrix(&world, worldMat);
 	rw::RawMatrix::mult(&worldview, &world, &cam->devView);
 	rw::RawMatrix::mult(&proj, &worldview, &cam->devProj);
 	rw::RawMatrix::mult(&mtx, &proj, (RawMatrix*)&DCE_MAT_SCREENVIEW);
 	// mat_load(&DCE_MAT_SCREENVIEW);     // ~11 cycles.
 	mat_load(( matrix_t*)&mtx.right);  // Number of cycles: ~32.
+#else // &DCE_MAT_SCREENVIEW * &cam->devProj * &cam->devView * worldMat
+	mat_load_apply(reinterpret_cast<const matrix_t*>(&DCE_MAT_SCREENVIEW),
+				   reinterpret_cast<const matrix_t*>(&cam->devProj));
+	mat_apply(reinterpret_cast<const matrix_t*>(&cam->devView));
+	mat_apply(reinterpret_cast<const matrix_t*>(worldMat));
+#endif
+
+	__builtin_prefetch(vertices);
+
     im3dVertices.resize(numVertices);
 
     auto vtx = (Im3DVertex*)vertices;
+	int32 i;
+	float W;
 
-    for (int32 i = 0; i < numVertices; i++) {
+	#define vd im3dVertices[i].position
+	#define vs vtx[i].position
+
+    for (i = 0; i < numVertices - 1; i++) {
+		__builtin_prefetch(&vtx[i + 1]);
         im3dVertices[i] = vtx[i];
-
-		#define vd im3dVertices[i].position
-		#define vs vtx[i].position
-
-		float W;
 		mat_trans_nodiv_nomod(vs.x, vs.y, vs.z, vd.x, vd.y, W, vd.z); // store the undivided W value in the Z component
-		
-		#undef vs
-		#undef vd
     }
+	im3dVertices[i] = vtx[i];
+	mat_trans_nodiv_nomod(vs.x, vs.y, vs.z, vd.x, vd.y, W, vd.z); // store the undivided W value in the Z component
+
+	#undef vs
+	#undef vd
 }
 
 void im3DRenderPrimitive(PrimitiveType primType) {
@@ -1652,7 +1496,7 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 
 			// assuming near plane is 0.0f
 			// gv1 is visible (posi), and gv2 is behind the plane (negative)
-			float t = (1.0f - gv1.position.z) * MATH_Fast_Invert(gv2.position.z - gv1.position.z);
+			float t = (1.0f - gv1.position.z) * -Invert<true, false>(gv2.position.z - gv1.position.z);
 
 			pvr_vertex_t pvrVert; 
 
@@ -1695,7 +1539,7 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 			
 			pvrHeaderSubmit();
 
-			dcache_pref_block(idx);
+			__builtin_prefetch(idx);
 			for (int32_t i = 0; i < numIndices; i += 3) [[likely]]{
 				uint16_t idx0 = idx[i + 0];
 				auto     vtx0 = im3dVertices[idx0];
@@ -1798,7 +1642,7 @@ void transform_kos(Vout& vd, const Vin& vs) {
 }
 
 void addInterpolatedVertex(const pvr_vertex16_t& v1, const pvr_vertex16_t& v2, uint32_t flags = PVR_CMD_VERTEX) {
-	float t = (- v1.z) / (v2.z - v1.z);
+	float t = Div<true, false>(v1.z, (v2.z - v1.z));
 	// float t = (-v1.w - v1.z) / ((v2.z - v2.w) - (v1.z - v1.w));
 
 	pvr_vertex_t v;
@@ -1925,51 +1769,49 @@ out:
 template<bool small_xyz, unsigned forClip>
 __attribute__ ((noinline)) void tnlMeshletTransform(uint8_t* dst, const uint8_t* vertexData, uint32_t vertexCount, uint32_t vertexSize) {
 	const uint8_t* next_vertex = vertexData;
-	dcache_pref_block(vertexData);
-
 	pvr_vertex64_t *sq  = (pvr_vertex64_t *)dst;
 
-	do {
+	auto innerLoop = [&]<bool prefetch>() __attribute__((always_inline)) {
 		auto vertex = next_vertex;
 		next_vertex += vertexSize;
 
 		float x, y, z, w;
 
-		dcache_pref_block(vertex + 32);
+		if constexpr(prefetch)
+			__builtin_prefetch(vertex + 32);
 
-		if (!small_xyz) {
+		if constexpr(!small_xyz) {
 			auto stripVert = reinterpret_cast<const V3d *>(vertex);
-
 			mat_trans_nodiv_nomod(stripVert->x, stripVert->y, stripVert->z, x, y, z, w);
-
 		} else {
 			auto stripVert = reinterpret_cast<const int16_t *>(vertex);
-
-			mat_trans_nodiv_nomod((float)stripVert[0], (float)stripVert[1], (float)stripVert[2], 
-								x, y, z, w);
+			mat_trans_nodiv_nomod((float)stripVert[0], (float)stripVert[1], (float)stripVert[2], x, y, z, w);
 		}
 
-
-		if (forClip) {
+		if constexpr(forClip) {
 			sq->o_a = x;
 			sq->o_r = y;
 			sq->o_g = w;	
+
+			if constexpr(forClip == 1) { // not textured
+				sq->o_b = z;
+			} else if constexpr(forClip == 2) { // textured
+				sq->tex_z = z;
+			}
 		}
 
-		if (forClip == 1) { // not textured
-			sq->o_b = z;
-		} else if (forClip == 2) { // textured
-			sq->tex_z = z;
-		}
+		sq->z = Invert<true, false>(w);
 
-		w = frsqrt(w * w);
-
-		sq->x = x * w;
-		sq->y = y * w;
-		sq->z = w;
+		sq->x = x * sq->z;
+		sq->y = y * sq->z;
 
 		sq += 1;
-	} while(--vertexCount != 0);
+	};
+
+	__builtin_prefetch(vertexData);
+	for(unsigned v = 0; v < vertexCount - 1; ++v)
+		innerLoop.template operator()<true>();
+	innerLoop.template operator()<false>();		
 }
 
 #if defined(DC_SH4)
@@ -2549,13 +2391,13 @@ void* interpolateAndSubmit(void* dst, const void* src1, const void* src2, uint32
 	// float t = fclamp0_1((1.0f - v1->o_g) / (v2->o_g - v1->o_g));
 	float SA = (hasTexture?v1->tex_z : v1->o_b) + v1->o_g;
 	float SB = (hasTexture?v2->tex_z : v2->o_b) + v2->o_g;
-	float t  = SA / (SA - SB);
+	float t  = Div<true, false>(SA, (SA - SB));
 
 	float x = v1->o_a + t * (v2->o_a - v1->o_a);
 	float y = v1->o_r + t * (v2->o_r - v1->o_r);
 	float w = v1->o_g + t * (v2->o_g - v1->o_g);
 
-	w = frsqrt(w * w);
+	w = Invert<true, false>(w);
 
 	v->x = x * w;
 	v->y = y * w;
@@ -2623,7 +2465,6 @@ void* interpolateAndSubmit(void* dst, const void* src1, const void* src2, uint32
 
 template<bool textured>
 __attribute__ ((noinline)) void clipAndsubmitMeshlet(uint8_t* vertexData, const int8_t* indexData, uint32_t indexCount) {
-
 	struct SQBUF {
 		union {
 			uint32_t flags;
@@ -2929,16 +2770,13 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		auto skinningIndexData = (int16_t*)skinIndexes;
 		auto skinningWeightData = (uint8_t*)skinWeights;
 
-		if (!matrix0Identity) {
-			rw_mat_load_4x4(&skinMatrices[0]);
-			if (small_xyz) {
-				mat_apply(&DCE_MESHLET_MAT_DECODE);
-			}
-		} else {
-			if (small_xyz) {
-				mat_load(&DCE_MESHLET_MAT_DECODE);
-			}
-		}
+		if constexpr(!matrix0Identity) {
+			if constexpr(!small_xyz)
+				mat_load(reinterpret_cast<const matrix_t*>(&skinMatrices[0]));
+			else
+				mat_load_apply(reinterpret_cast<const matrix_t*>(&skinMatrices[0]), &DCE_MESHLET_MAT_DECODE);
+		} else if constexpr(small_xyz)
+			mat_load(&DCE_MESHLET_MAT_DECODE);
 
 		for(;;) {
 			int16_t flags = *skinningIndexData++;
@@ -2947,32 +2785,35 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				int count = *skinningIndexData++;
 				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
 
-				if (matrix0Identity && !small_xyz) {
-					do {
-						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
-						srcVtxBytes += vertexSize;
-						V3d* dstVertex = (V3d*)(dstVertexBytes);
-						dstVertexBytes += 64;
+				auto innerLoop = [&]<bool prefetch>() __attribute__((always_inline)) {
+					const V3d* srcVtx;
+					V3d tmp;
+
+					if constexpr(small_xyz) {
+						tmp = makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
+						srcVtx = &tmp;
+					} else srcVtx = (const V3d*)(srcVtxBytes);
+					srcVtxBytes += vertexSize;
+
+					if constexpr(prefetch)
+						__builtin_prefetch(srcVtxBytes);
+
+					V3d* dstVertex = (V3d*)(dstVertexBytes);
+					dstVertexBytes += 64;
+
+					if constexpr(matrix0Identity)
 						*dstVertex = *srcVtx;
-					} while(--count != 0);
-				} else {
-					do {
-						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
-						V3d tmp;
-						if (small_xyz) {
-							tmp =  makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
-							srcVtx = &tmp;
-						}
-						srcVtxBytes += vertexSize;
-						V3d* dstVertex = (V3d*)(dstVertexBytes);
-						dstVertexBytes += 64;
-						float x, y, z, w;
-						mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
-						dstVertex->x = x;
-						dstVertex->y = y;
-						dstVertex->z = z;
-					} while(--count != 0);
-				}
+					else {
+						float w;
+						mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, dstVertex->x, dstVertex->y, dstVertex->z, w);
+					}
+				};
+
+				__builtin_prefetch(srcVtxBytes);
+				for(int c = 0; c < count - 1; ++c)
+					innerLoop.template operator()<true>();
+				innerLoop.template operator()<false>();
+	
 			} else if (!(flags & 0x80)) {
 				int count = flags & 0x7FFF;
 				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
@@ -3000,10 +2841,11 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				break;
 			}
 
-			rw_mat_load_4x4(currentMatrix);
-			if (small_xyz){
-				mat_apply(&DCE_MESHLET_MAT_DECODE);
-			}
+			if constexpr(small_xyz)
+				mat_load_apply(reinterpret_cast<const matrix_t*>(currentMatrix),
+							   &DCE_MESHLET_MAT_DECODE);
+			else
+				mat_load(reinterpret_cast<const matrix_t*>(currentMatrix));
 
 			do {
 				auto srcOffset = *skinningIndexData++;
@@ -3017,9 +2859,8 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					srcVtx = &tmpSrc;
 				}
 				auto dstVtx = (V3d*)(dest + dstOffset);
-				float x, y, z, w;
-				mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
-				V3d tmp = { x, y, z };
+				V3d tmp; float w;
+				mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, tmp.x, tmp.y, tmp.z, w);
 				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
 				*dstVtx = add(*dstVtx, tmp);
 			} while (--count != 0);
@@ -3032,8 +2873,8 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		auto skinningIndexData = (int16_t*)skinIndexes;
 		auto skinningWeightData = (uint8_t*)skinWeights;
 
-		if (!matrix0Identity) {
-			rw_mat_load_3x3(&skinMatrices[0]);
+		if constexpr (!matrix0Identity) {
+			mat_load(reinterpret_cast<matrix_t*>(&skinMatrices[0]));
 		}
 
 		for(;;) {
@@ -3043,26 +2884,26 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				int count = *skinningIndexData++;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
 
-				if (matrix0Identity) {
-					do {
-						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
-						
-						srcNormalBytes += vertexSize;
-						V3d* dstNormal = (V3d*)(dstNormalBytes);
-						dstNormalBytes += 64;
+				auto innerLoop = []<bool identity>(auto srcNormalBytes, auto dstNormalBytes, int vertexSize) __attribute__((always_inline)) {
+					V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
+					srcNormalBytes += vertexSize;
 
-						*dstNormal = srcNormal;
-					} while(--count != 0);
+					V3d* dstNormal = (V3d*)(dstNormalBytes);
+
+					if constexpr(!identity) {
+						float w;
+						mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, 
+													dstNormal->x, dstNormal->y, dstNormal->z, w);
+					} else *dstNormal = srcNormal;
+					dstNormalBytes += 64;
+				};
+
+				if constexpr (matrix0Identity) {
+					for(int i = 0; i < count; ++i)
+						innerLoop.template operator()<true>(srcNormalBytes, dstNormalBytes, vertexSize);
 				} else {
-					do {
-						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
-						srcNormalBytes += vertexSize;
-						V3d* dstNormal = (V3d*)(dstNormalBytes);
-						dstNormalBytes += 64;
-						float x, y, z, w;
-						mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, x, y, z, w);
-						*dstNormal = { x, y, z };
-					} while(--count != 0);
+					for(int i = 0; i < count; ++i)
+						innerLoop.template operator()<false>(srcNormalBytes, dstNormalBytes, vertexSize);
 				}
 			} else if (!(flags & 0x80)) {
 				int count = flags & 0x7FFF;
@@ -3091,8 +2932,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				break;
 			}
 
-			rw_mat_load_3x3(currentMatrix);
-
+			mat_load(reinterpret_cast<matrix_t*>(currentMatrix));
 			do {
 				auto srcOffset = *skinningIndexData++;
 				auto dstOffset = *skinningIndexData++;
@@ -3115,29 +2955,39 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 
 __attribute__((noinline))
 void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertexSize, matrix_t* matfxMatrix, float matfxCoefficient) {
-
-	mat_load(matfxMatrix);
-
-	do {
+	auto innerLoop = [&]<bool prefetch>() {
 		pvr_vertex64_t* v = (pvr_vertex64_t*)OCR;
 		OCR += 64;
 
 		int8_t* normal_int8 = (int8_t*)normal;
 		normal += vertexSize;
 
-		V3d normal = { static_cast<float32>(normal_int8[0]), static_cast<float32>(normal_int8[1]), static_cast<float32>(normal_int8[2]) };
+		if constexpr(prefetch)
+			__builtin_prefetch(normal);
+
+		V3d normal = { 
+			static_cast<float32>(normal_int8[0]), 
+			static_cast<float32>(normal_int8[1]), 
+			static_cast<float32>(normal_int8[2]) 
+		};
 
 		float x, y, z, w;
 		mat_trans_nodiv_nomod(normal.x, normal.y, normal.z, x, y, z, w);
-
-		v->u = float16(x).raw;
-		v->v = float16(1-y).raw;
 
 		v->r *= matfxCoefficient;
 		v->g *= matfxCoefficient;
 		v->b *= matfxCoefficient;
 
-	} while(--vertexCount != 0);
+		v->u = float16(x).raw;
+		v->v = float16(1-y).raw;
+	};
+
+	mat_load(matfxMatrix);
+	__builtin_prefetch(normal);
+	
+	for(int v = 0; v < vertexCount - 1; ++v)
+		innerLoop.template operator()<true>();
+	innerLoop.template operator()<false>();
 }
 
 
@@ -3218,24 +3068,36 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 
 	if(hier){
 		Matrix *invMats = (Matrix*)skin->inverseMatrices;
-		Matrix tmp;
 
 		assert(skin->numBones == hier->numNodes);
+
+		__builtin_prefetch(hier->matrices);
 		if(hier->flags & HAnimHierarchy::LOCALSPACEMATRICES){
-			for(i = 0; i < hier->numNodes; i++){
+			for(i = 0; i < hier->numNodes - 1; i++) {
+				__builtin_prefetch(&hier->matrices[i + 1]);
 				invMats[i].flags = 0;
 				Matrix::mult(m, &invMats[i], &hier->matrices[i]);
 				m++;
 			}
+			invMats[i].flags = 0;
+			Matrix::mult(m, &invMats[i], &hier->matrices[i]);
 		}else{
 			Matrix invAtmMat;
 			Matrix::invert(&invAtmMat, a->getFrame()->getLTM());
-			for(i = 0; i < hier->numNodes; i++){
+			for(i = 0; i < hier->numNodes - 2; i++){
+				__builtin_prefetch(&hier->matrices[i + 1]);
 				invMats[i].flags = 0;
-				Matrix::mult(&tmp, &hier->matrices[i], &invAtmMat);
-				Matrix::mult(m, &invMats[i], &tmp);
+				mat_load_apply(reinterpret_cast<const matrix_t *>(&invAtmMat),
+							   reinterpret_cast<const matrix_t *>(&hier->matrices[i]));
+				mat_apply(reinterpret_cast<const matrix_t *>(&invMats[i]));
+				mat_store(reinterpret_cast<matrix_t *>(m));
 				m++;
 			}
+			invMats[i].flags = 0;
+			mat_load_apply(reinterpret_cast<const matrix_t *>(&invAtmMat),
+							reinterpret_cast<const matrix_t *>(&hier->matrices[i]));
+			mat_apply(reinterpret_cast<const matrix_t *>(&invMats[i]));
+			mat_store(reinterpret_cast<matrix_t *>(m));
 		}
 	}else{
 		for(i = 0; i < skin->numBones; i++){
@@ -3266,12 +3128,12 @@ uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
 
 	RawMatrix *envMtx = (RawMatrix*)envMatrix;
 	{
-
+#if 0
 		RawMatrix invMtx;
 		Matrix::invert(&invMat, frame->getLTM());
 		convMatrix(&invMtx, &invMat);
 		invMtx.pos.set(0.0f, 0.0f, 0.0f);
-		float uscale = fabs(normal2texcoord.right.x);
+		float uscale = fabsf(normal2texcoord.right.x);
 		normal2texcoord.right.x = MatFX::envMapFlipU ? -uscale : uscale;
 		
 		RawMatrix tmpMtx;
@@ -3283,6 +3145,24 @@ uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
 		world->upw = 0;
 		world->atw = 0;
 		RawMatrix::mult(envMtx, world, &tmpMtx);
+#else
+		RawMatrix invMtx;
+		Matrix::invert(&invMat, frame->getLTM());
+		invMtx.pos.set(0.0f, 0.0f, 0.0f);
+
+		float uscale = fabsf(normal2texcoord.right.x);
+		normal2texcoord.right.x = MatFX::envMapFlipU ? -uscale : uscale;
+
+		world->pos = { 0, 0, 0 };
+		world->rightw = 0;
+		world->upw = 0;
+		world->atw = 0;
+
+		mat_load_apply(reinterpret_cast<const matrix_t *>(&normal2texcoord),
+					   reinterpret_cast<const matrix_t*>(&invMtx));
+		mat_apply(reinterpret_cast<const matrix_t*>(world));
+		mat_store(reinterpret_cast<matrix_t *>(envMtx));
+#endif
 	}
 }
 
@@ -3295,6 +3175,9 @@ inline void pvr_poly_compile_fast(pvr_poly_hdr_t *dst, pvr_poly_cxt_t *src) {
     int u, v;
     uint32  txr_base;
 
+#ifdef DC_SH4
+	dcache_alloc_block(dst, 0);
+#endif
     /* Basically we just take each parameter, clip it, shift it
        into place, and OR it into the final result. */
 
@@ -3546,18 +3429,16 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 	lightingCB(atomic, ac->uniform);
 
-
 	rw::RawMatrix world;
-	rw::convMatrix(&world, atomic->getFrame()->getLTM());
-	
+	//rw::convMatrix(&world, atomic->getFrame()->getLTM());
 
-	mat_load((matrix_t*)&cam->devView);
-	mat_apply((matrix_t*)&world);
-	mat_store((matrix_t*)&atomicContexts.back().worldView);
+	mat_mult((matrix_t*)&atomicContexts.back().worldView,
+			(matrix_t*)&cam->devView,
+			(matrix_t*)atomic->getFrame()->getLTM());
 
-	mat_load((matrix_t*)&cam->devProjScreen);
-	mat_apply((matrix_t*)&atomicContexts.back().worldView);
-	mat_store((matrix_t*)&atomicContexts.back().mtx);
+	mat_mult((matrix_t*)&atomicContexts.back().mtx,
+			(matrix_t*)&cam->devProjScreen,
+			(matrix_t*)&atomicContexts.back().worldView);
 
 	int16_t contextId = atomicContexts.size() - 1;
 
@@ -3813,8 +3694,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					} else {
 						
 						if (selector & 8) {
-							mat_load(&mtx);
-							mat_apply(&DCE_MESHLET_MAT_DECODE);
+							mat_load_apply(&mtx, &DCE_MESHLET_MAT_DECODE);
 						} else {
 							mat_load(&mtx);
 						}
@@ -3934,48 +3814,48 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				bool isNormaled = !!(geo->flags & Geometry::NORMALS);
 				assert(!isNormaled);
 
-				std::vector<int8_t> indices(numIndices);
-				for (int i = 0; i < numIndices; i++) {
-					auto idx = mesh->indices[i];
-					assert(idx < 128);
-					indices[i] = idx;
-				}
+				static std::vector<int8_t> indices;
+				indices.resize(numIndices);
+				memcpy(indices.data(), mesh->indices, sizeof(int8_t) * numIndices);
 				indices.back() |= 0x80;
 
 				pvr_vertex64_t *vd = (pvr_vertex64_t *)OCR_SPACE;
 				mat_load(&mtx);  // Number of cycles: ~11
 
-				for (int idx = 0; idx < geo->numVertices; idx++) {
+				auto fillVertex = [](int idx, pvr_vertex64_t *vd, auto vertices, 
+									 auto texcoords, auto colors) __attribute__((always_inline)) 
+				{
 					auto& vert = vertices[idx];
 					auto& c = colors[idx];
 					auto& t = texcoords[idx];
 
-					float x, y, z, w;
 					mat_trans_nodiv_nomod(vert.x, vert.y, vert.z,
-											x, y, z, w);
-					
-					vd->o_a = x;
-					vd->o_r = y;
-					vd->tex_z = z;
-					vd->o_g = w;
-
-					w = frsqrt(w * w);
-
-					vd->x = x * w;
-					vd->y = y * w;
-					vd->z = w;
+										  vd->o_a, vd->o_r, vd->tex_z, vd->o_g);
 
 					vd->a = c.alpha * (1/255.0f);
 					vd->r = c.red * (1/255.0f);
 					vd->g = c.green * (1/255.0f);
 					vd->b = c.blue * (1/255.0f);
+
+					vd->z = Invert<true, false>(vd->o_g);
 					
 					float16 u = texcoords[idx].u;
 					float16 v = texcoords[idx].v;
 					vd->u = u.raw;
 					vd->v = v.raw;
+
+					vd->x = vd->o_a * vd->z;
+					vd->y = vd->o_r * vd->z;
+				};
+
+				int idx;
+				__builtin_prefetch(vertices);
+				for (int idx = 0; idx < geo->numVertices - 1; idx++) {
+					__builtin_prefetch(&vertices[idx + 1]);
+					fillVertex(idx, vd, vertices, texcoords, colors);
 					vd++;
 				}
+				fillVertex(idx, vd, vertices, texcoords, colors);
 
 				clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
 			} else { // no trilist assets anymore
