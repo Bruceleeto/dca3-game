@@ -276,7 +276,7 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 void
 CMatrix::RotateX(float x)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
+#ifdef DC_SH4
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_x(x);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -306,7 +306,7 @@ CMatrix::RotateX(float x)
 void
 CMatrix::RotateY(float y)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
+#ifdef DC_SH4
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_y(y);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -336,7 +336,7 @@ CMatrix::RotateY(float y)
 void
 CMatrix::RotateZ(float z)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
+#ifdef DC_SH4
 	mat_load(reinterpret_cast<matrix_t *>(this));
 	mat_rotate_z(z);
 	mat_store(reinterpret_cast<matrix_t *>(this));
@@ -366,9 +366,11 @@ CMatrix::RotateZ(float z)
 void
 CMatrix::Rotate(float x, float y, float z)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
-	mat_load(reinterpret_cast<matrix_t *>(this));
-	mat_rotate(x, y, z);
+#ifdef DC_SH4
+	CMatrix rot;
+	rot.SetRotate(x, y, z);
+	mat_load_apply(reinterpret_cast<matrix_t *>(this),
+				   reinterpret_cast<matrix_t *>(&rot));
 	mat_store(reinterpret_cast<matrix_t *>(this));
 #else
 	auto [sX, cX] = SinCos(x);

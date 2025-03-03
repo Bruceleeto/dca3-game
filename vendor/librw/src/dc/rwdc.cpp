@@ -3146,20 +3146,14 @@ uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
 		world->atw = 0;
 		RawMatrix::mult(envMtx, world, &tmpMtx);
 #else
-		RawMatrix invMtx;
 		Matrix::invert(&invMat, frame->getLTM());
-		invMtx.pos.set(0.0f, 0.0f, 0.0f);
+		//invMat.pos.set(0.0f, 0.0f, 0.0f);
 
-		float uscale = fabsf(normal2texcoord.right.x);
+		float uscale = Abs(normal2texcoord.right.x);
 		normal2texcoord.right.x = MatFX::envMapFlipU ? -uscale : uscale;
 
-		world->pos = { 0, 0, 0 };
-		world->rightw = 0;
-		world->upw = 0;
-		world->atw = 0;
-
 		mat_load_apply(reinterpret_cast<const matrix_t *>(&normal2texcoord),
-					   reinterpret_cast<const matrix_t*>(&invMtx));
+					   reinterpret_cast<const matrix_t*>(&invMat));
 		mat_apply(reinterpret_cast<const matrix_t*>(world));
 		mat_store(reinterpret_cast<matrix_t *>(envMtx));
 #endif
@@ -3175,9 +3169,6 @@ inline void pvr_poly_compile_fast(pvr_poly_hdr_t *dst, pvr_poly_cxt_t *src) {
     int u, v;
     uint32  txr_base;
 
-#ifdef DC_SH4
-	dcache_alloc_block(dst, 0);
-#endif
     /* Basically we just take each parameter, clip it, shift it
        into place, and OR it into the final result. */
 
@@ -3429,9 +3420,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 	lightingCB(atomic, ac->uniform);
 
-	rw::RawMatrix world;
-	//rw::convMatrix(&world, atomic->getFrame()->getLTM());
-
 	mat_mult((matrix_t*)&atomicContexts.back().worldView,
 			(matrix_t*)&cam->devView,
 			(matrix_t*)atomic->getFrame()->getLTM());
@@ -3445,6 +3433,9 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	assert(numMeshes <= 32767);
 	assert(atomicContexts.size() <= 32767);
 	auto meshes = geo->meshHeader->getMeshes();
+
+	RawMatrix worldOrient;
+	bool worldOrientValid = false;
 
 	for (int16_t n = 0; n < numMeshes; n++) {
 		bool doBlend = meshes[n].material->color.alpha != 255; // TODO: check all vertexes for alpha?
@@ -3464,9 +3455,15 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			isMatFX = true;
 			matfxCoefficient = matfx->fx[0].env.coefficient;
 			matfxContexts.resize(matfxContexts.size() + 1);
-			// N.B. world here gets converted to a 3x3 matrix
-			// 		this is fine, as we only use it for env mapping from now on
-			uploadEnvMatrix(matfx->fx[0].env.frame, &world, &matfxContexts.back().mtx);
+			if(!worldOrientValid) {
+				rw::convMatrix(&worldOrient, atomic->getFrame()->getLTM());
+				worldOrient.pos = { 0, 0, 0 };
+				worldOrient.rightw = 0;
+				worldOrient.upw = 0;
+				worldOrient.atw = 0;
+				worldOrientValid = true;
+			}
+			uploadEnvMatrix(matfx->fx[0].env.frame, &worldOrient, &matfxContexts.back().mtx);
 			matfxContexts.back().coefficient = matfxCoefficient;
 			
 			pvr_poly_cxt_t cxt;
@@ -3487,7 +3484,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			cxt.depth.comparison = zFunction;
 			cxt.depth.write 	 = zWrite;
 			cxt.gen.culling = cullModePvr;
-
+#warning "Ellide me!"
 			pvr_poly_hdr_t hdr;
 			pvr_poly_compile(&hdr, &cxt);
 			matfxContexts.back().hdr_cmd = hdr.cmd;
@@ -3496,7 +3493,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			matfxContexts.back().hdr_mode3 = hdr.mode3;
 		}
 
-		pvr_poly_cxt_t cxt;
 		int pvrList;
 		if (doBlend || isMatFX) {
 			if (doAlphaTest && !doBlendMaterial) {
@@ -3506,15 +3502,15 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			}
 		} else {
 			pvrList = PVR_LIST_OP_POLY;
-		}		
+		}
 
-		pvr_poly_hdr_t hdr;
+		meshContexts.emplace_back();
+		auto mc = &meshContexts.back();
 
 		if (textured) {
 			pvr_poly_cxt_txr_fast(
-				&hdr,
+				reinterpret_cast<pvr_poly_hdr_t*>(&mc->hdr_cmd),
 				pvrList,
-
 				pvrFormatForRaster(meshes[n].material->texture->raster),
 				GETDCRASTEREXT(meshes[n].material->texture->raster)->raster->u,
 				GETDCRASTEREXT(meshes[n].material->texture->raster)->raster->v,
@@ -3526,7 +3522,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				meshes[n].material->texture->getAddressV() == Texture::MIRROR ? PVR_UVFLIP_V : PVR_UVFLIP_NONE,
 				meshes[n].material->texture->getAddressV() == Texture::CLAMP ? PVR_UVCLAMP_V : PVR_UVCLAMP_NONE,
 				PVR_UVFMT_16BIT,
-
 				PVR_CLRFMT_4FLOATS,
 				isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
 				isMatFX ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
@@ -3537,9 +3532,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			);
 		} else {
 			pvr_poly_cxt_col_fast(
-				&hdr,
+				reinterpret_cast<pvr_poly_hdr_t*>(&mc->hdr_cmd),
 				pvrList,
-
 				PVR_CLRFMT_4FLOATS,
 				isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
 				isMatFX ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
@@ -3549,19 +3543,11 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				fogFuncPvr
 			);
 		}
-		
-		meshContexts.emplace_back();
-		auto mc = &meshContexts.back();
 
 		mc->color = meshes[n].material->color;
 		mc->ambient = meshes[n].material->surfaceProps.ambient;
 		mc->diffuse = meshes[n].material->surfaceProps.diffuse;
 		mc->matfxContextOffset = isMatFX ? matfxContextOffset : SIZE_MAX;
-
-		mc->hdr_cmd = hdr.cmd;
-		mc->hdr_mode1 = hdr.mode1;
-		mc->hdr_mode2 = hdr.mode2;
-		mc->hdr_mode3 = hdr.mode3;
 
 		// clipping performed per meshlet
 		auto renderCB = [contextId, n] {
