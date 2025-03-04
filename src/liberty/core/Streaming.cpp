@@ -87,7 +87,7 @@ int32 islandLODsubCom;
 
 #define memory_logf(...) // printf(__VA_ARGS__)
 
-#define STREAMING_MEM_SIZE (48 * 1024 * 1024)
+#define STREAMING_MEM_SIZE (4 * 1024 * 1024)
 
 bool
 CStreamingInfo::GetCdPosnAndSize(uint32 &posn, uint32 &size)
