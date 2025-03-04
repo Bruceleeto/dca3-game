@@ -553,6 +553,17 @@ struct sequence_t {
         uint16_t predicted_p = rots.front().fixed_p();
         uint16_t predicted_r = rots.front().fixed_r();
 
+        writer.write<float>(rotations[0].x);
+        writer.write<float>(rotations[0].y);
+        writer.write<float>(rotations[0].z);
+        writer.write<float>(rotations[0].w);
+
+        if (flags & FLAGS_KF_TRANS) {
+            writer.write<float>(trans[0].x);
+            writer.write<float>(trans[0].y);
+            writer.write<float>(trans[0].z);
+        }
+        
         for (int frameId = 1; frameId < times.size(); frameId++) {
             if (flags & FLAGS_HAS_ROT_Y) {
                 int16_t diff = rots[frameId].fixed_y() - predicted_y;
@@ -674,7 +685,18 @@ struct sequence_t {
                 }
 
                 assert_float(predicted_ts, ts[frameId]);
-            }            
+            }
+            
+            writer.write<float>(rotations[frameId].x);
+            writer.write<float>(rotations[frameId].y);
+            writer.write<float>(rotations[frameId].z);
+            writer.write<float>(rotations[frameId].w);
+
+            if (flags & FLAGS_KF_TRANS) {
+                writer.write<float>(trans[frameId].x);
+                writer.write<float>(trans[frameId].y);
+                writer.write<float>(trans[frameId].z);
+            }
         }
 
         memcpy(writer.data() + end_time_offset, &predicted_ts, sizeof(float));
@@ -1008,13 +1030,13 @@ int main(int argc, char **argv)
     }
     StoreAnimComprFile(stream, block);
     fclose(stream);
-    stream = fopen(argv[2], "rb");
-    if (!stream) {
-        fprintf(stderr, "Error: Unable to open output file %s\n", argv[2]);
-        return 2;
-    }
-    auto decompressedBlock = LoadAnimComprFile(stream, block);
-    fclose(stream);
+    // stream = fopen(argv[2], "rb");
+    // if (!stream) {
+    //     fprintf(stderr, "Error: Unable to open output file %s\n", argv[2]);
+    //     return 2;
+    // }
+    // auto decompressedBlock = LoadAnimComprFile(stream, block);
+    // fclose(stream);
 
     return 0;
 }
