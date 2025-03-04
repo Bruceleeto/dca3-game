@@ -2,42 +2,50 @@ IMG_MISC = \
   airport.col \
   airportN.col \
   bank.col \
-  baseball.ifp \
-  biked.ifp \
-  bikeh.ifp \
-  bikes.ifp \
-  bikev.ifp \
   bridge.col \
-  buddy.ifp \
-  chainsaw.ifp \
   cisland.col \
   CLUB.col \
-  coach.ifp \
-  colt45.ifp \
   concerth.col \
   docks.col \
   downtown.col \
   downtows.col \
-  flame.ifp \
   golf.col \
-  grenade.ifp \
   haiti.col \
   haitin.col \
   hotel.col \
   islandsf.col \
-  knife.ifp \
-  lance.ifp \
   lawyers.col \
   littleha.col \
-  m60.ifp \
   mall.col \
   mansion.col \
-  medic.ifp \
   nbeachbt.col \
   nbeach.col \
   nbeachw.col \
   oceandN.col \
   oceandrv.col \
+  stadint.col \
+  starisl.col \
+  stripclb.col \
+  washintn.col \
+  washints.col \
+  yacht.col
+
+IMG_IFP = \
+  baseball.ifp \
+  biked.ifp \
+  bikeh.ifp \
+  bikes.ifp \
+  bikev.ifp \
+  buddy.ifp \
+  chainsaw.ifp \
+  coach.ifp \
+  colt45.ifp \
+  flame.ifp \
+  grenade.ifp \
+  knife.ifp \
+  lance.ifp \
+  m60.ifp \
+  medic.ifp \
   playidles.ifp \
   python.ifp \
   rifle.ifp \
@@ -45,15 +53,9 @@ IMG_MISC = \
   shotgun.ifp \
   skate.ifp \
   sniper.ifp \
-  stadint.col \
-  starisl.col \
-  stripclb.col \
   strip.ifp \
   sunbathe.ifp \
   sword.ifp \
   tec.ifp \
   uzi.ifp \
-  van.ifp \
-  washintn.col \
-  washints.col \
-  yacht.col
+  van.ifp
