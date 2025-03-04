@@ -6,16 +6,22 @@
 void 
 CAnimBlendNode::Init(void)
 {
-	_frameA = -1;
-	_frameB = -1;
+	frameA = -1;
+	frameB = -1;
 	remainingTime = 0.0f;
 	sequence = nil;
 	association = nil;
 }
 
+void CAnimBlendNode::Setup() {
+	player.Init(sequence->keyFrames, sequence->type, sequence->numFrames);
+}
+
 bool
 CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 {
+	assert (player.keyFrames == sequence->keyFrames);
+
 	bool looped = false;
 
 	trans = CVector(0.0f, 0.0f, 0.0f);
@@ -29,17 +35,17 @@ CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
-		float kfAdt = sequence->GetNextTimeDelta();
+		float kfAdt = player.GetDeltaTime(frameA);
 		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
-		if(sequence->type & CAnimBlendSequence::KF_TRANS){
-			auto kfdAt = sequence->GetNextTranslationDelta();
-			auto kfBt = sequence->GetCurrentTranslation();
-			trans = kfBt + t*kfdAt;
+		if(player.type & CAnimBlendSequence::KF_TRANS){
+			auto kfAt = player.GetTranslation(frameA);
+			auto kfBt = player.GetTranslation(frameB);
+			trans = kfBt + t*(kfAt - kfBt);
 			trans *= blend;
 		}
-		if(sequence->type & CAnimBlendSequence::KF_ROT){
-			auto kfAr = sequence->GetNextRotation();
-			auto kfBr = sequence->GetCurrentRotation();
+		if(player.type & CAnimBlendSequence::KF_ROT){
+			auto kfAr = player.GetRotation(frameA);
+			auto kfBr = player.GetRotation(frameB);
 			rot.Slerp(kfBr, kfAr, theta, invSin, t);
 			rot *= blend;
 		}
@@ -54,109 +60,78 @@ CAnimBlendNode::NextKeyFrame(void)
 {
 	bool looped;
 
-	if(sequence->numFrames <= 1)
+	if(player.numFrames <= 1)
 		return false;
 
 	looped = false;
-	_frameB = _frameA;
+	frameB = frameA;
 
 	// Advance as long as we have to
 	while(remainingTime <= 0.0f){
-		_frameA++;
+		frameA++;
 
-		if(_frameA >= sequence->numFrames){
+		if(frameA >= player.numFrames){
 			// reached end of animation
 			if(!association->IsRepeating()){
-				_frameA--;
+				frameA--;
+				frameB = frameA - 1;
+				if(frameB < 0)
+					frameB += player.numFrames;
 				remainingTime = 0.0f;
 				return false;
 			}
 			looped = true;
-			_frameA = 0;
+			frameA = 0;
 		}
-		sequence->AdvanceFrame();
-		remainingTime += sequence->GetNextTimeDelta();
+		player.AdvanceFrame();
+		remainingTime += player.GetDeltaTime(frameA);
 	}
 
-	_frameB = _frameA - 1;
-	if(_frameB < 0)
-		_frameB += sequence->numFrames;
+	frameB = frameA - 1;
+	if(frameB < 0)
+		frameB += player.numFrames;
 
 	CalcDeltas();
 	return looped;
 }
 
-// bool
-// CAnimBlendNode::NextKeyFrameCompressed(void)
-// {
-// 	bool looped;
-
-// 	if(sequence->numFrames <= 1)
-// 		return false;
-
-// 	looped = false;
-// 	frameB = frameA;
-
-// 	// Advance as long as we have to
-// 	while(remainingTime <= 0.0f){
-// 		frameA++;
-
-// 		if(frameA >= sequence->numFrames){
-// 			// reached end of animation
-// 			if(!association->IsRepeating()){
-// 				frameA--;
-// 				remainingTime = 0.0f;
-// 				return false;
-// 			}
-// 			looped = true;
-// 			frameA = 0;
-// 		}
-
-// 		remainingTime += sequence->GetKeyFrameCompressed(frameA)->GetDeltaTime();
-// 	}
-
-// 	frameB = frameA - 1;
-// 	if(frameB < 0)
-// 		frameB += sequence->numFrames;
-
-// 	CalcDeltasCompressed();
-// 	return looped;
-// }
-
 // Set animation to time t
 bool
 CAnimBlendNode::FindKeyFrame(float t)
 {
-	if(sequence->numFrames < 1)
+	if(player.numFrames < 1)
 		return false;
 
-	_frameA = 0;
-	_frameB = _frameA;
+	frameA = 0;
+	frameB = frameA;
+	player.SeekToStart();
 
-	if(sequence->numFrames == 1){
+	assert (player.keyFrames == sequence->keyFrames);
+
+	if(player.numFrames == 1){
 		remainingTime = 0.0f;
 	}else{
 		// advance until t is between frameB and frameA
-		sequence->AdvanceFrame();
-		_frameA++;
-		while (t > sequence->GetNextTimeDelta()) {
-			t -= sequence->GetNextTimeDelta();
-			if (_frameA + 1 >= sequence->numFrames) {
+		// no advance frame here, as it starts from 0
+		frameA++;
+		player.AdvanceFrame();
+		while (t > player.GetDeltaTime(frameA)) {
+			t -= player.GetDeltaTime(frameA);
+			if (frameA + 1 >= player.numFrames) {
 				// reached end of animation
 				if (!association->IsRepeating()) {
 					CalcDeltas();
 					remainingTime = 0.0f;
 					return false;
 				}
-				_frameA = 0;
+				frameA = 0;
 			}
-			_frameB = _frameA;
-
-			sequence->AdvanceFrame();
-			_frameA++;
+			frameB = frameA;
+			player.AdvanceFrame();
+			frameA++;
 		}
 
-		remainingTime = sequence->GetNextTimeDelta() - t;
+		remainingTime = player.GetDeltaTime(frameA) - t;
 	}
 
 	CalcDeltas();
@@ -166,10 +141,10 @@ CAnimBlendNode::FindKeyFrame(float t)
 void
 CAnimBlendNode::CalcDeltas(void)
 {
-	if((sequence->type & CAnimBlendSequence::KF_ROT) == 0)
+	if((player.type & CAnimBlendSequence::KF_ROT) == 0)
 		return;
-	auto kfAr = sequence->GetNextRotation();
-	auto kfBr = sequence->GetCurrentRotation();
+	auto kfAr = player.GetRotation(frameA);
+	auto kfBr = player.GetRotation(frameB);
 	float cos = DotProduct(kfAr, kfBr);
 	if(cos > 1.0f)
 		cos = 1.0f;
@@ -184,12 +159,12 @@ CAnimBlendNode::GetCurrentTranslation(CVector &trans, float weight)
 
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
-		auto kfAdt = sequence->GetNextTimeDelta();
+		auto kfAdt = player.GetDeltaTime(frameA);
 		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
-		if(sequence->type & CAnimBlendSequence::KF_TRANS){
-			auto kfdAt = sequence->GetNextTranslationDelta();
-			auto kfBt = sequence->GetCurrentTranslation();
-			trans = kfBt + t*kfdAt;
+		if(player.type & CAnimBlendSequence::KF_TRANS){
+			auto kfAt = player.GetTranslation(frameA);
+			auto kfBt = player.GetTranslation(frameB);
+			trans = kfBt + t*(kfAt - kfBt);
 			trans *= blend;
 		}
 	}
@@ -203,7 +178,7 @@ CAnimBlendNode::GetEndTranslation(CVector &trans, float weight)
 
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
-		if(sequence->type & CAnimBlendSequence::KF_TRANS){
+		if(player.type & CAnimBlendSequence::KF_TRANS){
 			CVector pos = sequence->GetEndTranslation();
 			trans = pos * blend;
 		}

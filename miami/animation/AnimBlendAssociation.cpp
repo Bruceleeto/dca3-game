@@ -80,8 +80,10 @@ CAnimBlendAssociation::Init(RpClump *clump, CAnimBlendHierarchy *hier)
 			frame = RpAnimBlendClumpFindFrame(clump, seq->name);
 		else
 			frame = RpAnimBlendClumpFindBone(clump, seq->boneTag);
-		if(frame && seq->numFrames > 0)
+		if(frame && seq->numFrames > 0) {
 			nodes[frame - clumpData->frames].sequence = seq;
+			nodes[frame - clumpData->frames].Setup();
+		}
 	}
 }
 
