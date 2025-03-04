@@ -134,7 +134,7 @@ CMBlur::MotionBlurOpen(RwCamera *cam)
 	
 	return TRUE;
 #else
-	RwRect rect = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
+	RwRect rect = { 0, 0, (rw::int32)SCREEN_WIDTH, (rw::int32)SCREEN_HEIGHT };
 	CreateImmediateModeData(cam, &rect);
 	return TRUE;
 #endif
