@@ -8,69 +8,6 @@
 #undef MoveMemory	// windows shit
 #endif
 
-// TODO: put them somewhere else?
-static int16 checked_f2i16(float f) {
-	assert(f >= -32768 && f <= 32767);
-	return f;
-}
-
-static uint16 checked_f2u16(float f) {
-	assert(f >= 0 && f <= 65535);
-	return f;
-}
-
-#define KF_MINDELTA (1/256.f)
-
-struct KeyFrame {
-	int16 rot[4];		// 4096
-	uint16 dltTime;	// 256
-
-	CQuaternion rotation_() {
-		return { rot[0] * (1/4096.f), rot[1] * (1/4096.f), rot[2] * (1/4096.f), rot[3] * (1/4096.f) };
-	}
-
-	void rotation_(const CQuaternion& q) {
-		rot[0] = checked_f2i16(q.x * 4096.0f);
-		rot[1] = checked_f2i16(q.y * 4096.0f);
-		rot[2] = checked_f2i16(q.z * 4096.0f);
-		rot[3] = checked_f2i16(q.w * 4096.0f);
-	}
-
-	float deltaTime_() {
-		return dltTime * (1/256.0f);
-	}
-
-	void deltaTime_(float t) {
-		dltTime = checked_f2u16(t * 256); // always round down
-	}
-};
-
-struct KeyFrameTransUncompressed : KeyFrame {
-	// Some animations use bigger range, eg during the intro
-	CVector trans;
-	CVector translation_() {
-		return trans;
-	}
-
-	void translation_(const CVector &v) {
-		trans = v;
-	}
-};
-
-struct KeyFrameTransCompressed : KeyFrame {
-	int16 trans[3];		// 128
-
-	CVector translation_() {
-		return { trans[0] * (1/128.f), trans[1] * (1/128.f), trans[2] * (1/128.f)};
-	}
-
-	void translation_(const CVector &v) {
-		trans[0] = checked_f2i16(v.x * 128.f);
-		trans[1] = checked_f2i16(v.y * 128.f);
-		trans[2] = checked_f2i16(v.z * 128.f);
-	}
-};
-
 // The sequence of key frames of one animated node
 class CAnimBlendSequence
 {
@@ -180,12 +117,24 @@ public:
             nextRotation = -nextRotation;
         }
 
+		nextRotation.x = read<float>();
+		nextRotation.y = read<float>();
+		nextRotation.z = read<float>();
+		nextRotation.w = read<float>();
+
+		if (type & KF_TRANS) {
+			nextTranslation.x = read<float>();
+			nextTranslation.y = read<float>();
+			nextTranslation.z = read<float>();
+		}
+
 		if (numFrames > 1) {
 			AdvanceFrame();
 		} else {
 			currentTranslation = nextTranslation;
 			currentRotation = nextRotation;
-			nextDeltaTime = 0;
+			nextDeltaTime = startTime;
+			fprintf(stderr, "Warning: Animation %s has only one frame\n", name);
 		}
 	}
 	CQuaternion GetCurrentRotation() {
@@ -216,6 +165,7 @@ public:
 	void AdvanceFrame() {
 		if (++curFrame == numFrames){
 			Init();
+			return;
 		}
 
 		// rotation
@@ -323,6 +273,16 @@ public:
 			if (byteValPacked & 128) {
 				nextRotation = -nextRotation;
 			}
+		}
+		nextRotation.x = read<float>();
+		nextRotation.y = read<float>();
+		nextRotation.z = read<float>();
+		nextRotation.w = read<float>();
+
+		if (type & KF_TRANS) {
+			nextTranslation.x = read<float>();
+			nextTranslation.y = read<float>();
+			nextTranslation.z = read<float>();
 		}
 	}
 
