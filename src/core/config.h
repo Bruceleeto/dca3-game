@@ -311,7 +311,7 @@ enum Config {
 #define DEFAULT_NATIVE_RESOLUTION	// Set default video mode to your native resolution (fixes Windows 10 launch)
 // #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
 // #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
-#define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
+//#define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
 // #define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
 #ifdef DISABLE_LOADING_SCREEN
 // enable the PC splash
@@ -327,7 +327,7 @@ enum Config {
 //#define NEW_RENDERER		// leeds-like world rendering, needs librw
 #endif
 
-#define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc)
+// #define FIX_SPRITES	// fix sprites aspect ratio(moon, coronas, particle etc) // JP - Disabled this as it produces incorrect aspect ratio with custom screen resolutions and is not needed otherwise
 
 #ifndef EXTENDED_COLOURFILTER
 #undef SCREEN_DROPLETS		// we need the backbuffer for this effect

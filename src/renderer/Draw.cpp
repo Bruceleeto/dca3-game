@@ -41,7 +41,11 @@ CDraw::FindAspectRatio(void)
 #else
 	switch (FrontEndMenuManager.m_PrefsUseWideScreen) {
 	case AR_AUTO:
+#ifdef DC_SH4
+		return 4.0f / 3.0f;
+#else	
 		return SCREEN_WIDTH / SCREEN_HEIGHT;
+#endif
 	default:
 	case AR_4_3:
 		return 4.0f / 3.0f;
