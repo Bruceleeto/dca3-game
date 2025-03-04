@@ -35,21 +35,19 @@ CAnimBlendHierarchy::CalcTotalTime(void)
 		if(sequences[i].numFrames == 0)
 			continue;
 #endif
-		float seqTime = 0.0f;
-		for(j = 0; j < sequences[i].numFrames; j++)
-			seqTime += sequences[i].GetDeltaTime(j);
+		float seqTime = sequences->GetEndTime();
 		totalLength = Max(totalLength, seqTime);
 	}
 }
 
-void
-CAnimBlendHierarchy::RemoveQuaternionFlips(void)
-{
-	int i;
+// void
+// CAnimBlendHierarchy::RemoveQuaternionFlips(void)
+// {
+// 	int i;
 
-	for(i = 0; i < numSequences; i++)
-		sequences[i].RemoveQuaternionFlips();
-}
+// 	for(i = 0; i < numSequences; i++)
+// 		sequences[i].RemoveQuaternionFlips();
+// }
 
 void
 CAnimBlendHierarchy::RemoveAnimSequences(void)

@@ -380,6 +380,8 @@ dreamcast/dca3.elf.bin
 dreamcast/dca3-sim.elf
 dreamcast/texconv*
 dreamcast/imgtool*
+dreamcast/animtool*
+dreamcast/adf2mp3*
 dreamcast/extract-sfx*
 dreamcast/pack-sfx*
 dreamcast/analyze-profile*

@@ -12,17 +12,15 @@ public:
 	float theta;		// angle between quaternions
 	float invSin;		// 1/Sin(theta)
 	// indices into array in sequence
-	int32 frameA;		// next key frame
-	int32 frameB;		// previous key frame
+	int32 _frameA;		// next key frame
+	int32 _frameB;		// previous key frame
 	float remainingTime;	// time until frames have to advance
 	CAnimBlendSequence *sequence;
 	CAnimBlendAssociation *association;
 
 	void Init(void);
 	bool Update(CVector &trans, CQuaternion &rot, float weight);
-	bool UpdateCompressed(CVector &trans, CQuaternion &rot, float weight);
 	bool NextKeyFrame(void);
-	bool NextKeyFrameCompressed(void);
 	bool FindKeyFrame(float t);
 	void CalcDeltas(void);
 	void GetCurrentTranslation(CVector &trans, float weight);

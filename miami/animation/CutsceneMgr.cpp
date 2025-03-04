@@ -289,7 +289,7 @@ CCutsceneMgr::SetupCutsceneToStart(void)
 			if (ms_pCutsceneObjects[i]->m_pAttachTo != nil) {
 				pAnimBlendAssoc->flags &= (~ASSOC_HAS_TRANSLATION);
 			} else {
-				ms_pCutsceneObjects[i]->SetPosition(ms_cutsceneOffset + pAnimBlendAssoc->hierarchy->sequences[0].GetTranslation(0));
+				ms_pCutsceneObjects[i]->SetPosition(ms_cutsceneOffset + pAnimBlendAssoc->hierarchy->sequences[0].GetStartTranslation());
 			}
 			pAnimBlendAssoc->SetRun();
 		} else {
