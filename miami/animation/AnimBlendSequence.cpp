@@ -41,6 +41,8 @@ CAnimBlendSequence::SetName(char *name)
 // 	}
 // }
 
+unsigned CAnimBlendPlayer::count = 0;
+
 #ifdef USE_CUSTOM_ALLOCATOR
 bool
 CAnimBlendSequence::MoveMemory(void)
