@@ -1318,8 +1318,6 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 
 			if(strstr(seq->name, "L Toe"))
 				debug("anim %s has toe keyframes\n", hier->name); // BUG: seq->name
-
-			seq->Init();
 		}
 		hier->CalcTotalTime();
 	}
