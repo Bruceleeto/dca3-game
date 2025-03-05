@@ -367,6 +367,8 @@ public:
 			rv.startTranslation = { 0, 0, 0 };
 			rv.endTranslation = { 0, 0, 0 };
 		}
+
+		return rv;
 	}
 
 
