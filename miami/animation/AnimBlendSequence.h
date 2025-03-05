@@ -302,7 +302,7 @@ struct CAnimBlendPlayer {
 class CAnimBlendSequence
 {
 	template <typename T>
-	T read(uint32_t &readOffset) {
+	inline T read(uint32_t &readOffset) {
 		T rv;
 		memcpy(&rv, (uint8_t*)keyFrames + readOffset, sizeof(T));
 		readOffset += sizeof(T);
@@ -331,50 +331,53 @@ public:
 	int16 boneTag;
 	void *keyFrames;
 
-	CVector startTranslation, endTranslation;
-	float endTime;
+	struct InitData {
+		CVector startTranslation, endTranslation;
+		float endTime;
+	};
 
-	void Init() {
+	inline InitData GetInitData() {
+		InitData rv;
 		uint32_t readOffset = 0;
 
 		float startTime = read<float>(readOffset);
-		endTime = read<float>(readOffset);
+		rv.endTime = read<float>(readOffset);
 
 		if (type & KF_TRANS) {
 			if (type & FLAGS_HAS_TRANS_LARGE) {
-                startTranslation.x = read<float>(readOffset);
-                startTranslation.y = read<float>(readOffset);
-                startTranslation.z = read<float>(readOffset);
+                rv.startTranslation.x = read<float>(readOffset);
+                rv.startTranslation.y = read<float>(readOffset);
+                rv.startTranslation.z = read<float>(readOffset);
 
                 // Read final translation (may be used for verification or ignored)
-                endTranslation.x = read<float>(readOffset);
-                endTranslation.y = read<float>(readOffset);
-                endTranslation.z = read<float>(readOffset);
+                rv.endTranslation.x = read<float>(readOffset);
+                rv.endTranslation.y = read<float>(readOffset);
+                rv.endTranslation.z = read<float>(readOffset);
             } else {
-                startTranslation.x = read<int16_t>(readOffset) / 128.f;
-                startTranslation.y = read<int16_t>(readOffset) / 128.f;
-                startTranslation.z = read<int16_t>(readOffset) / 128.f;
+                rv.startTranslation.x = read<int16_t>(readOffset) / 128.f;
+                rv.startTranslation.y = read<int16_t>(readOffset) / 128.f;
+                rv.startTranslation.z = read<int16_t>(readOffset) / 128.f;
 
                 // Read final translation (for completeness)
-                endTranslation.x = read<int16_t>(readOffset) / 128.f;
-                endTranslation.y = read<int16_t>(readOffset) / 128.f;
-                endTranslation.z = read<int16_t>(readOffset) / 128.f;
+                rv.endTranslation.x = read<int16_t>(readOffset) / 128.f;
+                rv.endTranslation.y = read<int16_t>(readOffset) / 128.f;
+                rv.endTranslation.z = read<int16_t>(readOffset) / 128.f;
             }
 		} else {
-			startTranslation = { 0, 0, 0 };
-			endTranslation = { 0, 0, 0 };
+			rv.startTranslation = { 0, 0, 0 };
+			rv.endTranslation = { 0, 0, 0 };
 		}
 	}
 
 
 	CVector GetStartTranslation() {
-		return startTranslation;
+		return GetInitData().startTranslation;
 	}
 	float GetEndTime() {
-		return endTime;
+		return GetInitData().endTime;
 	}
 	CVector GetEndTranslation() {
-		return endTranslation;
+		return GetInitData().endTranslation;
 	}
 
 	CAnimBlendSequence(void);
