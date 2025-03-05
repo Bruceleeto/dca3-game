@@ -15,7 +15,7 @@ public:
 	int32 frameA;		// next key frame
 	int32 frameB;		// previous key frame
 	float remainingTime;	// time until frames have to advance
-	CAnimBlendPlayer player;
+	CAnimBlendPlayer* player;
 	CAnimBlendSequence *sequence;
 	CAnimBlendAssociation *association;
 
@@ -28,6 +28,7 @@ public:
 	void GetEndTranslation(CVector &trans, float weight);
 
 	void Setup();
+	void Destroy();
 };
 
 

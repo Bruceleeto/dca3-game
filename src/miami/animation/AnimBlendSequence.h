@@ -41,6 +41,16 @@ struct CAnimBlendPlayer {
 	float predicted_tx = 0, predicted_ty = 0, predicted_tz = 0;
 	float nextDeltaTime;
 
+	static unsigned count;
+	
+	CAnimBlendPlayer() {
+		count++;
+		fprintf(stderr, "CAnimBlendPlayer count %d\n", count);
+	}
+	~CAnimBlendPlayer() {
+		count--;
+	}
+	
 	template <typename T>
 	T read() {
 		T rv;

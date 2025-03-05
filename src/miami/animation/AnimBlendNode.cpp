@@ -11,16 +11,24 @@ CAnimBlendNode::Init(void)
 	remainingTime = 0.0f;
 	sequence = nil;
 	association = nil;
+	player = nil;
 }
 
 void CAnimBlendNode::Setup() {
-	player.Init(sequence->keyFrames, sequence->type, sequence->numFrames);
+	player = nil;
+	// player->Init(sequence->keyFrames, sequence->type, sequence->numFrames);
+}
+void CAnimBlendNode::Destroy() {
+	if (player) {
+		delete player;
+		player = nil;
+	}
 }
 
 bool
 CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 {
-	assert (player.keyFrames == sequence->keyFrames);
+	assert (player->keyFrames == sequence->keyFrames);
 
 	bool looped = false;
 
@@ -35,17 +43,17 @@ CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
-		float kfAdt = player.GetDeltaTime(frameA);
+		float kfAdt = player->GetDeltaTime(frameA);
 		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
-		if(player.type & CAnimBlendSequence::KF_TRANS){
-			auto kfAt = player.GetTranslation(frameA);
-			auto kfBt = player.GetTranslation(frameB);
+		if(player->type & CAnimBlendSequence::KF_TRANS){
+			auto kfAt = player->GetTranslation(frameA);
+			auto kfBt = player->GetTranslation(frameB);
 			trans = kfBt + t*(kfAt - kfBt);
 			trans *= blend;
 		}
-		if(player.type & CAnimBlendSequence::KF_ROT){
-			auto kfAr = player.GetRotation(frameA);
-			auto kfBr = player.GetRotation(frameB);
+		if(player->type & CAnimBlendSequence::KF_ROT){
+			auto kfAr = player->GetRotation(frameA);
+			auto kfBr = player->GetRotation(frameB);
 			rot.Slerp(kfBr, kfAr, theta, invSin, t);
 			rot *= blend;
 		}
@@ -58,9 +66,10 @@ CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 bool
 CAnimBlendNode::NextKeyFrame(void)
 {
+	assert(player != nil);
 	bool looped;
 
-	if(player.numFrames <= 1)
+	if(player->numFrames <= 1)
 		return false;
 
 	looped = false;
@@ -70,33 +79,33 @@ CAnimBlendNode::NextKeyFrame(void)
 	while(remainingTime <= 0.0f){
 		frameA++;
 
-		if(frameA >= player.numFrames){
+		if(frameA >= player->numFrames){
 			// reached end of animation
 			if(!association->IsRepeating()){
 				frameA--;
 				frameB = frameA - 1;
 				if(frameB < 0)
-					frameB += player.numFrames;
+					frameB += player->numFrames;
 				remainingTime = 0.0f;
 				// // range chekcs
-				// auto kfAt = player.GetTranslation(frameA);
-				// auto kfBt = player.GetTranslation(frameB);
+				// auto kfAt = player->GetTranslation(frameA);
+				// auto kfBt = player->GetTranslation(frameB);
 				return false;
 			}
 			looped = true;
 			frameA = 0;
 		}
-		player.AdvanceFrame();
-		remainingTime += player.GetDeltaTime(frameA);
+		player->AdvanceFrame();
+		remainingTime += player->GetDeltaTime(frameA);
 	}
 
 	frameB = frameA - 1;
 	if(frameB < 0)
-		frameB += player.numFrames;
+		frameB += player->numFrames;
 	
 	// // range chekcs
-	// auto kfAt = player.GetTranslation(frameA);
-	// auto kfBt = player.GetTranslation(frameB);
+	// auto kfAt = player->GetTranslation(frameA);
+	// auto kfBt = player->GetTranslation(frameB);
 
 	CalcDeltas();
 	return looped;
@@ -106,30 +115,34 @@ CAnimBlendNode::NextKeyFrame(void)
 bool
 CAnimBlendNode::FindKeyFrame(float t)
 {
-	if(player.numFrames < 1)
+	if (player == nil) {
+		player = new CAnimBlendPlayer();
+		player->Init(sequence->keyFrames, sequence->type, sequence->numFrames);
+	}
+	if(player->numFrames < 1)
 		return false;
 
 	frameA = 0;
 	frameB = frameA;
-	player.SeekToStart();
+	player->SeekToStart();
 
-	assert (player.keyFrames == sequence->keyFrames);
+	assert (player->keyFrames == sequence->keyFrames);
 
-	if(player.numFrames == 1){
+	if(player->numFrames == 1){
 		remainingTime = 0.0f;
 	}else{
 		// advance until t is between frameB and frameA
 		frameA++;
-		player.AdvanceFrame();
-		while (t > player.GetDeltaTime(frameA)) {
-			t -= player.GetDeltaTime(frameA);
-			if (frameA + 1 >= player.numFrames) {
+		player->AdvanceFrame();
+		while (t > player->GetDeltaTime(frameA)) {
+			t -= player->GetDeltaTime(frameA);
+			if (frameA + 1 >= player->numFrames) {
 				// reached end of animation
 				if (!association->IsRepeating()) {
 					frameA --;
 					// // range chekcs
-					// auto kfAt = player.GetTranslation(frameA);
-					// auto kfBt = player.GetTranslation(frameB);
+					// auto kfAt = player->GetTranslation(frameA);
+					// auto kfBt = player->GetTranslation(frameB);
 					CalcDeltas();
 					remainingTime = 0.0f;
 					return false;
@@ -137,16 +150,16 @@ CAnimBlendNode::FindKeyFrame(float t)
 				frameA = 0;
 			}
 			frameB = frameA;
-			player.AdvanceFrame();
+			player->AdvanceFrame();
 			frameA++;
 		}
 
-		remainingTime = player.GetDeltaTime(frameA) - t;
+		remainingTime = player->GetDeltaTime(frameA) - t;
 	}
 
 	// // range chekcs
-	// auto kfAt = player.GetTranslation(frameA);
-	// auto kfBt = player.GetTranslation(frameB);
+	// auto kfAt = player->GetTranslation(frameA);
+	// auto kfBt = player->GetTranslation(frameB);
 
 	CalcDeltas();
 	return true;
@@ -155,10 +168,10 @@ CAnimBlendNode::FindKeyFrame(float t)
 void
 CAnimBlendNode::CalcDeltas(void)
 {
-	if((player.type & CAnimBlendSequence::KF_ROT) == 0)
+	if((player->type & CAnimBlendSequence::KF_ROT) == 0)
 		return;
-	auto kfAr = player.GetRotation(frameA);
-	auto kfBr = player.GetRotation(frameB);
+	auto kfAr = player->GetRotation(frameA);
+	auto kfBr = player->GetRotation(frameB);
 	float cos = DotProduct(kfAr, kfBr);
 	if(cos > 1.0f)
 		cos = 1.0f;
@@ -173,11 +186,11 @@ CAnimBlendNode::GetCurrentTranslation(CVector &trans, float weight)
 
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
-		auto kfAdt = player.GetDeltaTime(frameA);
+		auto kfAdt = player->GetDeltaTime(frameA);
 		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
-		if(player.type & CAnimBlendSequence::KF_TRANS){
-			auto kfAt = player.GetTranslation(frameA);
-			auto kfBt = player.GetTranslation(frameB);
+		if(player->type & CAnimBlendSequence::KF_TRANS){
+			auto kfAt = player->GetTranslation(frameA);
+			auto kfBt = player->GetTranslation(frameB);
 			trans = kfBt + t*(kfAt - kfBt);
 			trans *= blend;
 		}
@@ -192,7 +205,7 @@ CAnimBlendNode::GetEndTranslation(CVector &trans, float weight)
 
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
-		if(player.type & CAnimBlendSequence::KF_TRANS){
+		if(player->type & CAnimBlendSequence::KF_TRANS){
 			CVector pos = sequence->GetEndTranslation();
 			trans = pos * blend;
 		}
