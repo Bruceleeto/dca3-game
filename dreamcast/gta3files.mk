@@ -1,3 +1,5 @@
+# models/coll/peds.col # seems like this is corrupted
+
 MISC_FILES = \
   \
   txd/LOADSC8.TXD \
@@ -27,7 +29,6 @@ MISC_FILES = \
   models/fonts.txd \
   models/hud.txd \
   models/coll/weapons.col \
-  models/coll/peds.col \
   models/coll/vehicles.col \
   models/coll/generic.col \
   models/MISC.TXD \

@@ -189,7 +189,7 @@ CFileLoader::LoadCollisionFile(const char *filename, uint8 colSlot)
 	assert(fd > 0);
 
 	while(CFileMgr::Read(fd, (char*)&header, sizeof(header))){
-		assert(header.ident == 'LLOC');
+		assert(header.ident == 'CLOC');
 		CFileMgr::Read(fd, (char*)work_buff, header.size);
 		memcpy(modelname, work_buff, 24);
 
@@ -226,7 +226,7 @@ CFileLoader::LoadCollisionFileFirstTime(uint8 *buffer, uint32 size, uint8 colSlo
 	while(size > 8){
 		header = (ColHeader*)buffer;
 		modelsize = header->size;
-		if(header->ident != 'LLOC')
+		if(header->ident != 'CLOC')
 			return size-8 < CDSTREAM_SECTOR_SIZE;
 		memcpy(modelname, buffer+8, 24);
 		memcpy(work_buff, buffer+32, modelsize-24);
@@ -260,7 +260,7 @@ CFileLoader::LoadCollisionFile(uint8 *buffer, uint32 size, uint8 colSlot)
 	while(size > 8){
 		header = (ColHeader*)buffer;
 		modelsize = header->size;
-		if(header->ident != 'LLOC')
+		if(header->ident != 'CLOC')
 			return size-8 < CDSTREAM_SECTOR_SIZE;
 		memcpy(modelname, buffer+8, 24);
 		memcpy(work_buff, buffer+32, modelsize-24);
@@ -345,14 +345,14 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 		model.vertices = (CompressedVector*)RwMalloc(numVertices*sizeof(CompressedVector));
 		REGISTER_MEMPTR(&model.vertices);
 		for(i = 0; i < numVertices; i++){
-			model.vertices[i].Set(*(float*)buf, *(float*)(buf+4), *(float*)(buf+8));
+			model.vertices[i].SetFixed(*(int16*)buf, *(int16*)(buf+2), *(int16*)(buf+4));
 #if 0
 			if(Abs(*(float*)buf) >= 256.0f ||
 			   Abs(*(float*)(buf+4)) >= 256.0f ||
 			   Abs(*(float*)(buf+8)) >= 256.0f)
 				printf("%s:Collision volume too big\n", modelname);
 #endif
-			buf += 12;
+			buf += 6;
 		}
 	}else
 		model.vertices = nil;
@@ -363,8 +363,11 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 		model.triangles = (CColTriangle*)RwMalloc(model.numTriangles*sizeof(CColTriangle));
 		REGISTER_MEMPTR(&model.triangles);
 		for(i = 0; i < model.numTriangles; i++){
-			model.triangles[i].Set(*(int32*)buf, *(int32*)(buf+4), *(int32*)(buf+8), buf[12]);
-			buf += 16;
+			model.triangles[i].Set(*(uint16*)buf, *(uint16*)(buf+2), *(uint16*)(buf+4), buf[6]);
+			buf += 8;
+			assert(model.triangles[i].a < numVertices);
+			assert(model.triangles[i].b < numVertices);
+			assert(model.triangles[i].c < numVertices);
 		}
 	}else
 		model.triangles = nil;

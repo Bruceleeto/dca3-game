@@ -1,4 +1,4 @@
-IMG_MISC = \
+IMG_COL = \
   airport.col \
   airportN.col \
   bank.col \
