@@ -6,42 +6,45 @@
 #include <cstring>
 #include <vector>
 #include <iostream>
+#include <cstdint>
+#include <cmath>
 
 struct Writer: std::vector<uint8_t> {
     template<typename T>
     void write(float v);
-
-    template<>
-    void write<int8_t>(float v) {
-        assert(v >= -127 && v <= 127);
-        push_back(static_cast<int8_t>(v));
-    }
-
-    template<>
-    void write<uint8_t>(float v) {
-        assert(v >= 0 && v <= 255);
-        push_back(static_cast<uint8_t>(v));
-    }
-
-    template<>
-    void write<int16_t>(float v) {
-        assert(v >= -32767 && v <= 32767);
-        int16_t fx = static_cast<int16_t>(v);
-        insert(end(), reinterpret_cast<uint8_t*>(&fx), reinterpret_cast<uint8_t*>(&fx) + sizeof(fx));
-    }
-
-    template<>
-    void write<uint16_t>(float v) {
-        assert(v >= 0 && v <= 65535);
-        int16_t fx = static_cast<uint16_t>(v);
-        insert(end(), reinterpret_cast<uint8_t*>(&fx), reinterpret_cast<uint8_t*>(&fx) + sizeof(fx));
-    }
-
-    template<>
-    void write<float>(float v) {
-        insert(end(), reinterpret_cast<uint8_t*>(&v), reinterpret_cast<uint8_t*>(&v) + sizeof(float));
-    }
 };
+
+
+template<>
+void Writer::write<int8_t>(float v) {
+    assert(v >= -127 && v <= 127);
+    push_back(static_cast<int8_t>(v));
+}
+
+template<>
+void Writer::write<uint8_t>(float v) {
+    assert(v >= 0 && v <= 255);
+    push_back(static_cast<uint8_t>(v));
+}
+
+template<>
+void Writer::write<int16_t>(float v) {
+    assert(v >= -32767 && v <= 32767);
+    int16_t fx = static_cast<int16_t>(v);
+    insert(end(), reinterpret_cast<uint8_t*>(&fx), reinterpret_cast<uint8_t*>(&fx) + sizeof(fx));
+}
+
+template<>
+void Writer::write<uint16_t>(float v) {
+    assert(v >= 0 && v <= 65535);
+    int16_t fx = static_cast<uint16_t>(v);
+    insert(end(), reinterpret_cast<uint8_t*>(&fx), reinterpret_cast<uint8_t*>(&fx) + sizeof(fx));
+}
+
+template<>
+void Writer::write<float>(float v) {
+    insert(end(), reinterpret_cast<uint8_t*>(&v), reinterpret_cast<uint8_t*>(&v) + sizeof(float));
+}
 
 // Example Reader class interface (you need to implement this as appropriate)
 class Reader {
