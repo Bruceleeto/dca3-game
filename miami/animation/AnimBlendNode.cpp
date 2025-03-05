@@ -78,6 +78,9 @@ CAnimBlendNode::NextKeyFrame(void)
 				if(frameB < 0)
 					frameB += player.numFrames;
 				remainingTime = 0.0f;
+				// // range chekcs
+				// auto kfAt = player.GetTranslation(frameA);
+				// auto kfBt = player.GetTranslation(frameB);
 				return false;
 			}
 			looped = true;
@@ -90,6 +93,10 @@ CAnimBlendNode::NextKeyFrame(void)
 	frameB = frameA - 1;
 	if(frameB < 0)
 		frameB += player.numFrames;
+	
+	// // range chekcs
+	// auto kfAt = player.GetTranslation(frameA);
+	// auto kfBt = player.GetTranslation(frameB);
 
 	CalcDeltas();
 	return looped;
@@ -112,7 +119,6 @@ CAnimBlendNode::FindKeyFrame(float t)
 		remainingTime = 0.0f;
 	}else{
 		// advance until t is between frameB and frameA
-		// no advance frame here, as it starts from 0
 		frameA++;
 		player.AdvanceFrame();
 		while (t > player.GetDeltaTime(frameA)) {
@@ -120,6 +126,10 @@ CAnimBlendNode::FindKeyFrame(float t)
 			if (frameA + 1 >= player.numFrames) {
 				// reached end of animation
 				if (!association->IsRepeating()) {
+					frameA --;
+					// // range chekcs
+					// auto kfAt = player.GetTranslation(frameA);
+					// auto kfBt = player.GetTranslation(frameB);
 					CalcDeltas();
 					remainingTime = 0.0f;
 					return false;
@@ -133,6 +143,10 @@ CAnimBlendNode::FindKeyFrame(float t)
 
 		remainingTime = player.GetDeltaTime(frameA) - t;
 	}
+
+	// // range chekcs
+	// auto kfAt = player.GetTranslation(frameA);
+	// auto kfBt = player.GetTranslation(frameB);
 
 	CalcDeltas();
 	return true;

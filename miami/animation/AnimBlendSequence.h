@@ -60,6 +60,8 @@ struct CAnimBlendPlayer {
 
 	void AdvanceFrame() {
 		if (++curFrame == numFrames){
+			currentRotation = nextRotation;
+			currentTranslation = nextTranslation;
 			SeekToStart();
 			return;
 		}
@@ -173,7 +175,8 @@ struct CAnimBlendPlayer {
 	}
 
 	CQuaternion GetRotation(unsigned frame) {
-		if (frame == curFrame -1) {
+		auto lastFrame = curFrame == 0 ? numFrames - 1 : curFrame - 1;
+		if (frame == lastFrame) {
 			return currentRotation;
 		} else if (frame == curFrame) {
 			return nextRotation;
@@ -182,7 +185,8 @@ struct CAnimBlendPlayer {
 		}
 	}
 	CVector GetTranslation(unsigned frame) {
-		if (frame == curFrame-1) {
+		auto lastFrame = curFrame == 0 ? numFrames - 1 : curFrame - 1;
+		if (frame == lastFrame) {
 			return currentTranslation;
 		} else if (frame == curFrame) {
 			return nextTranslation;
@@ -222,6 +226,8 @@ struct CAnimBlendPlayer {
 		numFrames = nF;
 
 		SeekToStart();
+		currentTranslation = nextTranslation;
+		currentRotation = nextRotation;
 	}
 
 	void SeekToStart() {
@@ -275,8 +281,6 @@ struct CAnimBlendPlayer {
 			nextRotation = -nextRotation;
 		}
 
-		currentTranslation = nextTranslation;
-		currentRotation = nextRotation;
 		nextDeltaTime = startTime;
 		curFrame = 0;
 	}
