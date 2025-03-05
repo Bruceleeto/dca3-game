@@ -35,7 +35,7 @@ CAnimBlendHierarchy::CalcTotalTime(void)
 		if(sequences[i].numFrames == 0)
 			continue;
 #endif
-		float seqTime = sequences->GetEndTime();
+		float seqTime = sequences[i].GetEndTime();
 		totalLength = Max(totalLength, seqTime);
 	}
 }
