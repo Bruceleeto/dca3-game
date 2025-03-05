@@ -41,14 +41,14 @@ CAnimBlendAssociation::~CAnimBlendAssociation(void)
 	link.Remove();
 }
 
-static unsigned ndcount = 0;
+// static unsigned ndcount = 0;
 void
 CAnimBlendAssociation::AllocateAnimBlendNodeArray(int n)
 {
 	int i;
 
-	ndcount += numNodes;
-	fprintf(stderr, "ndcount = %d, %lu, %lu\n", ndcount, sizeof(CAnimBlendNode), sizeof(CAnimBlendPlayer));
+	// ndcount += numNodes;
+	// fprintf(stderr, "ndcount = %d, %lu, %lu\n", ndcount, sizeof(CAnimBlendNode), sizeof(CAnimBlendPlayer));
 	nodes = (CAnimBlendNode*)RwMallocAlign(n*sizeof(CAnimBlendNode), 64);
 	for(i = 0; i < n; i++)
 		nodes[i].Init();
@@ -58,7 +58,7 @@ void
 CAnimBlendAssociation::FreeAnimBlendNodeArray(void)
 {
 	if(nodes) {
-		ndcount -= numNodes;
+		// ndcount -= numNodes;
 		for(unsigned i = 0; i < numNodes; i++)
 			nodes[i].Destroy();
 		RwFreeAlign(nodes);

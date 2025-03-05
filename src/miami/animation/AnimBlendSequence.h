@@ -42,15 +42,15 @@ struct CAnimBlendPlayer {
 	float nextDeltaTime;
 
 	#if !defined(DC_TEXCONV)
-	static unsigned count;
+	// static unsigned count;
 
-	CAnimBlendPlayer() {
-		count++;
-		fprintf(stderr, "CAnimBlendPlayer count %d\n", count);
-	}
-	~CAnimBlendPlayer() {
-		count--;
-	}
+	// CAnimBlendPlayer() {
+	// 	count++;
+	// 	fprintf(stderr, "CAnimBlendPlayer count %d\n", count);
+	// }
+	// ~CAnimBlendPlayer() {
+	// 	count--;
+	// }
 	#endif
 	
 	template <typename T>
