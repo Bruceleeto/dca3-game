@@ -54,19 +54,64 @@ struct CAnimBlendPlayer {
 	#endif
 	
 	template <typename T>
-	T read() {
+	T read_unaligned(uint32_t ro) {
 		T rv;
-		memcpy(&rv, (uint8_t*)keyFrames + readOffset, sizeof(T));
+		for (unsigned i = 0; i < sizeof(T); i++) {
+			((uint8_t*)&rv)[i] = ((uint8_t*)keyFrames)[ro];
+			ro++;
+		}
+		readOffset = ro;
+		return rv;
+	}
+	template <typename T>
+	__always_inline T read() {
+		if (!(readOffset & (sizeof(T) -1))) {
+			return read_aligned<T>();
+		} else {
+			return read_unaligned<T>(readOffset);
+		}
+	}
+
+	template <typename T>
+	__always_inline T read_aligned() {
+		T rv;
+		rv = *(T*)((uint8_t*)keyFrames + readOffset);
 		readOffset += sizeof(T);
 		return rv;
 	}
 
-	CQuaternion fromSphericalFixed(uint16_t y, uint16_t p, uint16_t r) {
+	__always_inline CQuaternion fromSphericalFixed(uint16_t y, uint16_t p, uint16_t r) {
 		CQuaternion q;
-		q.w = cos((y / 65536.0f) * 2 * M_PI) * cos((p / 65536.0f) * 2 * M_PI);
-		q.x = cos((y / 65536.0f) * 2 * M_PI) * sin((p / 65536.0f) * 2 * M_PI);
-		q.y = sin((y / 65536.0f) * 2 * M_PI) * cos((r / 65536.0f) * 2 * M_PI);
-		q.z = sin((y / 65536.0f) * 2 * M_PI) * sin((r / 65536.0f) * 2 * M_PI);
+		#if !defined(DC_SH4)
+			q.w = cos((y / 65536.0f) * 2 * M_PI) * cos((p / 65536.0f) * 2 * M_PI);
+			q.x = cos((y / 65536.0f) * 2 * M_PI) * sin((p / 65536.0f) * 2 * M_PI);
+			q.y = sin((y / 65536.0f) * 2 * M_PI) * cos((r / 65536.0f) * 2 * M_PI);
+			q.z = sin((y / 65536.0f) * 2 * M_PI) * sin((r / 65536.0f) * 2 * M_PI);
+		#else
+			register float __ys __asm__("fr0");
+			register float __yc __asm__("fr1");
+			register float __ps __asm__("fr2");
+			register float __pc __asm__("fr3");
+			register float __rs __asm__("fr4");
+			register float __rc __asm__("fr5");
+
+			__asm__ __volatile__( 
+				R"(
+					lds	%[y],fpul
+					fsca fpul, dr0
+					lds	%[p],fpul
+					fsca fpul, dr2
+					lds	%[r],fpul
+					fsca fpul, dr4
+				)"
+				: "=f" (__ys), "=f" (__yc), "=f" (__ps), "=f" (__pc), "=f" (__rs), "=f" (__rc)
+				: "0" (__ys), "1" (__yc), "2" (__ps), "3" (__pc), "4" (__rs), "5" (__rc), [y]"r"(y), [p]"r"(p), [r]"r"(r));
+			
+			q.w = __yc * __pc;
+			q.x = __yc * __ps;
+			q.y = __ys * __rc;
+			q.z = __ys * __rs;
+		#endif
 		return q;
 	}
 
@@ -244,37 +289,37 @@ struct CAnimBlendPlayer {
 
 	void SeekToStart() {
 		readOffset = 0;
-		float startTime = read<float>();
-		float endTime = read<float>();
+		float startTime = read_aligned<float>();
+		float endTime = read_aligned<float>();
 
 		if (type & KF_TRANS) {
 			CVector startTranslation;
 			if (type & FLAGS_HAS_TRANS_LARGE) {
-				startTranslation.x = read<float>();
-				startTranslation.y = read<float>();
-				startTranslation.z = read<float>();
+				startTranslation.x = read_aligned<float>();
+				startTranslation.y = read_aligned<float>();
+				startTranslation.z = read_aligned<float>();
 				predicted_tx = startTranslation.x;
 				predicted_ty = startTranslation.y;
 				predicted_tz = startTranslation.z;
 
 				CVector endTranslation;
 				// Read final translation (may be used for verification or ignored)
-				endTranslation.x = read<float>();
-				endTranslation.y = read<float>();
-				endTranslation.z = read<float>();
+				endTranslation.x = read_aligned<float>();
+				endTranslation.y = read_aligned<float>();
+				endTranslation.z = read_aligned<float>();
 			} else {
-				startTranslation.x = read<int16_t>() / 128.f;
-				startTranslation.y = read<int16_t>() / 128.f;
-				startTranslation.z = read<int16_t>() / 128.f;
+				startTranslation.x = read_aligned<int16_t>() / 128.f;
+				startTranslation.y = read_aligned<int16_t>() / 128.f;
+				startTranslation.z = read_aligned<int16_t>() / 128.f;
 				predicted_tx = startTranslation.x;
 				predicted_ty = startTranslation.y;
 				predicted_tz = startTranslation.z;
 
 				CVector endTranslation;
 				// Read final translation (for completeness)
-				endTranslation.x = read<int16_t>() / 128.f;
-				endTranslation.y = read<int16_t>() / 128.f;
-				endTranslation.z = read<int16_t>() / 128.f;
+				endTranslation.x = read_aligned<int16_t>() / 128.f;
+				endTranslation.y = read_aligned<int16_t>() / 128.f;
+				endTranslation.z = read_aligned<int16_t>() / 128.f;
 			}
 
 			nextTranslation = startTranslation;
@@ -284,9 +329,9 @@ struct CAnimBlendPlayer {
 			nextTranslation = startTranslation;
 		}
 
-		predicted_y = read<uint16_t>();
-		predicted_p = read<uint16_t>();
-		predicted_r = read<uint16_t>();
+		predicted_y = read_aligned<uint16_t>();
+		predicted_p = read_aligned<uint16_t>();
+		predicted_r = read_aligned<uint16_t>();
 		nextRotation = fromSphericalFixed(predicted_y, predicted_p, predicted_r);
 
 		if (type & FLAGS_QUAT0_NEG) {
@@ -302,9 +347,9 @@ struct CAnimBlendPlayer {
 class CAnimBlendSequence
 {
 	template <typename T>
-	inline T read(uint32_t &readOffset) {
+	__always_inline T read_aligned(uint32_t &readOffset) {
 		T rv;
-		memcpy(&rv, (uint8_t*)keyFrames + readOffset, sizeof(T));
+		rv = *(T*)((uint8_t*)keyFrames + readOffset);
 		readOffset += sizeof(T);
 		return rv;
 	}
@@ -336,32 +381,32 @@ public:
 		float endTime;
 	};
 
-	inline InitData GetInitData() {
+	__always_inline InitData GetInitData() {
 		InitData rv;
 		uint32_t readOffset = 0;
 
-		float startTime = read<float>(readOffset);
-		rv.endTime = read<float>(readOffset);
+		float startTime = read_aligned<float>(readOffset);
+		rv.endTime = read_aligned<float>(readOffset);
 
 		if (type & KF_TRANS) {
 			if (type & FLAGS_HAS_TRANS_LARGE) {
-                rv.startTranslation.x = read<float>(readOffset);
-                rv.startTranslation.y = read<float>(readOffset);
-                rv.startTranslation.z = read<float>(readOffset);
+                rv.startTranslation.x = read_aligned<float>(readOffset);
+                rv.startTranslation.y = read_aligned<float>(readOffset);
+                rv.startTranslation.z = read_aligned<float>(readOffset);
 
                 // Read final translation (may be used for verification or ignored)
-                rv.endTranslation.x = read<float>(readOffset);
-                rv.endTranslation.y = read<float>(readOffset);
-                rv.endTranslation.z = read<float>(readOffset);
+                rv.endTranslation.x = read_aligned<float>(readOffset);
+                rv.endTranslation.y = read_aligned<float>(readOffset);
+                rv.endTranslation.z = read_aligned<float>(readOffset);
             } else {
-                rv.startTranslation.x = read<int16_t>(readOffset) / 128.f;
-                rv.startTranslation.y = read<int16_t>(readOffset) / 128.f;
-                rv.startTranslation.z = read<int16_t>(readOffset) / 128.f;
+                rv.startTranslation.x = read_aligned<int16_t>(readOffset) / 128.f;
+                rv.startTranslation.y = read_aligned<int16_t>(readOffset) / 128.f;
+                rv.startTranslation.z = read_aligned<int16_t>(readOffset) / 128.f;
 
                 // Read final translation (for completeness)
-                rv.endTranslation.x = read<int16_t>(readOffset) / 128.f;
-                rv.endTranslation.y = read<int16_t>(readOffset) / 128.f;
-                rv.endTranslation.z = read<int16_t>(readOffset) / 128.f;
+                rv.endTranslation.x = read_aligned<int16_t>(readOffset) / 128.f;
+                rv.endTranslation.y = read_aligned<int16_t>(readOffset) / 128.f;
+                rv.endTranslation.z = read_aligned<int16_t>(readOffset) / 128.f;
             }
 		} else {
 			rv.startTranslation = { 0, 0, 0 };
