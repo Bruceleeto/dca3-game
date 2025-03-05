@@ -188,8 +188,8 @@ inline uint32 ldb(uint32 p, uint32 s, uint32 w)
 		#define SCREEN_HEIGHT ((float)448)
 	#endif
 #else
-#define SCREEN_WIDTH  ((float)RsGlobal.width)
-#define SCREEN_HEIGHT ((float)RsGlobal.height)
+extern float SCREEN_WIDTH;
+extern float SCREEN_HEIGHT;
 #endif
 
 #define SCREEN_HEIGHT_PAL ((float)512)

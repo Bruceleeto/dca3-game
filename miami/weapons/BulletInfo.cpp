@@ -136,31 +136,28 @@ void CBulletInfo::Update(void)
 					}
 					pPed->InflictDamage(pBullet->m_pSource, pBullet->m_eWeaponType, pBullet->m_nDamage, (ePedPieceTypes)point.pieceB, pPed->GetLocalDirection(pPed->GetPosition() - point.point));
 					CEventList::RegisterEvent(pPed->m_nPedType == PEDTYPE_COP ? EVENT_SHOOT_COP : EVENT_SHOOT_PED, EVENT_ENTITY_PED, pPed, (CPed*)pBullet->m_pSource, 1000);
-					pBullet->m_bInUse = false;
-#ifdef SQUEEZE_PERFORMANCE
-					bulletInfoInUse--;
-#endif
-					vecNewPos = point.point;
-				}
-				if (CGame::nastyGame) {
-					CVector vecParticleDirection = (point.point - pPed->GetPosition()) * 0.01f;
-					vecParticleDirection.z = 0.01f;
-					if (pPed->GetIsOnScreen()) {
-						for (int j = 0; j < NUM_PED_BLOOD_PARTICLES; j++)
-							CParticle::AddParticle(PARTICLE_BLOOD_SMALL, point.point + BLOOD_PARTICLE_OFFSET, vecParticleDirection);
-					}
-					if (pPed->GetPedState() == PED_DEAD) {
-						CAnimBlendAssociation* pAnim;
-						if (RpAnimBlendClumpGetFirstAssociation(pPed->GetClump(), ASSOC_FRONTAL))
-							pAnim = CAnimManager::BlendAnimation(pPed->GetClump(), ASSOCGRP_STD, ANIM_STD_HIT_FLOOR_FRONT, 8.0f);
-						else
-							pAnim = CAnimManager::BlendAnimation(pPed->GetClump(), ASSOCGRP_STD, ANIM_STD_HIT_FLOOR, 8.0f);
-						if (pAnim) {
-							pAnim->SetCurrentTime(0.0f);
-							pAnim->flags |= ASSOC_RUNNING;
-							pAnim->flags &= ~ASSOC_FADEOUTWHENDONE;
+
+					if (CGame::nastyGame) {
+						CVector vecParticleDirection = (point.point - pPed->GetPosition()) * 0.01f;
+						vecParticleDirection.z = 0.01f;
+						if (pPed->GetIsOnScreen()) {
+							for (int j = 0; j < NUM_PED_BLOOD_PARTICLES; j++)
+								CParticle::AddParticle(PARTICLE_BLOOD_SMALL, point.point + BLOOD_PARTICLE_OFFSET, vecParticleDirection);
+						}
+						if (pPed->GetPedState() == PED_DEAD) {
+							CAnimBlendAssociation* pAnim;
+							if (RpAnimBlendClumpGetFirstAssociation(pPed->GetClump(), ASSOC_FRONTAL))
+								pAnim = CAnimManager::BlendAnimation(pPed->GetClump(), ASSOCGRP_STD, ANIM_STD_HIT_FLOOR_FRONT, 8.0f);
+							else
+								pAnim = CAnimManager::BlendAnimation(pPed->GetClump(), ASSOCGRP_STD, ANIM_STD_HIT_FLOOR, 8.0f);
+							if (pAnim) {
+								pAnim->SetCurrentTime(0.0f);
+								pAnim->flags |= ASSOC_RUNNING;
+								pAnim->flags &= ~ASSOC_FADEOUTWHENDONE;
+							}
 						}
 					}
+
 					pBullet->m_bInUse = false;
 #ifdef SQUEEZE_PERFORMANCE
 					bulletInfoInUse--;
