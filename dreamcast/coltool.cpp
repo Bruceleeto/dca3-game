@@ -145,6 +145,11 @@ int main(int argc, char* argv[]) {
         }
         // === End repackaging of collision model data ===
 
+        // align to 4 bytes
+        while (out_buff.size() & 3) {
+            out_buff.push_back(0);
+        }
+
         // Update header.size to match our repackaged chunk size.
         header.size = static_cast<int32_t>(out_buff.size());
 
