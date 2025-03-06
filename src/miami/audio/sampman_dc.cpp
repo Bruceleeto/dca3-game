@@ -178,6 +178,8 @@ uintptr_t gPlayerTalkData = 0;
 uint32 gPlayerTalkReqId = 0;
 #endif
 
+static int32 DCStreamedLength[TOTAL_STREAMED_SOUNDS];
+
 struct WavHeader {
     // RIFF Header
     char riff[4];        // RIFF Header Magic header
@@ -466,6 +468,21 @@ cSampleManager::Initialise(void)
 	fdPedSfx = fs_open(SampleBankDataFilename, O_RDONLY);
 
 	assert(fdPedSfx >= 0);
+
+	for (unsigned nFile = 0; nFile < TOTAL_STREAMED_SOUNDS; nFile++) {
+		file_t fd = fs_open(DCStreamedNameTable[nFile], O_RDONLY);
+
+		assert(fd >= 0);
+		WavHeader hdr;
+		assert(fs_read(fd, &hdr, sizeof(hdr)) == sizeof(hdr));
+
+		uint64_t rv64 = (uint64_t)hdr.dataSize * 2000 / hdr.numOfChan / hdr.samplesPerSec;
+
+		assert(rv64 <= INT32_MAX);
+		DCStreamedLength[nFile] = (int32)rv64;
+
+		fs_close(fd);
+	}
 
 	_bSampmanInitialised = true;
 	return TRUE;
@@ -1247,14 +1264,16 @@ int32
 cSampleManager::GetStreamedFilePosition(uint8 nStream)
 {
 	ASSERT( nStream < MAX_STREAMS );
-	int32 rv = 0;
+	int32 rv;
 
-	int64_t rv64 = (int64_t)streams[nStream].played_samples * 1000 / streams[nStream].rate;
-	assert(rv64 <= INT32_MAX);
-	rv = (int32)rv64;
-	// if(streams[nStream].fd >= 0) {
-	// 	rv = fs_tell(streams[nStream].fd);
-	// }
+	if (streams[nStream].fd >= 0) {
+		int64_t rv64 = (int64_t)streams[nStream].played_samples * 1000 / streams[nStream].rate;
+		assert(rv64 <= INT32_MAX);
+		rv = (int32)rv64;
+	} else {
+		rv = 0;
+	}
+	
 	debugf("GetStreamedFilePosition: %d %d\n", nStream, rv);
 	return rv;
 }
@@ -1289,22 +1308,12 @@ int32
 cSampleManager::GetStreamedFileLength(uint8 nFile)
 {
 	ASSERT( nFile < TOTAL_STREAMED_SOUNDS );
-	int32 rv = 1; // Look in MusicManager.cpp:268
-	file_t fd = fs_open(DCStreamedNameTable[nFile], O_RDONLY);
 
-	assert(fd >= 0);
-	WavHeader hdr;
-	assert(fs_read(fd, &hdr, sizeof(hdr)) == sizeof(hdr));
-
-	uint64_t rv64 = (uint64_t)hdr.dataSize * 2000 / hdr.numOfChan / hdr.samplesPerSec;
-
-	assert(rv64 <= INT32_MAX);
-	rv = (int32)rv64;
-
-	fs_close(fd);
+	auto rv = DCStreamedLength[nFile];
 
 	debugf("GetStreamedFileLength: %d %d\n", nFile, rv);
-	return rv <= 0 ? 1 : rv;
+
+	return rv;
 }
 
 bool8
