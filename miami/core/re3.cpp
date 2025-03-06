@@ -1189,6 +1189,8 @@ const int   re3_buffsize = 1024;
 static char re3_buff[re3_buffsize];
 #endif
 
+extern void stacktrace();
+
 #ifndef MASTER
 void re3_assert(const char *expr, const char *filename, unsigned int lineno, const char *func)
 {
@@ -1239,8 +1241,22 @@ void re3_assert(const char *expr, const char *filename, unsigned int lineno, con
 	abort();
 #else
 	// TODO
-	printf("\nREVC ASSERT FAILED\n\tFile: %s\n\tLine: %d\n\tFunction: %s\n\tExpression: %s\n",filename,lineno,func,expr);
-	assert(false);
+	fflush(stdout);
+	fflush(stderr);
+	dbglog(DBG_CRITICAL, "\nRE3 ASSERT FAILED\n\tFile: %s\n\tLine: %d\n\tFunction: %s\n\tExpression: %s\n",filename,lineno,func,expr);
+	dbglog(DBG_CRITICAL, "POSIX error (may not be relevant): %s\n", strerror(errno));
+	#if defined(DC_SIM) || defined(DC_TEXCONV)
+	for(;;);
+	#else
+	stacktrace();
+    dbgio_dev_select("fb");
+	sleep(1);
+	dbglog(DBG_CRITICAL, "RE3 ASSERT FAILED\n\tFile: %s\n\tLine: %d\n\tFunction: %s\n\tExpression: %s\n",filename,lineno,func,expr);
+	dbglog(DBG_CRITICAL, "POSIX error (may not be relevant): %s\n", strerror(errno));
+	stacktrace();
+	dbgio_flush();
+	abort();
+	#endif
 #endif
 }
 #endif
