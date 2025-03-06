@@ -1064,6 +1064,8 @@ void
 cSampleManager::PreloadStreamedFile(uint32 nFile, uint8 nStream, uint32_t seek_bytes_aligned)
 {
 	ASSERT( nStream < MAX_STREAMS );
+	ASSERT( nFile < TOTAL_STREAMED_SOUNDS );
+
 	file_t f = fs_open(DCStreamedNameTable[nFile], O_RDONLY);
 	debugf("PreloadStreamedFile(%p, %d, %d) is %s\n", f, nFile, nStream, DCStreamedNameTable[nFile]);
 	assert(f >= 0 );
@@ -1080,12 +1082,13 @@ cSampleManager::PreloadStreamedFile(uint32 nFile, uint8 nStream, uint32_t seek_b
 			streams[nStream].playing = false;
 			aica_stop_chn(streams[nStream].mapped_ch[0]);
 			aica_stop_chn(streams[nStream].mapped_ch[1]);
-			
-			if (streams[nStream].fd >= 0) {
-				CdStreamDiscardAudioRead(streams[nStream].fd);
-				fs_close(streams[nStream].fd);
-			}
 		}
+
+		if (streams[nStream].fd >= 0) {
+			CdStreamDiscardAudioRead(streams[nStream].fd);
+			fs_close(streams[nStream].fd);
+		}
+		streams[nStream].fd = -1;
 
 		streams[nStream].rate = hdr.samplesPerSec;
 		streams[nStream].stereo = hdr.numOfChan == 2;
@@ -1342,7 +1345,7 @@ cSampleManager::InitialiseSampleBanks(void)
 	for (uint32 i = PLAYER_COMMENTS_START; i <= PLAYER_COMMENTS_END; i++)
 	nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
 
-	debugf(stderr, "Max player comment size: %d\n", nMaxPlayerSize);
+	debugf("Max player comment size: %d\n", nMaxPlayerSize);
 	gPlayerTalkData = snd_mem_malloc(nMaxPlayerSize);
 	ASSERT(gPlayerTalkData != 0);
 
