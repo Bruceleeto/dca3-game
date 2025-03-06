@@ -8,11 +8,19 @@
 enum Config {
 	NUMPLAYERS = 1,
 
-	NUMCDIMAGES = 1, // default = 6 // gta3.img duplicates (not used on PC)
-	MAX_CDIMAGES = 1, // default = 8 // additional cdimages
-	MAX_CDCHANNELS = 2, // default = 5
+#if defined(DC_SQUEEZE_RAM)
+	NUMCDIMAGES = 1, // gta3.img duplicates (not used on PC)
+	MAX_CDIMAGES = 1, // additional cdimages
+	MAX_CDCHANNELS = 2,
 
-	MODELINFOSIZE = 4900,	// default = 6500 // 4900 on PS2
+	MODELINFOSIZE = 4900,	// 4900 on PS2
+#else
+	NUMCDIMAGES = 6, // gta3.img duplicates (not used on PC)
+	MAX_CDIMAGES = 8, // additional cdimages
+	MAX_CDCHANNELS = 5,
+
+	MODELINFOSIZE = 6500,	// 4900 on PS2
+#endif
 	TXDSTORESIZE = 1385,
 	COLSTORESIZE = 31,
 	EXTRADIRSIZE = 256,
@@ -26,15 +34,32 @@ enum Config {
 	VEHICLEMODELSIZE = 110,
 	TWODFXSIZE = 1210,
 
-	MAXVEHICLESLOADED = 25, // default = 50 // 70 on mobile
+#if defined(DC_SQUEEZE_RAM)
+	MAXVEHICLESLOADED = 25, // 70 on mobile
+#else
+	MAXVEHICLESLOADED = 50, // 70 on mobile
+#endif
 
 	NUMOBJECTINFO = 210,
 
 	// Pool sizes
-	NUMPTRNODES = 27500, // default = 50000
-	NUMENTRYINFOS = 3200, // default = 3200
-	NUMPEDS = 30, // default = 140
-	NUMVEHICLES = 30, // default = 110
+	#if defined(DC_SQUEEZE_RAM)
+	NUMPTRNODES = 27500,
+	#elif defined(DC_ORIGINAL_RAM)
+	NUMPTRNODES = 50000,
+	#else
+	NUMPTRNODES = 40000,	// This is the most important one to reduce
+	#endif
+
+	#if defined(DC_SQUEEZE_RAM)
+	NUMENTRYINFOS = 3200,
+	NUMPEDS = 50,
+	NUMVEHICLES = 50,
+	#else
+	NUMENTRYINFOS = 3200,
+	NUMPEDS = 140,
+	NUMVEHICLES = 110,
+	#endif
 	NUMBUILDINGS = 7000,
 	NUMTREADABLES = 1,
 	NUMOBJECTS = 460,
@@ -125,8 +150,8 @@ enum Config {
 	NUMROADBLOCKS = 300,
 	NUM_SCRIPT_ROADBLOCKS = 16,
 
-	NUMVISIBLEENTITIES = 1000,  // default = 2000
-	NUMINVISIBLEENTITIES = 100, // default = 150
+	NUMVISIBLEENTITIES = 2000,
+	NUMINVISIBLEENTITIES = 150,
 
 	NUM_AUDIOENTITY_EVENTS = 4,
 	NUM_PED_COMMENTS_SLOTS = 20,
@@ -373,7 +398,7 @@ enum Config {
 
 #	ifdef CUSTOM_FRONTEND_OPTIONS
 #		define GRAPHICS_MENU_OPTIONS // otherwise Display settings will be scrollable
-//#		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU
+#		define NO_ISLAND_LOADING  // disable loadscreen between islands via loading all island data at once, consumes more memory and CPU
 #		define CUTSCENE_BORDERS_SWITCH
 #		define MULTISAMPLING		// adds MSAA option
 #		define INVERT_LOOK_FOR_PAD // enable the hidden option
