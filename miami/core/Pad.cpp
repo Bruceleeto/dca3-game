@@ -2025,6 +2025,7 @@ void CPad::Update(int16 pad)
 				NewState.RightStickX	= 0;
 				NewState.RightStickY	= 0;
 				NewState.RightShock		= 0;
+				NewState.LeftShoulder1  = 0;
 			}
 			else
 			{
@@ -2047,6 +2048,8 @@ void CPad::Update(int16 pad)
 				NewState.RightStickX	= state->joy2x;
 				NewState.RightStickY	= state->joy2y;
 				NewState.RightShock		= state->dpad_left;
+
+				NewState.LeftShoulder1  = (state->rtrig > 128 && state->ltrig > 128) ? 255 : 0;
 			}
 
 		} 
@@ -2072,6 +2075,7 @@ void CPad::Update(int16 pad)
 			NewState.RightStickX	= 0;
 			NewState.RightStickY	= 0;
 			NewState.RightShock		= 0;
+			NewState.LeftShoulder1  = 0;
 		}
 
 		// if (old_contMaple == nullptr && contMaple != nullptr)
