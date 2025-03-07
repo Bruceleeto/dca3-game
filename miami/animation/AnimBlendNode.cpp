@@ -139,7 +139,6 @@ CAnimBlendNode::FindKeyFrame(float t)
 			if (frameA + 1 >= player->numFrames) {
 				// reached end of animation
 				if (!association->IsRepeating()) {
-					frameA --;
 					// // range chekcs
 					// auto kfAt = player->GetTranslation(frameA);
 					// auto kfBt = player->GetTranslation(frameB);
@@ -150,8 +149,8 @@ CAnimBlendNode::FindKeyFrame(float t)
 				frameA = 0;
 			}
 			frameB = frameA;
-			player->AdvanceFrame();
 			frameA++;
+			player->AdvanceFrame();
 		}
 
 		remainingTime = player->GetDeltaTime(frameA) - t;
