@@ -4336,7 +4336,6 @@ static pvr_init_params_t pvr_params = {
 				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
 				PVR_BINSIZE_8
 	},
-	.vertex_buf_size = (1024 + 512) * 1024,
 	.dma_enabled = 0,
 	.fsaa_enabled = 0,
 	.autosort_disabled = true,
@@ -4416,6 +4415,7 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 			SCREEN_WIDTH = videoModes[VIDEO_MODE].width;
 			SCREEN_HEIGHT = videoModes[VIDEO_MODE].height;
 			pvr_params.fsaa_enabled = n;
+			pvr_params.vertex_buf_size = pvr_params.fsaa_enabled ? ((1024 + 640) * 1024) : (2048 * 1024);
 
 			return 1;
 		}
@@ -4474,6 +4474,10 @@ static void*
 driverOpen(void *o, int32, int32)
 {
 	makeVideoModeList();
+
+	dbglog(DBG_CRITICAL, "Initializing PVR: %dx%d\n", SCREEN_WIDTH, SCREEN_HEIGHT);
+	dbglog(DBG_CRITICAL, "vbuf: %d\n", pvr_params.vertex_buf_size);
+	dbglog(DBG_CRITICAL, "fsaa: %d\n", pvr_params.fsaa_enabled);
 
     pvr_init(&pvr_params);
 
