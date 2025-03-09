@@ -369,9 +369,8 @@ src/extras/GitSHA1.cpp
 
 liberty/1ST_READ.BIN
 liberty/IP.BIN
-liberty/dca-liberty.cdi
-liberty/dca-liberty.iso
-liberty/dca-liberty.ds.iso
+liberty/*.cdi
+liberty/*.iso
 liberty/dca-liberty.elf
 liberty/dca-liberty.elf.bin
 liberty/dca-liberty-sim.elf
@@ -387,9 +386,8 @@ liberty/git-version
 
 miami/1ST_READ.BIN
 miami/IP.BIN
-miami/dca-miami.cdi
-miami/dca-miami.iso
-miami/dca-miami.ds.iso
+miami/*.cdi
+miami/*.iso
 miami/dca-miami.elf
 miami/dca-miami.elf.bin
 miami/dca-miami-sim.elf
@@ -399,6 +397,7 @@ miami/extract-sfx*
 miami/pack-sfx*
 miami/analyze-profile*
 miami/aud2adpcm*
+miami/adf2mp3*
 miami/repack-data
 miami/output.map
 miami/git-version

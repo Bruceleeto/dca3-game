@@ -174,9 +174,9 @@ $(TARGET): $(OBJS)
 run: $(TARGET)
 	$(KOS_LOADER) $(TARGET)
 
-$(REPACK_GTA_DIR)/GTA3SF8.b: GTA3SF8.b
-	mkdir -p $(@D)
-	cp $< $@
+# $(REPACK_GTA_DIR)/GTA3SF8.b: GTA3SF8.b
+# 	mkdir -p $(@D)
+# 	cp $< $@
 
 1ST_READ.BIN: $(TARGET)
 	rm -f $(TARGET).bin
@@ -193,20 +193,20 @@ IP.BIN:
 	rm -f IP.BIN
 	$(KOS_BASE)/utils/makeip/makeip ip.txt IP.BIN
 
-$(PROJECT_NAME).iso: IP.BIN 1ST_READ.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME).iso: IP.BIN 1ST_READ.BIN $(REPACK_DIR)/repacked # $(REPACK_GTA_DIR)/GTA3SF8.b
 	rm -f $(PROJECT_NAME).iso
 	rm -f $(REPACK_GTA_DIR)/1ST_READ.BIN
 	cp 1ST_READ.BIN $(REPACK_GTA_DIR)
 	mkisofs -C 0,11702 -V $(PROJECT_NAME) -G IP.BIN -r -J -l -o $(PROJECT_NAME).iso $(REPACK_GTA_DIR)
 
-$(PROJECT_NAME)-no-repack.iso: IP.BIN 1ST_READ.BIN $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME)-no-repack.iso: IP.BIN 1ST_READ.BIN # $(REPACK_GTA_DIR)/GTA3SF8.b
 	rm -f $(PROJECT_NAME)-no-repack.iso
 	rm -f $(REPACK_GTA_DIR)/1ST_READ.BIN
 	cp 1ST_READ.BIN $(REPACK_GTA_DIR)
 	mkisofs -C 0,11702 -V $(PROJECT_NAME) -G IP.BIN -r -J -l -o $(PROJECT_NAME)-no-repack.iso $(REPACK_GTA_DIR)
 
 
-$(PROJECT_NAME).ds.iso: IP.BIN 1ST_READ.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME).ds.iso: IP.BIN 1ST_READ.BIN $(REPACK_DIR)/repacked # $(REPACK_GTA_DIR)/GTA3SF8.b
 	rm -f $(PROJECT_NAME).ds.iso
 	rm -f $(REPACK_GTA_DIR)/1ST_READ.BIN
 	cp $(TARGET).bin $(REPACK_GTA_DIR)/1ST_READ.BIN
@@ -217,7 +217,7 @@ $(PROJECT_NAME).ds.iso: IP.BIN 1ST_READ.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_
 	$(KOS_BASE)/utils/scramble/scramble $(TARGET)-prebuilt.bin 1ST_READ_PREBUILT.BIN
 	mkdir -p $(REPACK_GTA_DIR)
 
-$(PROJECT_NAME)-prebuilt.iso: IP.BIN 1ST_READ_PREBUILT.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME)-prebuilt.iso: IP.BIN 1ST_READ_PREBUILT.BIN $(REPACK_DIR)/repacked # $(REPACK_GTA_DIR)/GTA3SF8.b
 	rm -f $(REPACK_GTA_DIR)/1ST_READ.BIN
 	cp 1ST_READ_PREBUILT.BIN $(REPACK_GTA_DIR)/1ST_READ.BIN
 	mkisofs -C 0,11702 -V $(PROJECT_NAME) -G IP.BIN -r -J -l -o $(PROJECT_NAME).iso $(REPACK_GTA_DIR)
@@ -225,28 +225,28 @@ $(PROJECT_NAME)-prebuilt.iso: IP.BIN 1ST_READ_PREBUILT.BIN $(REPACK_DIR)/repacke
 ifeq ($(HAVE_CDI4DC), yes)
 $(PROJECT_NAME).cdi: $(PROJECT_NAME).iso
 	cdi4dc $(PROJECT_NAME).iso $(PROJECT_NAME).cdi > cdi.log
-	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
+	@echo && echo && echo "*** CDI Baked Successfully ($@) ***" && echo && echo
 
 $(PROJECT_NAME)-no-repack.cdi: $(PROJECT_NAME)-no-repack.iso
 	cdi4dc $(PROJECT_NAME)-no-repack.iso $(PROJECT_NAME)-no-repack.cdi > cdi.log
-	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
+	@echo && echo && echo "*** CDI Baked Successfully ($@) ***" && echo && echo
 
 $(PROJECT_NAME)-prebuilt.cdi: $(PROJECT_NAME)-prebuilt.iso
 	cdi4dc $(PROJECT_NAME).iso $(PROJECT_NAME).cdi > cdi.log
 	rm 1ST_READ_PREBUILT.BIN
-	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
+	@echo && echo && echo "*** CDI Baked Successfully ($@) ***" && echo && echo
 else
-$(PROJECT_NAME).cdi: $(TARGET) $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME).cdi: $(TARGET) $(REPACK_DIR)/repacked # $(REPACK_GTA_DIR)/GTA3SF8.b
 	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME).cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n $(PROJECT_NAME) -a $(TEAM_NAME) -s $(DISC_SERIAL) -r $(RELEASE_DATE)
-	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
+	@echo && echo && echo "*** CDI Baked Successfully ($@) ***" && echo && echo
 
-$(PROJECT_NAME)-no-repack.cdi: $(TARGET) $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME)-no-repack.cdi: $(TARGET) #  $(REPACK_GTA_DIR)/GTA3SF8.b
 	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME)-no-repack.cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n $(PROJECT_NAME) -a $(TEAM_NAME) -s $(DISC_SERIAL) -r $(RELEASE_DATE)
-	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
+	@echo && echo && echo "*** CDI Baked Successfully ($@) ***" && echo && echo
 
-$(PROJECT_NAME)-prebuilt.cdi: $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
+$(PROJECT_NAME)-prebuilt.cdi: $(REPACK_DIR)/repacked #  $(REPACK_GTA_DIR)/GTA3SF8.b
 	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME).cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n $(PROJECT_NAME) -a $(TEAM_NAME) -s $(DISC_SERIAL) -r $(RELEASE_DATE)
-	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
+	@echo && echo && echo "*** CDI Baked Successfully ($@) ***" && echo && echo
 endif
 
 cdi: $(PROJECT_NAME).cdi
@@ -272,19 +272,19 @@ gprof:
 	@echo "\033[42m Profiling data saved to $(TARGET)-kernel.png \033[0m"
 
 # tools
-imgtool: imgtool.cpp
+imgtool: ../src/tools/imgtool.cpp
 	$(CXX) -std=c++17 -o $@ -Og $<
 
-extract-sfx: extract-sfx.cpp
+extract-sfx: ../src/tools/extract-sfx.cpp
 	$(CXX) -std=c++17 -o $@ -Og $<
 
-pack-sfx: pack-sfx.cpp
+pack-sfx: ../src/tools/pack-sfx.cpp
 	$(CXX) -std=c++17 -o $@ -Og $<
 
-adf2mp3: adf2mp3.cpp
+adf2mp3: ../src/tools/adf2mp3.cpp
 	$(CXX) -o $@ -O3 -g $<
 
-aud2adpcm: aud2adpcm.c
+aud2adpcm: ../src/tools/aud2adpcm.c
 	$(CC) -o $@ -O3 -g $< -I../vendor/minimp3
 
 texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if you change it
@@ -371,7 +371,7 @@ $(REPACK_DIR)/repacked: $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/mode
 	mkdir -p $(@D)
 	@git archive --format zip --output "$(REPACK_GTA_DIR)/DCA3-$(GIT_VERSION).zip" HEAD
 	@touch $@
-	@echo && echo && echo "*** Repack Completed Successfully ***" && echo && echo
+	@echo && echo && echo "*** Repack Completed Successfully ($(PROJECT_NAME)) ***" && echo && echo
  
 $(REPACK_DIR)/unpacked: imgtool $(GTA_DIR)/models/gta3.img $(GTA_DIR)/models/gta3.dir
 	mkdir -p $(@D)

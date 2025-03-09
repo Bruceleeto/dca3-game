@@ -28,8 +28,12 @@ std::vector<DirRecord> readDirFile(const std::string& dirFilePath) {
     DirRecord record;
 
     while (dirFile.read(reinterpret_cast<char*>(&record), sizeof(DirRecord))) {
-        assert(record.size != 0);
-        records.push_back(record);
+        // assert(record.size != 0); // plaster.dff is size zero on liberty
+        if (record.size > 0) {
+            records.push_back(record);
+        } else {
+            std::cerr << "Skipping record: " << record.name << " size is zero." << std::endl;
+        }
     }
 
     return records;
