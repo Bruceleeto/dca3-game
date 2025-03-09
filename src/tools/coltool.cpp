@@ -140,7 +140,7 @@ int main(int argc, char* argv[]) {
             }
 
             out_buff.push_back(work_buff[offset]);
-            out_buff.push_back(0); // padding
+            out_buff.push_back(work_buff[offset+1]); // 'piece', not actually used
             offset += 4;
         }
         // === End repackaging of collision model data ===

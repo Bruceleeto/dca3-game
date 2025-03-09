@@ -293,6 +293,9 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 animtool: ../src/tools/animtool.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
+coltool: ../src/tools/coltool.cpp
+	$(CXX) -std=c++17 -o $@ -g -O0 $<
+
 -include $(DEPS)
 
 #### Repacking ####
@@ -519,6 +522,22 @@ $(REPACK_GTA_DIR)/%.ifp: $(GTA_DIR)/%.ifp animtool
 $(REPACK_GTA_DIR)/%.IFP: $(GTA_DIR)/%.IFP animtool
 	@mkdir -p $(@D)
 	./animtool $< $@
+
+# first try the mods loose directory
+$(REPACK_GTA_DIR)/%.col: $(GTA_MOD_LOOSE_DIR)/%.col coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+$(REPACK_GTA_DIR)/%.COL: $(GTA_MOD_LOOSE_DIR)/%.COL coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+
+#if not, the original files
+$(REPACK_GTA_DIR)/%.col: $(GTA_DIR)/%.col coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+$(REPACK_GTA_DIR)/%.COL: $(GTA_DIR)/%.COL coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
 
 $(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC)
 	mkdir -p $(@D)

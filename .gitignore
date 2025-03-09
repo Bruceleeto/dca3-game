@@ -377,6 +377,7 @@ liberty/dca-liberty-sim.elf
 liberty/animtool*
 liberty/texconv*
 liberty/imgtool*
+liberty/coltool*
 liberty/extract-sfx*
 liberty/pack-sfx*
 liberty/analyze-profile*
@@ -395,6 +396,7 @@ miami/dca-miami-sim.elf
 miami/animtool*
 miami/texconv*
 miami/imgtool*
+miami/coltool*
 miami/extract-sfx*
 miami/pack-sfx*
 miami/analyze-profile*

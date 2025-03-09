@@ -299,7 +299,7 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 animtool: ../src/tools/animtool.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
-coltool: coltool.cpp
+coltool: ../src/tools/coltool.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
 -include $(DEPS)

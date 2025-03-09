@@ -18,7 +18,7 @@ struct CColTriangle
 	uint16 c;
 	uint8 surface;
 
-	void Set(const CompressedVector *v, int a, int b, int c, uint8 surf, uint8 piece);
+	void Set(const CompressedVector *v, uint16 a, uint16 b, uint16 c, uint8 surf, uint8 piece);
 };
 
 struct CColTrianglePlane

@@ -1,4 +1,4 @@
-# models/coll/peds.col # seems like this is corrupted
+# models/coll/peds.col # not actually used
 
 MISC_FILES = \
   \

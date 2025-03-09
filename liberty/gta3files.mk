@@ -1,3 +1,5 @@
+# models/coll/peds.col # not actually used
+
 MISC_FILES = \
   anim/cuts.dir \
   anim/cuts.img \
@@ -110,7 +112,6 @@ MISC_FILES = \
   models/Coll/commer.col \
   models/Coll/generic.col \
   models/Coll/indust.col \
-  models/Coll/peds.col \
   models/Coll/suburb.col \
   models/Coll/vehicles.col \
   models/Coll/weapons.col \
