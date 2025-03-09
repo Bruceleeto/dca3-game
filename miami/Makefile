@@ -296,7 +296,7 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 %.texconv.o: %.cpp
 	$(CXX) -std=c++2a -c -O0 -g -MMD -MP -o $@ -I../vendor/koshle -I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM $(TEXCONV_FLAGS) $<
 
-animtool: animtool.cpp
+animtool: ../src/tools/animtool.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
 -include $(DEPS)
