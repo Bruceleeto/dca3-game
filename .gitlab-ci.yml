@@ -51,7 +51,7 @@ build-dreamcast-miami:
     - make -j $(nproc)
   artifacts:
     paths:
-      - miami/dca-liberty.elf
+      - miami/dca-miami.elf
 
 build-texconv-liberty:
   variables:
@@ -196,11 +196,11 @@ build-sim-miami:
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
-    - cd liberty
+    - cd miami
     - make -f sim.mk -j $(nproc)
   artifacts:
     paths:
-      - liberty/dca-liberty-sim.elf
+      - miami/dca-liberty-sim.elf
 
 build-sim-miami-clang:
   variables:
