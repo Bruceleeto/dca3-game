@@ -3559,17 +3559,51 @@ bool CPad::CycleCameraModeJustDown(void)
 
 bool CPad::CycleCameraModeUpJustDown(void)
 {
+
+#ifdef RW_DC
+
+	switch (CPad::GetPad(0)->Mode)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.D;
+				//return !!(NewState.DPadRight&& !OldState.DPadRight);
+			}
+			else
+			{
+				return !!(NewState.DPadUp && !OldState.DPadUp);
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.D;
+			}
+			else
+			{
+				return !!(NewState.DPadUp && !OldState.DPadUp);
+			}
+	}
+#else
 	switch (CURMODE)
 	{
 		case 0:
 		case 2:
+#ifdef RW_DC
+		case 3:
+		{
+			return !!(NewState.DPadUp && !OldState.DPadUp);
+
+			break;
+		}
+#else
 		case 3:
 		{
 			return !!(NewState.Select && !OldState.Select);
 
 			break;
 		}
-
+#endif
 		case 1:
 		{
 			return !!(NewState.DPadUp && !OldState.DPadUp);
@@ -3577,6 +3611,7 @@ bool CPad::CycleCameraModeUpJustDown(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
@@ -3817,20 +3852,20 @@ bool CPad::CollectPickupJustDown(void)
 		case 0:
 		case 1:
 		{
-			return !!(NewState.LeftShoulder1 && !OldState.LeftShoulder1);
+			return !!(NewState.DPadDown && NewState.A); 
 
 			break;
 		}
 		case 2:
 		{
-			return !!(NewState.Triangle && !OldState.Triangle);
+			return !!(NewState.DPadDown && NewState.A); 
 
 			break;
 		}
 
 		case 3:
 		{
-			return !!(NewState.Circle && !OldState.Circle);
+			return !!(NewState.DPadDown && NewState.A);
 
 			break;
 		}
@@ -3843,22 +3878,95 @@ bool CPad::DuckJustDown(void)
 {
 	if (ArePlayerControlsDisabled())
 		return false;
+#ifdef RW_DC
+	switch (CPad::GetPad(0)->Mode)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return !!(NewState.X&& !OldState.X);
+			}
+			else
+			{
+				return !!(NewState.X&& !OldState.X);
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return !!(NewState.X&& !OldState.X);
+			}
+			else
+			{
+				return !!(NewState.X&& !OldState.X);
+			}
+	}
 
-	return !!(NewState.LeftShock && !OldState.LeftShock);
+#else
+	return !!(NewState.Square && !OldState.Square);
+#endif
 }
 
 bool CPad::JumpJustDown(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
+#ifdef RW_DC
+	switch (CPad::GetPad(0)->Mode)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.B;
+			}
+			else
+			{
+				return	NewState.B;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.X;
+			}
+			else
+			{
+				return	NewState.X;
+			}
+	}
 
+#else
 	return !!(NewState.Square && !OldState.Square);
+#endif
 }
 
 bool CPad::GetSprint(void)
 {
 	if ( ArePlayerControlsDisabled() )
 		return false;
+
+#ifdef RW_DC
+
+	switch (CPad::GetPad(0)->Mode)
+	{
+		case 0:	//Xbox Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.A;
+			}
+			else
+			{
+				return	NewState.A;
+			}
+		case 1:	//PS2 Mode
+			if (CPad::GetPad(0)->IsDualAnalog)
+			{
+				return	NewState.A;
+			}
+			else
+			{
+				return	NewState.A;
+			}
+	}
+#else
 
 	switch (CURMODE)
 	{
@@ -3878,6 +3986,7 @@ bool CPad::GetSprint(void)
 			break;
 		}
 	}
+#endif
 
 	return false;
 }
