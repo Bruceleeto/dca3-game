@@ -63,22 +63,26 @@ OBJS_TEXCONV += \
 	../vendor/koshle/hlepvr_irq.texconv.o \
 	../vendor/koshle/hlematrix3d.texconv.o \
 	../vendor/librw/src/dc/vq.texconv.o \
-	../src/fakerw/fake.texconv.o \
-	../src/skel/crossplatform.texconv.o \
-	../src/rw/TxdStore.texconv.o \
-	texconv.texconv.o \
+	../src/liberty/fakerw/fake.texconv.o \
+	../src/liberty/skel/crossplatform.texconv.o \
+	../src/liberty/rw/TxdStore.texconv.o \
+	../src/tools/texconv.texconv.o \
 	../vendor/TriStripper/src/connectivity_graph.texconv.o \
 	../vendor/TriStripper/src/policy.texconv.o \
 	../vendor/TriStripper/src/tri_stripper.texconv.o \
-	../src/rw/VisibilityPlugins.texconv.o \
-	../src/rw/NodeName.texconv.o \
-	../src/animation/RpAnimBlend.texconv.o \
-	../src/animation/Bones.texconv.o \
-	../src/animation/AnimBlendAssociation.texconv.o \
-	../src/animation/AnimBlendNode.texconv.o \
-	../src/animation/AnimBlendClumpData.texconv.o \
-	../src/rw/MemoryMgr.texconv.o \
-	../src/math/Quaternion.texconv.o \
+	../src/liberty/rw/VisibilityPlugins.texconv.o \
+	../src/liberty/rw/NodeName.texconv.o \
+	../src/liberty/animation/RpAnimBlend.texconv.o \
+	../src/liberty/animation/Bones.texconv.o \
+	../src/liberty/animation/AnimBlendAssociation.texconv.o \
+	../src/liberty/animation/AnimBlendNode.texconv.o \
+	../src/liberty/animation/AnimBlendClumpData.texconv.o \
+	../src/liberty/rw/MemoryMgr.texconv.o \
+	../src/liberty/math/Quaternion.texconv.o \
+	../vendor/librw/src/ps2-x/ps2.texconv.o \
+	../vendor/librw/src/ps2-x/ps2device.texconv.o \
+	../vendor/librw/src/ps2-x/ps2raster.texconv.o \
+	../vendor/librw/src/ps2-x/ps2skin.texconv.o \
 	../vendor/librw/src/d3d-x/d3d.texconv.o \
 	../vendor/librw/src/d3d-x/d3d8.texconv.o \
 	../vendor/librw/src/d3d-x/d3d8render.texconv.o \
@@ -102,17 +106,7 @@ OBJS_O3 = \
 	../src/renderer/Shadows.o
 
 OBJS_NO_FAST_MATH = \
-	../src/core/Cam.o \
-	../src/core/Camera.o
-
-KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
-	-mfsrra -mfsca
-
-ifdef KOS_BASE
-include $(KOS_BASE)/Makefile.rules
-else
-$(warning "KOS_BASE is not set. Only prebuilt targets will work.")
-endif
+	../src/core/Cam.o \texconv.o
 
 DEPS = $(OBJS:.o=.d) $(OBJS_TEXCONV:.o:.d)
 
@@ -133,8 +127,8 @@ clean-texconv:
 	-rm -f texconv
 
 clean-pvrtex:
-	$(MAKE) -C ./pvrtex clean
-	-rm -f ./pvrtex/pvrtex
+	$(MAKE) -C ../vendor/pvrtex clean
+	-rm -f ../vendor/pvrtex/pvrtex
 
 clean-objs:
 	-rm -f $(OBJS)
@@ -180,7 +174,7 @@ $(REPACK_GTA_DIR)/GTA3SF8.b: GTA3SF8.b
 .PHONY: pvrtex
 
 pvrtex:
-	$(MAKE) -C ./pvrtex
+	$(MAKE) -C ../vendor/pvrtex
 
 IP.BIN:
 	rm -f IP.BIN
@@ -281,7 +275,7 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 	$(CXX) -o $@ $(OBJS_TEXCONV)
 
 %.texconv.o: %.cpp
-	$(CXX) -std=c++2a -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
+	$(CXX) -std=c++2a -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
 
 -include $(DEPS)
 

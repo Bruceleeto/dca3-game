@@ -63,23 +63,23 @@ OBJS_TEXCONV += \
 	../vendor/koshle/hlepvr_irq.texconv.o \
 	../vendor/koshle/hlematrix3d.texconv.o \
 	../vendor/librw/src/dc/vq.texconv.o \
-	../miami/fakerw/fake.texconv.o \
-	../miami/skel/crossplatform.texconv.o \
-	../miami/rw/TxdStore.texconv.o \
-	../miami/rw/RwHelper.texconv.o \
-	texconv.texconv.o \
+	../src/miami/fakerw/fake.texconv.o \
+	../src/miami/skel/crossplatform.texconv.o \
+	../src/miami/rw/TxdStore.texconv.o \
+	../src/miami/rw/RwHelper.texconv.o \
+	../src/tools/texconv.texconv.o \
 	../vendor/TriStripper/src/connectivity_graph.texconv.o \
 	../vendor/TriStripper/src/policy.texconv.o \
 	../vendor/TriStripper/src/tri_stripper.texconv.o \
-	../miami/rw/VisibilityPlugins.texconv.o \
-	../miami/rw/NodeName.texconv.o \
-	../miami/animation/RpAnimBlend.texconv.o \
-	../miami/animation/Bones.texconv.o \
-	../miami/animation/AnimBlendAssociation.texconv.o \
-	../miami/animation/AnimBlendNode.texconv.o \
-	../miami/animation/AnimBlendClumpData.texconv.o \
-	../miami/rw/MemoryMgr.texconv.o \
-	../miami/math/Quaternion.texconv.o \
+	../src/miami/rw/VisibilityPlugins.texconv.o \
+	../src/miami/rw/NodeName.texconv.o \
+	../src/miami/animation/RpAnimBlend.texconv.o \
+	../src/miami/animation/Bones.texconv.o \
+	../src/miami/animation/AnimBlendAssociation.texconv.o \
+	../src/miami/animation/AnimBlendNode.texconv.o \
+	../src/miami/animation/AnimBlendClumpData.texconv.o \
+	../src/miami/rw/MemoryMgr.texconv.o \
+	../src/miami/math/Quaternion.texconv.o \
 	../vendor/librw/src/ps2-x/ps2.texconv.o \
 	../vendor/librw/src/ps2-x/ps2device.texconv.o \
 	../vendor/librw/src/ps2-x/ps2raster.texconv.o \
@@ -140,8 +140,8 @@ clean-texconv:
 	-rm -f texconv
 
 clean-pvrtex:
-	$(MAKE) -C ./pvrtex clean
-	-rm -f ./pvrtex/pvrtex
+	$(MAKE) -C ../vendor/pvrtex clean
+	-rm -f ../vendor/pvrtex/pvrtex
 
 clean-objs:
 	-rm -f $(OBJS)
@@ -187,7 +187,7 @@ $(REPACK_GTA_DIR)/GTA3SF8.b: GTA3SF8.b
 .PHONY: pvrtex
 
 pvrtex:
-	$(MAKE) -C ./pvrtex
+	$(MAKE) -C ../vendor/pvrtex
 
 IP.BIN:
 	rm -f IP.BIN
