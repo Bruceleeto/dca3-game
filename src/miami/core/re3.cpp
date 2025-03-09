@@ -1,4 +1,5 @@
 #include <csignal>
+#include <kos/dbglog.h>
 #define WITHWINDOWS
 #include "common.h"
 #if defined DETECT_JOYSTICK_MENU && defined XINPUT
