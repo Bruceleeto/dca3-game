@@ -6,7 +6,7 @@
 # Put the filename of the output binary here
 PROJECT_NAME = dca-liberty
 TEAM_NAME ="the gang"
-DISC_SERIAL = DCA-LIBERTY
+DISC_SERIAL = DCA-LBRT
 RELEASE_DATE = 20250401
 TARGET ?= dca-liberty.elf
 
@@ -95,19 +95,19 @@ OBJS_TEXCONV += \
 # to conserve RAM.
 OBJS_O3 = \
 	../vendor/librw/src/dc/rwdc.o \
-	../src/core/World.o \
-	../src/collision/Collision.o \
-	../src/math/math.o \
-	../src/math/Matrix.o \
-	../src/math/Quaternion.o \
-	../src/math/Rect.o \
-	../src/math/Vector.o \
+	../src/liberty/core/World.o \
+	../src/liberty/collision/Collision.o \
+	../src/liberty/math/math.o \
+	../src/liberty/math/Matrix.o \
+	../src/liberty/math/Quaternion.o \
+	../src/liberty/math/Rect.o \
+	../src/liberty/math/Vector.o \
 	../vendor/librw/src/base.o \
-	../src/renderer/Shadows.o
+	../src/liberty/renderer/Shadows.o
 
 OBJS_NO_FAST_MATH = \
-	../src/core/Cam.o \
-	../src/core/Camera.o
+	../src/liberty/core/Cam.o \
+	../src/liberty/core/Camera.o
 
 KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
 	-mfsrra -mfsca

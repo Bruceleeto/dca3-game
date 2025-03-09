@@ -1,7 +1,7 @@
 Device Info   : CD-ROM1/1
 Area Symbols  : JUE
 Peripherals   : E000F10
-Product No    : DCA-LIBERTY
+Product No    : DCA-LBRT
 Version       : V2.000
 Release Date  : 20250401
 Boot Filename : 1ST_READ.BIN
