@@ -222,13 +222,3 @@ build-sim-miami-clang:
   artifacts:
     paths:
       - miami/dca-miami-sim-clang.elf
-
-pages:
-  stage: deploy
-  script:
-    - echo "The site will be deployed to $CI_PAGES_URL"
-  artifacts:
-    paths:
-      - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
