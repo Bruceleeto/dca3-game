@@ -163,36 +163,36 @@ Error(char *fmt, ...)
 void
 ValidateVersion()
 {
-	int32 file = CFileMgr::OpenFile("models\\coll\\peds.col", "rb");
-	char buff[128];
+	// int32 file = CFileMgr::OpenFile("models\\coll\\peds.col", "rb");
+	// char buff[128];
 
-	if ( file != -1 )
-	{
-		CFileMgr::Seek(file, 100, SEEK_SET);
+	// if ( file != -1 )
+	// {
+	// 	CFileMgr::Seek(file, 100, SEEK_SET);
 		
-		for ( int i = 0; i < 128; i++ )
-		{
-			CFileMgr::Read(file, &buff[i], sizeof(char));
-			buff[i] -= 23;
-			if ( buff[i] == '\0' )
-				break;
-			CFileMgr::Seek(file, 99, SEEK_CUR);
-		}
+	// 	for ( int i = 0; i < 128; i++ )
+	// 	{
+	// 		CFileMgr::Read(file, &buff[i], sizeof(char));
+	// 		buff[i] -= 23;
+	// 		if ( buff[i] == '\0' )
+	// 			break;
+	// 		CFileMgr::Seek(file, 99, SEEK_CUR);
+	// 	}
 		
-		if ( !strncmp(buff, "grandtheftauto3", 15) )
-		{
-			strncpy(version_name, &buff[15], 64);
-			CFileMgr::CloseFile(file);
-			return;
-		}
-	}
+	// 	if ( !strncmp(buff, "grandtheftauto3", 15) )
+	// 	{
+	// 		strncpy(version_name, &buff[15], 64);
+	// 		CFileMgr::CloseFile(file);
+	// 		return;
+	// 	}
+	// }
 
-	LoadingScreen("Invalid version", NULL, NULL);
+	// LoadingScreen("Invalid version", NULL, NULL);
 	
-	while(true)
-	{
-		;
-	}
+	// while(true)
+	// {
+	// 	;
+	// }
 }
 
 bool

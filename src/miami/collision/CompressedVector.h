@@ -5,7 +5,7 @@ struct CompressedVector
 #ifdef COMPRESSED_COL_VECTORS
 	int16 x, y, z;
 	CVector Get(void) const { return CVector(x, y, z)/128.0f; };
-	void Set(float x, float y, float z) { this->x = x*128.0f; this->y = y*128.0f; this->z = z*128.0f; };
+	void SetFixed(int16 x, int16 y, int16 z) { this->x = x; this->y = y; this->z = z; };
 #ifdef GTA_PS2
 	void Unpack(uint128 &qword) const {
 		__asm__ volatile (

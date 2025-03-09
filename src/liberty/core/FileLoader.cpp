@@ -215,7 +215,7 @@ CFileLoader::LoadCollisionFile(const char *filename)
 	fd = CFileMgr::OpenFile(filename, "rb");
 
 	while(CFileMgr::Read(fd, (char*)&header, sizeof(header))){
-		assert(header.ident == 'LLOC');
+		assert(header.ident == 'CLOC');
 		CFileMgr::Read(fd, (char*)work_buff, header.size);
 		memcpy(modelname, work_buff, 24);
 
@@ -295,14 +295,8 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 		model.vertices = (CompressedVector*)RwMalloc(numVertices*sizeof(CompressedVector));
 		REGISTER_MEMPTR(&model.vertices);
 		for(i = 0; i < numVertices; i++){
-			model.vertices[i].Set(*(float*)buf, *(float*)(buf+4), *(float*)(buf+8));
-			if(lroundf(Abs(*(float*)buf)) >= 256 ||
-			   lroundf(Abs(*(float*)(buf+4))) >= 256 ||
-			   lroundf(Abs(*(float*)(buf+8))) >= 256) {
-				dbglog(DBG_CRITICAL, "%s:Collision volume too big\n", modelname);
-				assert(false && "Collision volume too big");
-			   }
-			buf += 12;
+			model.vertices[i].SetFixed(*(int16*)buf, *(int16*)(buf+2), *(int16*)(buf+4));
+			buf += 6;
 		}
 	}else
 		model.vertices = nil;
@@ -313,8 +307,11 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 		model.triangles = (CColTriangle*)RwMalloc(model.numTriangles*sizeof(CColTriangle));
 		REGISTER_MEMPTR(&model.triangles);
 		for(i = 0; i < model.numTriangles; i++){
-			model.triangles[i].Set(model.vertices, *(int32*)buf, *(int32*)(buf+4), *(int32*)(buf+8), buf[12], buf[13]);
-			buf += 16;
+			model.triangles[i].Set(model.vertices, *(uint16*)buf, *(uint16*)(buf+2), *(uint16*)(buf+4), buf[6], buf[7]);
+			buf += 8;
+			assert(model.triangles[i].a < numVertices);
+			assert(model.triangles[i].b < numVertices);
+			assert(model.triangles[i].c < numVertices);
 		}
 	}else
 		model.triangles = nil;

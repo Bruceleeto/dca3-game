@@ -2,7 +2,7 @@
 #include "ColTriangle.h"
 
 void
-CColTriangle::Set(const CompressedVector *, int a, int b, int c, uint8 surf, uint8 piece)
+CColTriangle::Set(const CompressedVector *, uint16 a, uint16 b, uint16 c, uint8 surf, uint8 piece)
 {
 	this->a = a;
 	this->b = b;
