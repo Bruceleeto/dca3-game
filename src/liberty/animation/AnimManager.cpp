@@ -780,134 +780,70 @@ CAnimManager::LoadAnimFile(int fd, bool compress)
 		char ident[4];
 		uint32 size;
 	};
-	IfpHeader anpk, info, name, dgan, cpan, anim;
-	int numANPK;
+	IfpHeader anpv;
 	char buf[256];
-	int i, j, k, l;
+	int j, k, l;
 	float *fbuf = (float*)buf;
 
-	CFileMgr::Read(fd, (char*)&anpk, sizeof(IfpHeader));
-	if(!CGeneral::faststrncmp(anpk.ident, "ANLF", 4)) {
-		ROUNDSIZE(anpk.size);
-		CFileMgr::Read(fd, buf, anpk.size);
-		numANPK = *(int*)buf;
-	} else if(!CGeneral::faststrncmp(anpk.ident, "ANPK", 4)) {
-		CFileMgr::Seek(fd, -8, 1);
-		numANPK = 1;
-	}
+	CFileMgr::Read(fd, (char*)&anpv, sizeof(IfpHeader));
+	assert(memcmp(anpv.ident, "ANPV", 4) == 0);
+	
+	// block name
+	CFileMgr::Read(fd, buf, anpv.size);
+	CAnimBlock *animBlock = &ms_aAnimBlocks[ms_numAnimBlocks++];
+	strncpy(animBlock->name, buf, 24);
+	int32_t numAnims;
+	CFileMgr::Read(fd, (char*)&numAnims, sizeof(numAnims));
+	animBlock->numAnims = numAnims;
 
-	for(i = 0; i < numANPK; i++){
-		// block name
-		CFileMgr::Read(fd, (char*)&anpk, sizeof(IfpHeader));
-		ROUNDSIZE(anpk.size);
-		CFileMgr::Read(fd, (char*)&info, sizeof(IfpHeader));
-		ROUNDSIZE(info.size);
-		CFileMgr::Read(fd, buf, info.size);
-		CAnimBlock *animBlock = &ms_aAnimBlocks[ms_numAnimBlocks++];
-		strncpy(animBlock->name, buf+4, 24);
-		animBlock->numAnims = *(int*)buf;
+	animBlock->firstIndex = ms_numAnimations;
 
-		animBlock->firstIndex = ms_numAnimations;
+	for(j = 0; j < animBlock->numAnims; j++){
+		CAnimBlendHierarchy *hier = &ms_aAnimations[ms_numAnimations++];
 
-		for(j = 0; j < animBlock->numAnims; j++){
-			CAnimBlendHierarchy *hier = &ms_aAnimations[ms_numAnimations++];
+		// animation name
+		int32_t animNameLength;
+		CFileMgr::Read(fd, (char*)&animNameLength, sizeof(animNameLength));
+		CFileMgr::Read(fd, buf, animNameLength);
+		hier->SetName(buf);
 
-			// animation name
-			CFileMgr::Read(fd, (char*)&name, sizeof(IfpHeader));
-			ROUNDSIZE(name.size);
-			CFileMgr::Read(fd, buf, name.size);
-			hier->SetName(buf);
+		int32_t numSeqs;
+		CFileMgr::Read(fd, (char*)&numSeqs, sizeof(animNameLength));
+		hier->numSequences = numSeqs;
+		hier->sequences = new CAnimBlendSequence[hier->numSequences];
 
-			// DG info has number of nodes/sequences
-			CFileMgr::Read(fd, (char*)&dgan, sizeof(IfpHeader));
-			ROUNDSIZE(dgan.size);
-			CFileMgr::Read(fd, (char*)&info, sizeof(IfpHeader));
-			ROUNDSIZE(info.size);
-			CFileMgr::Read(fd, buf, info.size);
-			hier->numSequences = *(int*)buf;
-			hier->sequences = new CAnimBlendSequence[hier->numSequences];
+		CAnimBlendSequence *seq = hier->sequences;
+		for(k = 0; k < hier->numSequences; k++, seq++){
+			// Each node has a name and key frames
+			int32_t seqNameLength;
+			CFileMgr::Read(fd, (char*)&seqNameLength, sizeof(seqNameLength));
+			CFileMgr::Read(fd, buf, seqNameLength);
+			seq->SetName(buf);
 
-			CAnimBlendSequence *seq = hier->sequences;
-			for(k = 0; k < hier->numSequences; k++, seq++){
-				// Each node has a name and key frames
-				CFileMgr::Read(fd, (char*)&cpan, sizeof(IfpHeader));
-				ROUNDSIZE(dgan.size);
-				CFileMgr::Read(fd, (char*)&anim, sizeof(IfpHeader));
-				ROUNDSIZE(anim.size);
-				CFileMgr::Read(fd, buf, anim.size);
-				int numFrames = *(int*)(buf+28);
-				seq->SetName(buf);
+			int32_t numFrames;
+			CFileMgr::Read(fd, (char*)&numFrames, sizeof(numFrames));
+			seq->numFrames = numFrames;
+			int32_t boneTag;
+			CFileMgr::Read(fd, (char*)&boneTag, sizeof(boneTag));
+			
 #ifdef PED_SKIN
-				if(anim.size == 44)
-					seq->SetBoneTag(*(int*)(buf+40));
+			seq->SetBoneTag(boneTag);
 #endif
-				if(numFrames == 0)
-					continue;
+			if(numFrames == 0)
+				continue;
 
-				bool hasScale = false;
-				bool hasTranslation = false;
-				CFileMgr::Read(fd, (char*)&info, sizeof(info));
-				if(!CGeneral::faststrncmp(info.ident, "KRTS", 4)) {
-					hasScale = true;
-					seq->SetNumFrames(numFrames, true, compress);
-				}else if(!CGeneral::faststrncmp(info.ident, "KRT0", 4)) {
-					hasTranslation = true;
-					seq->SetNumFrames(numFrames, true, compress);
-				}else if(!CGeneral::faststrncmp(info.ident, "KR00", 4)){
-					seq->SetNumFrames(numFrames, false, compress);
-				}
+			uint32_t dataSize;
+			CFileMgr::Read(fd, (char*)&dataSize, sizeof(dataSize));
+			uint16_t flags;
+			CFileMgr::Read(fd, (char*)&flags, sizeof(flags));
 
-				float *frameTimes = (float*)RwMalloc(sizeof(float) * numFrames);
-
-				for(l = 0; l < numFrames; l++){
-					if(hasScale){
-						CFileMgr::Read(fd, buf, 0x2C);
-						CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
-						rot.Invert();
-						CVector trans(fbuf[4], fbuf[5], fbuf[6]);
-
-						seq->SetRotation(l, rot);
-						seq->SetTranslation(l, trans);
-						// scaling ignored
-						frameTimes[l] = fbuf[10];	// absolute time here
-					}else if(hasTranslation){
-						CFileMgr::Read(fd, buf, 0x20);
-						CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
-						rot.Invert();
-						CVector trans(fbuf[4], fbuf[5], fbuf[6]);
-
-						seq->SetRotation(l, rot);
-						seq->SetTranslation(l, trans);
-						frameTimes[l] = fbuf[7];	// absolute time here
-					}else{
-						CFileMgr::Read(fd, buf, 0x14);
-						CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
-						rot.Invert();
-
-						seq->SetRotation(l, rot);
-						frameTimes[l] = fbuf[4];	// absolute time here
-					}
-				}
-
-				// convert absolute time to deltas
-				float running_sum = 0.0f;
-				for (l = 0; l < numFrames; l++) {
-					auto dt = frameTimes[l] - running_sum;
-					seq->SetDeltaTime(l, dt);
-					assert(seq->GetDeltaTime(l) <= dt);
-					running_sum += seq->GetDeltaTime(l);
-					// if (seq->GetDeltaTime(l) == 0.0f && dt != 0.0f) {
-					// 	seq->SetDeltaTime(l, KF_MINDELTA);
-					// }
-
-					// assert(seq->GetDeltaTime(l) != 0.0f || dt == 0.0f);
-				}
-				RwFree(frameTimes);
-			}
-
-			hier->RemoveQuaternionFlips();
-			hier->CalcTotalTime();
+			seq->keyFrames = RwMalloc(dataSize);
+			assert(seq->keyFrames);
+			CFileMgr::Read(fd, (char*)seq->keyFrames, dataSize - sizeof(flags));
+			seq->type = flags;
 		}
+
+		hier->CalcTotalTime();
 	}
 }
 

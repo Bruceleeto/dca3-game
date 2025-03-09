@@ -45,8 +45,6 @@ MISC_FILES = \
   models/generic/zonecylb.DFF \
   models/gta3.img \
   \
-  anim/cuts.img \
-  anim/cuts.dir \
   anim/ped.ifp \
   \
   Icons/app.ico \

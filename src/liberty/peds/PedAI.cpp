@@ -4249,7 +4249,7 @@ CPed::SetAnimOffsetForEnterOrExitVehicle(void)
 		if (!seq->HasTranslation())
 			vecPedDraggedOutCarAnimOffset = CVector(0.0f, 0.0f, 0.0f);
 		else {
-			vecPedDraggedOutCarAnimOffset = seq->GetTranslation(seq->numFrames - 1);
+			vecPedDraggedOutCarAnimOffset = seq->GetEndTranslation();
 		}
 	}
 
@@ -4260,7 +4260,7 @@ CPed::SetAnimOffsetForEnterOrExitVehicle(void)
 		if (!seq->HasTranslation())
 			vecPedCarDoorAnimOffset = CVector(0.0f, 0.0f, 0.0f);
 		else {
-			vecPedCarDoorAnimOffset = seq->GetTranslation(seq->numFrames - 1);
+			vecPedCarDoorAnimOffset = seq->GetEndTranslation();
 		}
 	}
 
@@ -4271,7 +4271,7 @@ CPed::SetAnimOffsetForEnterOrExitVehicle(void)
 		if (!seq->HasTranslation())
 			vecPedCarDoorLoAnimOffset = CVector(0.0f, 0.0f, 0.0f);
 		else {
-			vecPedCarDoorLoAnimOffset = seq->GetTranslation(seq->numFrames - 1);
+			vecPedCarDoorLoAnimOffset = seq->GetEndTranslation();
 		}
 	}
 
@@ -4282,7 +4282,7 @@ CPed::SetAnimOffsetForEnterOrExitVehicle(void)
 		if (!seq->HasTranslation())
 			vecPedQuickDraggedOutCarAnimOffset = CVector(0.0f, 0.0f, 0.0f);
 		else {
-			vecPedQuickDraggedOutCarAnimOffset = seq->GetTranslation(seq->numFrames - 1);
+			vecPedQuickDraggedOutCarAnimOffset = seq->GetEndTranslation();
 		}
 	}
 
@@ -4293,7 +4293,7 @@ CPed::SetAnimOffsetForEnterOrExitVehicle(void)
 		if (!seq->HasTranslation())
 			vecPedVanRearDoorAnimOffset = CVector(0.0f, 0.0f, 0.0f);
 		else {
-			vecPedVanRearDoorAnimOffset = seq->GetTranslation(seq->numFrames - 1);
+			vecPedVanRearDoorAnimOffset = seq->GetEndTranslation();
 		}
 	}
 
@@ -4304,7 +4304,7 @@ CPed::SetAnimOffsetForEnterOrExitVehicle(void)
 		if (!seq->HasTranslation())
 			vecPedTrainDoorAnimOffset = CVector(0.0f, 0.0f, 0.0f);
 		else {
-			vecPedTrainDoorAnimOffset = seq->GetTranslation(seq->numFrames - 1);
+			vecPedTrainDoorAnimOffset = seq->GetEndTranslation();
 		}
 	}
 }

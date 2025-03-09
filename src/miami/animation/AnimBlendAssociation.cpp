@@ -41,7 +41,6 @@ CAnimBlendAssociation::~CAnimBlendAssociation(void)
 	link.Remove();
 }
 
-
 void
 CAnimBlendAssociation::AllocateAnimBlendNodeArray(int n)
 {
@@ -55,8 +54,11 @@ CAnimBlendAssociation::AllocateAnimBlendNodeArray(int n)
 void
 CAnimBlendAssociation::FreeAnimBlendNodeArray(void)
 {
-	if(nodes)
+	if(nodes) {
+		for(unsigned i = 0; i < numNodes; i++)
+			nodes[i].Destroy();
 		RwFreeAlign(nodes);
+	}
 }
 
 void
@@ -80,8 +82,9 @@ CAnimBlendAssociation::Init(RpClump *clump, CAnimBlendHierarchy *hier)
 			frame = RpAnimBlendClumpFindFrame(clump, seq->name);
 		else
 			frame = RpAnimBlendClumpFindBone(clump, seq->boneTag);
-		if(frame && seq->numFrames > 0)
+		if(frame && seq->numFrames > 0) {
 			nodes[frame - clumpData->frames].sequence = seq;
+		}
 	}
 }
 

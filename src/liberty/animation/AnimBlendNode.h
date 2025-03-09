@@ -13,12 +13,13 @@ public:
 	float invSin;		// 1/Sin(theta)
 	// indices into array in sequence
 	int32 frameA;		// next key frame
-	int32 frameB;		// previous key frame
 	float remainingTime;	// time until frames have to advance
+	CAnimBlendPlayer* player;
 	CAnimBlendSequence *sequence;
 	CAnimBlendAssociation *association;
 
 	void Init(void);
+	void Destroy(void);
 	bool Update(CVector &trans, CQuaternion &rot, float weight);
 	bool NextKeyFrame(void);
 	bool FindKeyFrame(float t);

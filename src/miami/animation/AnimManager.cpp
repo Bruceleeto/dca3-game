@@ -1244,33 +1244,32 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 		char ident[4];
 		uint32 size;
 	};
-	IfpHeader anpk, info, name, dgan, cpan, anim;
+	IfpHeader anpv;
 	char buf[256];
 	int j, k, l;
 	float *fbuf = (float*)buf;
 
+	RwStreamRead(stream, &anpv, sizeof(IfpHeader));
+	assert(memcmp(anpv.ident, "ANPV", 4) == 0);
+
 	// block name
-	RwStreamRead(stream, &anpk, sizeof(IfpHeader));
-	ROUNDSIZE(anpk.size);
-	RwStreamRead(stream, &info, sizeof(IfpHeader));
-	ROUNDSIZE(info.size);
-	RwStreamRead(stream, buf, info.size);
-	CAnimBlock *animBlock = GetAnimationBlock(buf+4);
+	RwStreamRead(stream, buf, anpv.size);
+	int32_t numAnims;
+	RwStreamRead(stream, &numAnims, sizeof(numAnims));
+	CAnimBlock *animBlock = GetAnimationBlock(buf);
 	if(animBlock){
 		if(animBlock->numAnims == 0){
-			animBlock->numAnims = *(int*)buf;
+			animBlock->numAnims = numAnims;
 			animBlock->firstIndex = ms_numAnimations;
 		}
 	}else{
 		animBlock = &ms_aAnimBlocks[ms_numAnimBlocks++];
-		strncpy(animBlock->name, buf+4, MAX_ANIMBLOCK_NAME);
-		animBlock->numAnims = *(int*)buf;
+		strncpy(animBlock->name, buf, MAX_ANIMBLOCK_NAME);
+		animBlock->numAnims = numAnims;
 		animBlock->firstIndex = ms_numAnimations;
 	}
 
 	debug("Loading ANIMS %s\n", animBlock->name);
-
-	bool stub_out = strcmp(animBlock->name, "law_1b") == 0;
 
 	animBlock->isLoaded = true;
 
@@ -1279,116 +1278,48 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 		assert(animIndex < ARRAY_SIZE(ms_aAnimations));
 		CAnimBlendHierarchy *hier = &ms_aAnimations[animIndex++];
 
+		int32_t animNameLength;
 		// animation name
-		RwStreamRead(stream, &name, sizeof(IfpHeader));
-		ROUNDSIZE(name.size);
-		RwStreamRead(stream, buf, name.size);
+		RwStreamRead(stream, &animNameLength, sizeof(animNameLength));
+		RwStreamRead(stream, buf, animNameLength);
 		hier->SetName(buf);
 
-		bool compressHier = compress;
-
-		if (uncompressedAnims) {
-			for (int i = 0; uncompressedAnims[i][0]; i++) {
-				if (!CGeneral::faststricmp(uncompressedAnims[i], hier->name)){
-					debug("Loading %s uncompressed\n", hier->name);
-					compressHier = false;
-				}
-			}
-		}
-		// DG info has number of nodes/sequences
-		RwStreamRead(stream, (char*)&dgan, sizeof(IfpHeader));
-		ROUNDSIZE(dgan.size);
-		RwStreamRead(stream, (char*)&info, sizeof(IfpHeader));
-		ROUNDSIZE(info.size);
-		RwStreamRead(stream, buf, info.size);
-		hier->numSequences = *(int*)buf;
+		int32_t numSeqs;
+		RwStreamRead(stream, &numSeqs, sizeof(numSeqs));
+		hier->numSequences = numSeqs;
 		hier->sequences = new CAnimBlendSequence[hier->numSequences];
 
 		CAnimBlendSequence *seq = hier->sequences;
 		for(k = 0; k < hier->numSequences; k++, seq++){
 			// Each node has a name and key frames
-			RwStreamRead(stream, &cpan, sizeof(IfpHeader));
-			ROUNDSIZE(dgan.size);
-			RwStreamRead(stream, &anim, sizeof(IfpHeader));
-			ROUNDSIZE(anim.size);
-			RwStreamRead(stream, buf, anim.size);
-			int numFrames = *(int*)(buf+28);
+			int32_t seqNameLength;
+			RwStreamRead(stream, &seqNameLength, sizeof(seqNameLength));
+			RwStreamRead(stream, buf, seqNameLength);
 			seq->SetName(buf);
-			if(anim.size == 44)
-				seq->SetBoneTag(*(int*)(buf+40));
+
+			int32_t numFrames;
+			RwStreamRead(stream, &numFrames, sizeof(numFrames));
+			seq->numFrames = numFrames;
+			int32_t boneTag;
+			RwStreamRead(stream, &boneTag, sizeof(boneTag));
+			seq->SetBoneTag(boneTag);
+
 			if(numFrames == 0)
 				continue;
 
-			bool hasScale = false;
-			bool hasTranslation = false;
-			RwStreamRead(stream, &info, sizeof(info));
-			if(strncmp(info.ident, "KRTS", 4) == 0){
-				hasScale = true;
-				seq->SetNumFrames(stub_out ? 1 : numFrames, true, compressHier);
-			}else if(strncmp(info.ident, "KRT0", 4) == 0){
-				hasTranslation = true;
-				seq->SetNumFrames(stub_out ? 1 : numFrames, true, compressHier);
-			}else if(strncmp(info.ident, "KR00", 4) == 0){
-				seq->SetNumFrames(stub_out ? 1 : numFrames, false, compressHier);
-			}
+			uint32_t dataSize;
+			RwStreamRead(stream, &dataSize, sizeof(dataSize));
+			uint16_t flags;
+			RwStreamRead(stream, &flags, sizeof(flags));
+
+			seq->keyFrames = RwMalloc(dataSize);
+			assert(seq->keyFrames);
+			RwStreamRead(stream, seq->keyFrames, dataSize - sizeof(flags));
+			seq->type = flags;
+
 			if(strstr(seq->name, "L Toe"))
 				debug("anim %s has toe keyframes\n", hier->name); // BUG: seq->name
-
-			float *frameTimes = (float*)RwMalloc(sizeof(float) * numFrames);
-
-			for(l = 0; l < numFrames; l++){
-				if(hasScale){
-					RwStreamRead(stream, buf, 0x2C);
-					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
-					rot.Invert();
-					CVector trans(fbuf[4], fbuf[5], fbuf[6]);
-					if (!stub_out || l ==0) {
-						seq->SetRotation(l, rot);
-						seq->SetTranslation(l, trans);
-					}
-					// scaling ignored
-					frameTimes[l] = fbuf[10];	// absolute time here
-				}else if(hasTranslation){
-					RwStreamRead(stream, buf, 0x20);
-					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
-					rot.Invert();
-					CVector trans(fbuf[4], fbuf[5], fbuf[6]);
-
-					if (!stub_out || l ==0) {
-						seq->SetRotation(l, rot);
-						seq->SetTranslation(l, trans);
-					}
-					frameTimes[l] = fbuf[7];	// absolute time here
-				}else{
-					RwStreamRead(stream, buf, 0x14);
-					CQuaternion rot(fbuf[0], fbuf[1], fbuf[2], fbuf[3]);
-					rot.Invert();
-					if (!stub_out || l ==0) {
-						seq->SetRotation(l, rot);
-					}
-					frameTimes[l] = fbuf[4];	// absolute time here
-				}
-			}
-
-			// convert absolute time to deltas
-			float running_sum = 0.0f;
-			for (l = 0; l < numFrames; l++) {
-				auto dt = frameTimes[l] - running_sum;
-				if (!stub_out || l ==0) {
-					seq->SetDeltaTime(l, dt);
-					assert(seq->GetDeltaTime(l) <= dt);
-					running_sum += seq->GetDeltaTime(l);
-				}
-				// if (seq->GetDeltaTime(l) == 0.0f && dt != 0.0f) {
-				// 	seq->SetDeltaTime(l, KF_MINDELTA);
-				// }
-
-				// assert(seq->GetDeltaTime(l) != 0.0f || dt == 0.0f);
-			}
-			RwFree(frameTimes);
 		}
-
-		hier->RemoveQuaternionFlips();
 		hier->CalcTotalTime();
 	}
 	if(animIndex > ms_numAnimations)

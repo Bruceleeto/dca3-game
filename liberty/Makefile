@@ -18,6 +18,7 @@ MOD_NAME?=
 GTA_DIR?=../../gta3
 GTA_MOD_DIR?=../../gta3_mod$(MOD_NAME)
 GTA_MOD_IMG_DIR?=$(GTA_MOD_DIR)/img
+GTA_MOD_CUTS_DIR=$(GTA_MOD_DIR)/cuts
 GTA_MOD_SFX_DIR?=$(GTA_MOD_DIR)/sfx
 GTA_MOD_LOOSE_DIR?=$(GTA_MOD_DIR)/loose
 
@@ -28,6 +29,8 @@ REPACK_IMG_DC_DIR?=$(REPACK_DIR)/img-dc
 REPACK_SFX_ORIG_DIR?=$(REPACK_DIR)/sfx-orig
 REPACK_SFX_DC_DIR?=$(REPACK_DIR)/sfx-dc
 REPACK_STREAM_DECODED_DIR?=$(REPACK_DIR)/stream-decoded
+REPACK_CUTS_ORIG_DIR?=$(REPACK_DIR)/cuts-orig
+REPACK_CUTS_DC_DIR?=$(REPACK_DIR)/cuts-dc
 
 LIBS :=
 TEXCONV_FLAGS :=
@@ -287,6 +290,9 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 %.texconv.o: %.cpp
 	$(CXX) -std=c++2a -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle -I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
 
+animtool: ../src/tools/animtool.cpp
+	$(CXX) -std=c++17 -o $@ -g -O0 $<
+
 -include $(DEPS)
 
 #### Repacking ####
@@ -355,10 +361,16 @@ TEXTURE_DOWNSAMPLE_IMG ?= HALF
 -include sfxlooplist.mk
 -include wavlist.mk
 -include mp3list.mk
+-include cuts.mk
 
 IMG_TEXTURES_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_MODELS))
+
+CUTS_IFP_DC = $(addprefix $(REPACK_CUTS_DC_DIR)/, $(CUTS_IFP))
+CUTS_MISC_DC = $(addprefix $(REPACK_CUTS_DC_DIR)/, $(CUTS_MISC))
+
 LOOSE_FILES_DC = $(addprefix $(REPACK_GTA_DIR)/, $(MISC_FILES))
+
 SFX_DC_DIR = $(REPACK_GTA_DIR)/sfx
 SFX_DC_RAW = $(SFX_DC_DIR)/sfx_all.raw
 SFX_DC_DSC = $(SFX_DC_DIR)/sfx_all.dsc
@@ -367,6 +379,9 @@ STREAM_ADPCM_DC = $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_WAV:.wav=.APM)
 
 IMG_TEXTURES_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MODELS))
+
+CUTS_IFP_ORIG = $(addprefix $(REPACK_CUTS_ORIG_DIR)/, $(CUTS_IFP))
+CUTS_MISC_ORIG = $(addprefix $(REPACK_CUTS_ORIG_DIR)/, $(CUTS_MISC))
 
 SFX_ORIG = $(addprefix $(REPACK_SFX_ORIG_DIR)/, $(SFX_WAV))
 SFX_ORIG_LOOP = $(addprefix $(REPACK_SFX_ORIG_DIR)/, $(SFX_LOOP_WAV))
@@ -389,6 +404,15 @@ $(REPACK_DIR)/unpacked: imgtool $(GTA_DIR)/models/gta3.img $(GTA_DIR)/models/gta
 	@touch $@
 
 $(IMG_TEXTURES_ORIG) $(IMG_MODELS_ORIG): $(REPACK_DIR)/unpacked
+	@touch $@
+
+$(REPACK_DIR)/unpacked-cuts: imgtool $(GTA_DIR)/anim/cuts.img $(GTA_DIR)/anim/cuts.dir
+	mkdir -p $(@D)
+	./imgtool unpack "$(GTA_DIR)/anim/cuts" "$(REPACK_CUTS_ORIG_DIR)"
+	@touch $@
+
+$(CUTS_IFP_ORIG) $(CUTS_MISC_ORIG): $(REPACK_DIR)/unpacked-cuts
+	@test -f $@
 	@touch $@
 
 # First try the mods img directory
@@ -423,6 +447,30 @@ $(REPACK_IMG_DC_DIR)/%.TXD: $(REPACK_IMG_ORIG_DIR)/%.TXD texconv
 	@mkdir -p $(@D)
 	./texconv $< $@ $(DEFAULT_RES) $(DEFAULT_RES) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_IMG)
 
+
+### cuts
+# First try the mods img directory
+$(REPACK_CUTS_DC_DIR)/%.dat: $(GTA_MOD_CUTS_DIR)/%.dat
+	@mkdir -p $(@D)
+	cp $< $@
+$(REPACK_CUTS_DC_DIR)/%.anm: $(GTA_MOD_CUTS_DIR)/%.anm
+	@mkdir -p $(@D)
+	cp $< $@
+$(REPACK_CUTS_DC_DIR)/%.ifp: $(GTA_MOD_CUTS_DIR)/%.ifp animtool
+	@mkdir -p $(@D)
+	./animtool $< $@
+
+# if not, the extracted img directory
+$(REPACK_CUTS_DC_DIR)/%.dat: $(REPACK_CUTS_ORIG_DIR)/%.dat
+	@mkdir -p $(@D)
+	cp $< $@
+$(REPACK_CUTS_DC_DIR)/%.anm: $(REPACK_CUTS_ORIG_DIR)/%.anm
+	@mkdir -p $(@D)
+	cp $< $@
+$(REPACK_CUTS_DC_DIR)/%.ifp: $(REPACK_CUTS_ORIG_DIR)/%.ifp animtool
+	@mkdir -p $(@D)
+	./animtool $< $@
+
 # first try the mods loose directory
 $(REPACK_GTA_DIR)/%.dff: $(GTA_MOD_LOOSE_DIR)/%.dff texconv
 	@mkdir -p $(@D)
@@ -456,6 +504,22 @@ $(REPACK_GTA_DIR)/%.TXD: $(GTA_DIR)/%.TXD texconv
 	@mkdir -p $(@D)
 	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
 
+# first try the mods loose directory
+$(REPACK_GTA_DIR)/%.ifp: $(GTA_MOD_LOOSE_DIR)/%.ifp animtool
+	@mkdir -p $(@D)
+	./animtool $< $@
+$(REPACK_GTA_DIR)/%.IFP: $(GTA_MOD_LOOSE_DIR)/%.IFP animtool
+	@mkdir -p $(@D)
+	./animtool $< $@
+
+#if not, the original files
+$(REPACK_GTA_DIR)/%.ifp: $(GTA_DIR)/%.ifp animtool
+	@mkdir -p $(@D)
+	./animtool $< $@
+$(REPACK_GTA_DIR)/%.IFP: $(GTA_DIR)/%.IFP animtool
+	@mkdir -p $(@D)
+	./animtool $< $@
+
 $(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC)
 	mkdir -p $(@D)
 	mkdir -p "$(REPACK_GTA_DIR)/models/gta3"
@@ -463,6 +527,15 @@ $(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC)
 	@touch $@
 
 $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir: $(REPACK_DIR)/packed
+	@touch $@
+
+$(REPACK_DIR)/packed-cuts: $(CUTS_IFP_DC) $(CUTS_MISC_DC)
+	mkdir -p $(@D)
+	mkdir -p "$(REPACK_GTA_DIR)/anim/cuts"
+	./imgtool pack "$(REPACK_GTA_DIR)/anim/cuts" "$(REPACK_CUTS_DC_DIR)"
+	@touch $@
+
+$(REPACK_GTA_DIR)/anim/cuts.img $(REPACK_GTA_DIR)/anim/cuts.dir: $(REPACK_DIR)/packed-cuts
 	@touch $@
 
 # sfx processing

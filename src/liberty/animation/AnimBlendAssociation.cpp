@@ -55,6 +55,8 @@ void
 CAnimBlendAssociation::FreeAnimBlendNodeArray(void)
 {
 	assert(nodes != nil);
+	for(unsigned i = 0; i < numNodes; i++)
+		nodes[i].Destroy();
 	RwFreeAlign(nodes);
 }
 
