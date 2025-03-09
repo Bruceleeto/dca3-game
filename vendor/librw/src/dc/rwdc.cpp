@@ -4407,7 +4407,7 @@ rasterFromImage(Raster* raster, Image* image)
 #if defined(_WIN32) || defined(_WIN64)
         case PVRTEX:
             snprintf(encodeCommand, sizeof(encodeCommand),
-                 "pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
+                 "..\\vendor\\pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
         break;
         case PVRTOOL:
             snprintf(encodeCommand, sizeof(encodeCommand),
@@ -4417,7 +4417,7 @@ rasterFromImage(Raster* raster, Image* image)
 #else
         case PVRTEX:
             snprintf(encodeCommand, sizeof(encodeCommand),
-                 "./pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
+                 "../vendor/pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
         break;
         case PVRTOOL:
             snprintf(encodeCommand, sizeof(encodeCommand),
