@@ -143,8 +143,7 @@ void *mustmalloc_h(size_t sz, uint32 hint)
 	ret = Engine::memfuncs.rwmalloc(sz, hint);
 	if(ret || sz == 0)
 		return ret;
-	fprintf(stderr, "Error: out of memory\n");
-	exit(1);
+	assert(ret != 0);
 	return nil;
 }
 void *mustrealloc_h(void *p, size_t sz, uint32 hint)
@@ -153,8 +152,7 @@ void *mustrealloc_h(void *p, size_t sz, uint32 hint)
 	ret = Engine::memfuncs.rwrealloc(p, sz, hint);
 	if(ret || sz == 0)
 		return ret;
-	fprintf(stderr, "Error: out of memory\n");
-	exit(1);
+	assert(ret != 0);
 	return nil;
 }
 
