@@ -6,7 +6,7 @@
 # Put the filename of the output binary here
 PROJECT_NAME = dca-miami
 TEAM_NAME ="the gang"
-DISC_SERIAL = DCA-MIAMI
+DISC_SERIAL = DCA-MIAM
 RELEASE_DATE = 20250401
 TARGET ?= dca-miami.elf
 
