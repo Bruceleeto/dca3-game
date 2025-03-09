@@ -369,16 +369,12 @@ src/extras/GitSHA1.cpp
 
 liberty/1ST_READ.BIN
 liberty/IP.BIN
-liberty/re3.cdi
-liberty/re3.iso
-liberty/re3.elf
-liberty/re3.elf.bin
-liberty/re3-sim.elf
-liberty/dca3.cdi
-liberty/dca3.iso
-liberty/dca3.elf
-liberty/dca3.elf.bin
-liberty/dca3-sim.elf
+liberty/dca-liberty.cdi
+liberty/dca-liberty.iso
+liberty/dca-liberty.ds.iso
+liberty/dca-liberty.elf
+liberty/dca-liberty.elf.bin
+liberty/dca-liberty-sim.elf
 liberty/texconv*
 liberty/imgtool*
 liberty/extract-sfx*
@@ -387,21 +383,16 @@ liberty/analyze-profile*
 liberty/aud2adpcm*
 liberty/repack-data
 liberty/output.map
-liberty/dca3.ds.iso
 liberty/git-version
 
 miami/1ST_READ.BIN
 miami/IP.BIN
-miami/re3.cdi
-miami/re3.iso
-miami/re3.elf
-miami/re3.elf.bin
-miami/re3-sim.elf
-miami/dca3.cdi
-miami/dca3.iso
-miami/dca3.elf
-miami/dca3.elf.bin
-miami/dca3-sim.elf
+miami/dca-miami.cdi
+miami/dca-miami.iso
+miami/dca-miami.ds.iso
+miami/dca-miami.elf
+miami/dca-miami.elf.bin
+miami/dca-miami-sim.elf
 miami/texconv*
 miami/imgtool*
 miami/extract-sfx*
@@ -410,7 +401,6 @@ miami/analyze-profile*
 miami/aud2adpcm*
 miami/repack-data
 miami/output.map
-miami/dca3.ds.iso
 miami/git-version
 
 .DS_Store

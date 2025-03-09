@@ -1,14 +1,11 @@
-TARGET ?= dca3-sim.elf
-
-IS_MAC := $(shell uname -s | grep -i "darwin" > /dev/null && echo "yes" || echo "no")
-
+TARGET ?= dca-miami-sim.elf
 
 all: $(TARGET)
 
 include common.mk
 
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../miami/audio/sampman_null.o
+	../src/miami/audio/sampman_null.o
 
 OBJS_SIM=$(OBJS:.o=.sim.o) \
 	../vendor/koshle/hlekos.sim.o \
@@ -37,31 +34,17 @@ DEPS_SIM=$(DEPS_SIM1:.o3=.d)
 
 CXXFLAGS+= -MMD -MP
 
-ifeq ($(IS_MAC), yes)
 %.sim.o: %.c
-	$(CC) -c -O0 -g -fno-pic -no-pie -o $@ $(CFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 -DMACOS64 $<
+	$(CC) -c -O0 -g -fno-pic -no-pie -o $@ $(CFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -DMACOS64 $<
 %.sim.o: %.cpp
-	$(CXX) -c -O0 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 -DMACOS64 $<
+	$(CXX) -c -O0 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -DMACOS64 $<
 %.sim.o3: %.cpp
-	$(CXX) -c -O3 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 -DMACOS64 $<
-else
-# Using sse2 here for valgrind compatibility
-%.sim.o: %.c
-	$(CC) -msse2 -mfpmath=sse -c -O0 -g -fno-pic -no-pie -o $@ $(CFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<
-%.sim.o: %.cpp
-	$(CXX) -msse2 -mfpmath=sse -c -O0 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<
-%.sim.o3: %.cpp
-	$(CXX) -msse2 -mfpmath=sse -c -O3 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -D_FILE_OFFSET_BITS=64 $<	
-endif
+	$(CXX) -c -O3 -g -fno-pic -no-pie -o $@ $(CXXFLAGS) -I../vendor/koshle -I../vendor/emu -U_WIN32 -UWIN32 -UWINNT -Ui386 -DDC_SIM -DMACOS64 $<
 
 clean:
 	-rm -f $(OBJS_SIM) $(TARGET)
 
-ifeq ($(IS_MAC), yes)
 $(TARGET): $(OBJS_SIM)
 	$(CXX) -fno-pic -no-pie -o $(TARGET) $(OBJS_SIM) -lX11
-else
-$(TARGET): $(OBJS_SIM)
-	$(CXX) -fno-pic -no-pie -o $(TARGET) $(OBJS_SIM) -lX11
-endif
+
 -include $(DEPS_SIM)

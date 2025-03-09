@@ -1164,6 +1164,12 @@ bool re3RemoveLeastUsedModel() {
 	return CStreaming::RemoveLeastUsedModel();
 }
 
+bool re3EmergencyRemoveModel() {
+	auto usedmem = CStreaming::ms_memoryUsed;
+	CStreaming::DeleteRwObjectsBehindCamera(CStreaming::ms_memoryUsed-1);
+	return usedmem != CStreaming::ms_memoryUsed;
+}
+
 bool
 CStreaming::RemoveLeastUsedModel(void)
 {

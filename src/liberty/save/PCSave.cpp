@@ -15,7 +15,7 @@
 #include "minilzo.h"
 #include "main.h"
 
-#include "../vmu/vmu.h"
+#include "vmu/vmu.h"
 
 const char* _psGetUserFilesFolder();
 

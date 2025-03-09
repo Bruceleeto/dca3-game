@@ -4,8 +4,11 @@
 #   
 
 # Put the filename of the output binary here
-PROJECT_NAME = dca3
-TARGET ?= dca3.elf
+PROJECT_NAME = dca-liberty
+TEAM_NAME ="the gang"
+DISC_SERIAL = DCA-LIBERTY
+RELEASE_DATE = 20250401
+TARGET ?= dca-liberty.elf
 
 HAVE_CDI4DC := $(shell which cdi4dc > /dev/null 2>&1 && echo "yes" || echo "no")
 IS_MAC := $(shell uname -s | grep -i "darwin" > /dev/null && echo "yes" || echo "no")
@@ -45,8 +48,8 @@ all: $(TARGET)
 include common.mk
 
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../src/audio/sampman_dc.o \
-	../src/prof/profiler.o
+	../src/liberty/audio/sampman_dc.o \
+	../src/common/prof/profiler.o
 
 OBJS_TEXCONV = $(RW_OBJS:.o=.texconv.o)
 OBJS_TEXCONV += \
@@ -159,7 +162,7 @@ $(OBJS_NO_FAST_MATH): %.o: %.cpp
 $(TARGET): $(OBJS)
 	kos-c++ -o $(TARGET) $(OBJS) -Wl,--gc-sections -Wl,--as-needed -Wl,-Map,output.map \
 		-flto=auto $(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 
-	@echo && echo && echo "*** Build Completed Successfully ***" && echo && echo
+	@echo && echo && echo "*** Build Completed Successfully ($(TARGET)) ***" && echo && echo
 
 run: $(TARGET)
 	$(KOS_LOADER) $(TARGET)
@@ -227,15 +230,15 @@ $(PROJECT_NAME)-prebuilt.cdi: $(PROJECT_NAME)-prebuilt.iso
 	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
 else
 $(PROJECT_NAME).cdi: $(TARGET) $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
-	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME).cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n DCA3 -a "the gang"
+	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME).cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n $(PROJECT_NAME) -a $(TEAM_NAME) -s $(DISC_SERIAL) -r $(RELEASE_DATE)
 	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
 
 $(PROJECT_NAME)-no-repack.cdi: $(TARGET) $(REPACK_GTA_DIR)/GTA3SF8.b
-	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME)-no-repack.cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n DCA3 -a "the gang"
+	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME)-no-repack.cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n $(PROJECT_NAME) -a $(TEAM_NAME) -s $(DISC_SERIAL) -r $(RELEASE_DATE)
 	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
 
 $(PROJECT_NAME)-prebuilt.cdi: $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTA3SF8.b
-	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME).cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n DCA3 -a "the gang"
+	mkdcdisc -e $(TARGET) -o $(PROJECT_NAME).cdi -d $(REPACK_GTA_DIR)/ $(MKDCDISC_PAD_OPTION) -n $(PROJECT_NAME) -a $(TEAM_NAME) -s $(DISC_SERIAL) -r $(RELEASE_DATE)
 	@echo && echo && echo "*** CDI Baked Successfully ***" && echo && echo
 endif
 

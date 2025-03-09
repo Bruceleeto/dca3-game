@@ -38,7 +38,7 @@
 #include "World.h"
 #include "Zones.h"
 
-#include "../vmu/vmu.h"
+#include "vmu/vmu.h"
 
 #define BLOCK_COUNT 20
 #define SIZE_OF_SIMPLEVARS 0xBC

@@ -56,7 +56,7 @@
 #include <stdarg.h>
 #endif
 
-#include "../vmu/vmu.h"
+#include "vmu/vmu.h"
 
 #ifdef RWLIBS
 extern "C" int vsprintf(char* const _Buffer, char const* const _Format, va_list  _ArgList);

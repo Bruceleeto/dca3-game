@@ -28,7 +28,7 @@ extern const char* currentFile;
 #include "../rwrender.h"
 #include "rwdc.h"
 #include "vq.h"
-#include "tex-util.h"../src/miami/skel/dc/dc.cpp
+#include "tex-util.h"
 
 #include <vector>
 #include <set>

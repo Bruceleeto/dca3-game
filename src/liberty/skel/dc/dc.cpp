@@ -1,6 +1,6 @@
 #if defined RW_DC
 
-#include "../vmu/vmu.h"
+#include "vmu/vmu.h"
 #include <dc/maple.h>
 #include <dc/maple/controller.h>
 #include <map>
@@ -8,7 +8,7 @@
 #if !defined(DC_SIM)
 #include <kos.h>
 KOS_INIT_FLAGS(INIT_IRQ | INIT_CONTROLLER | INIT_CDROM | INIT_VMU);
-#include "../prof/profiler.h"
+#include "prof/profiler.h"
 #endif
 
 #ifdef _WIN32
@@ -62,7 +62,7 @@ long _dwOperatingSystemVersion;
 #include "AnimViewer.h"
 #include "Font.h"
 #include "MemoryMgr.h"
-#include "../../dreamcast/git-version.h"
+#include "git-version.h"
 #include "dc.h"
 
 #include <kos/dbglog.h>

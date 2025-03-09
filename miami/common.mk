@@ -4,6 +4,7 @@ CI_JOB_ID ?= 00000000
 
 git-version/git-version.tmp:
 	@echo "Generating git-version.tmp with GIT_VERSION = \"$(GIT_VERSION)\""
+	@mkdir -p git-version
 	@echo "#pragma once" > git-version/git-version.tmp
 	@echo "#ifndef VERSION_H" >> git-version/git-version.tmp
 	@echo "#define VERSION_H" >> git-version/git-version.tmp
@@ -398,6 +399,7 @@ INCLUDE = \
 -I../vendor/miniLZO \
 \
 -I../src/common \
+\
 -Igit-version
 
 DEFINES = -DRW_DC -DLIBRW $(if $(WITH_LOGGING),-DWITH_LOGGING) $(if $(WITH_DCLOAD),-DDC_CHDIR=/pc) \

@@ -3,7 +3,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define _USE_MATH_DEFINES
 
-#include "common_defines.h"
+#include "src/common_defines.h"
 
 #ifdef __MWERKS__
 #define __STDC_LIMIT_MACROS // so we get UINT32_MAX etc
