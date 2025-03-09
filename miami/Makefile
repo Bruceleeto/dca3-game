@@ -45,8 +45,8 @@ all: $(TARGET)
 include common.mk
 
 OBJS = $(RE3_OBJS) $(RW_OBJS) \
-	../miami/audio/sampman_dc.o \
-	../src/prof/profiler.o
+	../src/miami/audio/sampman_dc.o \
+	../src/common/prof/profiler.o
 
 OBJS_TEXCONV = $(RW_OBJS:.o=.texconv.o)
 OBJS_TEXCONV += \
@@ -93,27 +93,27 @@ OBJS_TEXCONV += \
 # to conserve RAM.
 OBJS_O3 = \
 	../vendor/librw/src/dc/rwdc.o \
-	../miami/core/World.o \
-	../miami/collision/Collision.o \
-	../miami/math/math.o \
-	../miami/math/Matrix.o \
-	../miami/math/Quaternion.o \
-	../miami/math/Rect.o \
-	../miami/math/Vector.o \
-	../vendor/librw/src/base.o \
-	../miami/renderer/Shadows.o
+	../src/miami/core/World.o \
+	../src/miami/collision/Collision.o \
+	../src/miami/math/math.o \
+	../src/miami/math/Matrix.o \
+	../src/miami/math/Quaternion.o \
+	../src/miami/math/Rect.o \
+	../src/miami/math/Vector.o \
+	../src/vendor/librw/src/base.o \
+	../src/miami/renderer/Shadows.o
 
 OBJS_NO_FAST_MATH = \
-	../miami/core/Cam.o \
-	../miami/core/Camera.o \
-	../miami/vehicles/Bike.o \
-	../miami/renderer/Particle.o
+	../src/miami/core/Cam.o \
+	../src/miami/core/Camera.o \
+	../src/miami/vehicles/Bike.o \
+	../src/miami/renderer/Particle.o
 
 KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
 	-mfsrra -mfsca
 
 ifdef KOS_BASE
-include $(KOS_BASE)/Makefile.rules
+include $(KOS_BASE)/Makefile.rules../.gitignore
 else
 $(warning "KOS_BASE is not set. Only prebuilt targets will work.")
 endif
@@ -130,7 +130,7 @@ CXXFLAGS += $(if $(WITH_32MB),-O3,-Os) \
 	-Wno-multichar -Wno-unused-value -Wno-char-subscripts -Wno-reorder \
 	-Wno-unused-function -Wno-class-memaccess -fno-permissive \
 	-fno-asynchronous-unwind-tables -fno-enforce-eh-specs -fno-non-call-exceptions \
-	-fno-strict-aliasing -fwrapv
+	-fno-strict-aliasing -fwrapv -Wno-unknown-pragmas
 
 clean-texconv:
 	-rm -f $(OBJS_TEXCONV)

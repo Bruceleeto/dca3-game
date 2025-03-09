@@ -16,7 +16,7 @@ extern const char* currentFile;
 #define texconvf(...) // printf(__VA_ARGS__)
 #endif
 
-#include "../../../src/vmu/vmu.h"
+#include "vmu/vmu.h"
 #include "../rwbase.h"
 #include "../rwerror.h"
 #include "../rwplg.h"
@@ -28,7 +28,7 @@ extern const char* currentFile;
 #include "../rwrender.h"
 #include "rwdc.h"
 #include "vq.h"
-#include "tex-util.h"
+#include "tex-util.h"../src/miami/skel/dc/dc.cpp
 
 #include <vector>
 #include <set>

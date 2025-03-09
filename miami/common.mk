@@ -2,298 +2,298 @@ GIT_VERSION := $(shell git describe --always --tags --long --dirty 2>/dev/null |
 CI_JOB_ID ?= 00000000
 
 
-git-version.tmp:
+git-version/git-version.tmp:
 	@echo "Generating git-version.tmp with GIT_VERSION = \"$(GIT_VERSION)\""
-	@echo "#pragma once" > git-version.tmp
-	@echo "#ifndef VERSION_H" >> git-version.tmp
-	@echo "#define VERSION_H" >> git-version.tmp
-	@echo "#define GIT_VERSION \"$(GIT_VERSION)\"" >> git-version.tmp
-	@echo "#define CI_JOB_ID \"$(CI_JOB_ID)\"" >> git-version.tmp
-	@echo "#endif // VERSION_H" >> git-version.tmp
+	@echo "#pragma once" > git-version/git-version.tmp
+	@echo "#ifndef VERSION_H" >> git-version/git-version.tmp
+	@echo "#define VERSION_H" >> git-version/git-version.tmp
+	@echo "#define GIT_VERSION \"$(GIT_VERSION)\"" >> git-version/git-version.tmp
+	@echo "#define CI_JOB_ID \"$(CI_JOB_ID)\"" >> git-version/git-version.tmp
+	@echo "#endif // VERSION_H" >> git-version/git-version.tmp
 
-git-version.h: git-version.tmp
-	@if [ ! -f git-version.h ] || ! cmp -s git-version.tmp git-version.h; then \
+git-version/git-version.h: git-version/git-version.tmp
+	@if [ ! -f git-version/git-version.h ] || ! cmp -s git-version/git-version.tmp git-version/git-version.h; then \
 	  echo "Updating git-version.h"; \
-	  cp git-version.tmp git-version.h; \
+	  cp git-version/git-version.tmp git-version/git-version.h; \
     else \
 	  echo "git-version.h is up to date. No change."; \
 	fi
 
-.PHONY: git-version.tmp
+.PHONY: git-version/git-version.tmp
 
-../miami/skel/dc/dc.cpp: git-version.h
+../src/miami/skel/dc/dc.cpp: git-version/git-version.h
 
 
 
 # List all of your C files here, but change the extension to ".o"
 # Include "romdisk.o" if you want a rom disk.
 RE3_OBJS = \
-	../miami/animation/AnimBlendAssocGroup.o \
-	../miami/animation/AnimBlendAssociation.o \
-	../miami/animation/AnimBlendClumpData.o \
-	../miami/animation/AnimBlendHierarchy.o \
-	../miami/animation/AnimBlendNode.o \
-	../miami/animation/AnimBlendSequence.o \
-	../miami/animation/AnimManager.o \
-	../miami/animation/Bones.o \
-	../miami/animation/CutsceneMgr.o \
-	../miami/animation/FrameUpdate.o \
-	../miami/animation/RpAnimBlend.o \
+	../src/miami/animation/AnimBlendAssocGroup.o \
+	../src/miami/animation/AnimBlendAssociation.o \
+	../src/miami/animation/AnimBlendClumpData.o \
+	../src/miami/animation/AnimBlendHierarchy.o \
+	../src/miami/animation/AnimBlendNode.o \
+	../src/miami/animation/AnimBlendSequence.o \
+	../src/miami/animation/AnimManager.o \
+	../src/miami/animation/Bones.o \
+	../src/miami/animation/CutsceneMgr.o \
+	../src/miami/animation/FrameUpdate.o \
+	../src/miami/animation/RpAnimBlend.o \
 	\
-	../miami/buildings/Building.o \
-	../miami/buildings/Treadable.o \
+	../src/miami/buildings/Building.o \
+	../src/miami/buildings/Treadable.o \
 	\
-	../miami/collision/ColBox.o \
-	../miami/collision/ColLine.o \
-	../miami/collision/Collision.o \
-	../miami/collision/ColModel.o \
-	../miami/collision/ColPoint.o \
-	../miami/collision/ColSphere.o \
-	../miami/collision/ColStore.o \
-	../miami/collision/ColTriangle.o \
-	../miami/collision/TempColModels.o \
-	../miami/collision/VuCollision.o \
+	../src/miami/collision/ColBox.o \
+	../src/miami/collision/ColLine.o \
+	../src/miami/collision/Collision.o \
+	../src/miami/collision/ColModel.o \
+	../src/miami/collision/ColPoint.o \
+	../src/miami/collision/ColSphere.o \
+	../src/miami/collision/ColStore.o \
+	../src/miami/collision/ColTriangle.o \
+	../src/miami/collision/TempColModels.o \
+	../src/miami/collision/VuCollision.o \
 	\
-	../miami/control/AutoPilot.o \
-	../miami/control/Bridge.o \
-	../miami/control/CarAI.o \
-	../miami/control/CarCtrl.o \
-	../miami/control/Curves.o \
-	../miami/control/Darkel.o \
-	../miami/control/GameLogic.o \
-	../miami/control/Garages.o \
-	../miami/control/NameGrid.o \
-	../miami/control/OnscreenTimer.o \
-	../miami/control/PathFind.o \
-	../miami/control/Phones.o \
-	../miami/control/Pickups.o \
-	../miami/control/PowerPoints.o \
-	../miami/control/Record.o \
-	../miami/control/Remote.o \
-	../miami/control/Replay.o \
-	../miami/control/Restart.o \
-	../miami/control/RoadBlocks.o \
-	../miami/control/SceneEdit.o \
-	../miami/control/Script.o \
-	../miami/control/Script2.o \
-	../miami/control/Script3.o \
-	../miami/control/Script4.o \
-	../miami/control/Script5.o \
-	../miami/control/Script6.o \
-	../miami/control/Script7.o \
-	../miami/control/Script8.o \
-	../miami/control/SetPieces.o \
-	../miami/control/ScriptDebug.o \
-	../miami/control/TrafficLights.o \
+	../src/miami/control/AutoPilot.o \
+	../src/miami/control/Bridge.o \
+	../src/miami/control/CarAI.o \
+	../src/miami/control/CarCtrl.o \
+	../src/miami/control/Curves.o \
+	../src/miami/control/Darkel.o \
+	../src/miami/control/GameLogic.o \
+	../src/miami/control/Garages.o \
+	../src/miami/control/NameGrid.o \
+	../src/miami/control/OnscreenTimer.o \
+	../src/miami/control/PathFind.o \
+	../src/miami/control/Phones.o \
+	../src/miami/control/Pickups.o \
+	../src/miami/control/PowerPoints.o \
+	../src/miami/control/Record.o \
+	../src/miami/control/Remote.o \
+	../src/miami/control/Replay.o \
+	../src/miami/control/Restart.o \
+	../src/miami/control/RoadBlocks.o \
+	../src/miami/control/SceneEdit.o \
+	../src/miami/control/Script.o \
+	../src/miami/control/Script2.o \
+	../src/miami/control/Script3.o \
+	../src/miami/control/Script4.o \
+	../src/miami/control/Script5.o \
+	../src/miami/control/Script6.o \
+	../src/miami/control/Script7.o \
+	../src/miami/control/Script8.o \
+	../src/miami/control/SetPieces.o \
+	../src/miami/control/ScriptDebug.o \
+	../src/miami/control/TrafficLights.o \
 	\
-	../miami/core/Accident.o \
-	../miami/core/Cam.o \
-	../miami/core/Camera.o \
-	../miami/core/CdStreamDC.o \
-	../miami/core/Clock.o \
-	../miami/core/ControllerConfig.o \
-	../miami/core/Debug.o \
-	../miami/core/Directory.o \
-	../miami/core/EventList.o \
-	../miami/core/FileLoader.o \
-	../miami/core/FileMgr.o \
-	../miami/core/Fire.o \
-	../miami/core/Frontend.o \
-	../miami/core/FrontEndControls.o \
-	../miami/core/Frontend_PS2.o \
-	../miami/core/Game.o \
-	../miami/core/IniFile.o \
-	../miami/core/Lists.o \
-	../miami/core/main.o \
-	../miami/core/MenuScreens.o \
-	../miami/core/MenuScreensCustom.o \
-	../miami/core/obrstr.o \
-	../miami/core/Pad.o \
-	../miami/core/Placeable.o \
-	../miami/core/PlayerInfo.o \
-	../miami/core/Pools.o \
-	../miami/core/Profile.o \
-	../miami/core/Radar.o \
-	../miami/core/Range2D.o \
-	../miami/core/Range3D.o \
-	../miami/core/re3.o \
-	../miami/core/References.o \
-	../miami/core/Ropes.o \
-	../miami/core/Stats.o \
-	../miami/core/Streaming.o \
-	../miami/core/SurfaceTable.o \
-	../miami/core/timebars.o \
-	../miami/core/Timer.o \
-	../miami/core/TimeStep.o \
-	../miami/core/User.o \
-	../miami/core/Wanted.o \
-	../miami/core/World.o \
-	../miami/core/ZoneCull.o \
-	../miami/core/Zones.o \
+	../src/miami/core/Accident.o \
+	../src/miami/core/Cam.o \
+	../src/miami/core/Camera.o \
+	../src/miami/core/CdStreamDC.o \
+	../src/miami/core/Clock.o \
+	../src/miami/core/ControllerConfig.o \
+	../src/miami/core/Debug.o \
+	../src/miami/core/Directory.o \
+	../src/miami/core/EventList.o \
+	../src/miami/core/FileLoader.o \
+	../src/miami/core/FileMgr.o \
+	../src/miami/core/Fire.o \
+	../src/miami/core/Frontend.o \
+	../src/miami/core/FrontEndControls.o \
+	../src/miami/core/Frontend_PS2.o \
+	../src/miami/core/Game.o \
+	../src/miami/core/IniFile.o \
+	../src/miami/core/Lists.o \
+	../src/miami/core/main.o \
+	../src/miami/core/MenuScreens.o \
+	../src/miami/core/MenuScreensCustom.o \
+	../src/miami/core/obrstr.o \
+	../src/miami/core/Pad.o \
+	../src/miami/core/Placeable.o \
+	../src/miami/core/PlayerInfo.o \
+	../src/miami/core/Pools.o \
+	../src/miami/core/Profile.o \
+	../src/miami/core/Radar.o \
+	../src/miami/core/Range2D.o \
+	../src/miami/core/Range3D.o \
+	../src/miami/core/re3.o \
+	../src/miami/core/References.o \
+	../src/miami/core/Ropes.o \
+	../src/miami/core/Stats.o \
+	../src/miami/core/Streaming.o \
+	../src/miami/core/SurfaceTable.o \
+	../src/miami/core/timebars.o \
+	../src/miami/core/Timer.o \
+	../src/miami/core/TimeStep.o \
+	../src/miami/core/User.o \
+	../src/miami/core/Wanted.o \
+	../src/miami/core/World.o \
+	../src/miami/core/ZoneCull.o \
+	../src/miami/core/Zones.o \
 	\
-	../miami/entities/Dummy.o \
-	../miami/entities/Entity.o \
-	../miami/entities/Physical.o \
+	../src/miami/entities/Dummy.o \
+	../src/miami/entities/Entity.o \
+	../src/miami/entities/Physical.o \
 	\
-	../miami/fakerw/fake.o \
+	../src/miami/fakerw/fake.o \
 	\
-	../miami/math/math.o \
-	../miami/math/Matrix.o \
-	../miami/math/Quaternion.o \
-	../miami/math/Rect.o \
-	../miami/math/Vector.o \
+	../src/miami/math/math.o \
+	../src/miami/math/Matrix.o \
+	../src/miami/math/Quaternion.o \
+	../src/miami/math/Rect.o \
+	../src/miami/math/Vector.o \
 	\
-	../miami/modelinfo/BaseModelInfo.o \
-	../miami/modelinfo/ClumpModelInfo.o \
-	../miami/modelinfo/MloModelInfo.o \
-	../miami/modelinfo/ModelIndices.o \
-	../miami/modelinfo/ModelInfo.o \
-	../miami/modelinfo/PedModelInfo.o \
-	../miami/modelinfo/SimpleModelInfo.o \
-	../miami/modelinfo/TimeModelInfo.o \
-	../miami/modelinfo/VehicleModelInfo.o \
-	../miami/modelinfo/WeaponModelInfo.o \
+	../src/miami/modelinfo/BaseModelInfo.o \
+	../src/miami/modelinfo/ClumpModelInfo.o \
+	../src/miami/modelinfo/MloModelInfo.o \
+	../src/miami/modelinfo/ModelIndices.o \
+	../src/miami/modelinfo/ModelInfo.o \
+	../src/miami/modelinfo/PedModelInfo.o \
+	../src/miami/modelinfo/SimpleModelInfo.o \
+	../src/miami/modelinfo/TimeModelInfo.o \
+	../src/miami/modelinfo/VehicleModelInfo.o \
+	../src/miami/modelinfo/WeaponModelInfo.o \
 	\
-	../miami/objects/CutsceneObject.o \
-	../miami/objects/DummyObject.o \
-	../miami/objects/Object.o \
-	../miami/objects/ObjectData.o \
-	../miami/objects/ParticleObject.o \
-	../miami/objects/Projectile.o \
-	../miami/objects/Stinger.o \
+	../src/miami/objects/CutsceneObject.o \
+	../src/miami/objects/DummyObject.o \
+	../src/miami/objects/Object.o \
+	../src/miami/objects/ObjectData.o \
+	../src/miami/objects/ParticleObject.o \
+	../src/miami/objects/Projectile.o \
+	../src/miami/objects/Stinger.o \
 	\
-	../miami/peds/CivilianPed.o \
-	../miami/peds/CopPed.o \
-	../miami/peds/EmergencyPed.o \
-	../miami/peds/Gangs.o \
-	../miami/peds/Ped.o \
-	../miami/peds/PedAI.o \
-	../miami/peds/PedChat.o \
-	../miami/peds/PedDebug.o \
-	../miami/peds/PedFight.o \
-	../miami/peds/PedIK.o \
-	../miami/peds/PedAttractor.o \
-	../miami/peds/PedPlacement.o \
-	../miami/peds/PedRoutes.o \
-	../miami/peds/PedType.o \
-	../miami/peds/PlayerPed.o \
-	../miami/peds/Population.o \
+	../src/miami/peds/CivilianPed.o \
+	../src/miami/peds/CopPed.o \
+	../src/miami/peds/EmergencyPed.o \
+	../src/miami/peds/Gangs.o \
+	../src/miami/peds/Ped.o \
+	../src/miami/peds/PedAI.o \
+	../src/miami/peds/PedChat.o \
+	../src/miami/peds/PedDebug.o \
+	../src/miami/peds/PedFight.o \
+	../src/miami/peds/PedIK.o \
+	../src/miami/peds/PedAttractor.o \
+	../src/miami/peds/PedPlacement.o \
+	../src/miami/peds/PedRoutes.o \
+	../src/miami/peds/PedType.o \
+	../src/miami/peds/PlayerPed.o \
+	../src/miami/peds/Population.o \
 	\
-	../miami/renderer/Antennas.o \
-	../miami/renderer/Clouds.o \
-	../miami/renderer/Console.o \
-	../miami/renderer/Coronas.o \
-	../miami/renderer/Credits.o \
-	../miami/renderer/CutsceneShadow.o \
-	../miami/renderer/Draw.o \
-	../miami/renderer/Fluff.o \
-	../miami/renderer/Font.o \
-	../miami/renderer/Glass.o \
-	../miami/renderer/Hud.o \
-	../miami/renderer/Instance.o \
-	../miami/renderer/Lines.o \
-	../miami/renderer/MBlur.o \
-	../miami/renderer/Occlusion.o \
-	../miami/renderer/Particle.o \
-	../miami/renderer/ParticleMgr.o \
-	../miami/renderer/PlayerSkin.o \
-	../miami/renderer/PointLights.o \
-	../miami/renderer/RenderBuffer.o \
-	../miami/renderer/Renderer.o \
-	../miami/renderer/Rubbish.o \
-	../miami/renderer/Shadows.o \
-	../miami/renderer/ShadowCamera.o \
-	../miami/renderer/Skidmarks.o \
-	../miami/renderer/SpecialFX.o \
-	../miami/renderer/Sprite.o \
-	../miami/renderer/Sprite2d.o \
-	../miami/renderer/TexList.o \
-	../miami/renderer/Timecycle.o \
-	../miami/renderer/VarConsole.o \
-	../miami/renderer/WaterCannon.o \
-	../miami/renderer/WaterCreatures.o \
-	../miami/renderer/WaterLevel.o \
-	../miami/renderer/Weather.o \
-	../miami/renderer/WindModifiers.o \
+	../src/miami/renderer/Antennas.o \
+	../src/miami/renderer/Clouds.o \
+	../src/miami/renderer/Console.o \
+	../src/miami/renderer/Coronas.o \
+	../src/miami/renderer/Credits.o \
+	../src/miami/renderer/CutsceneShadow.o \
+	../src/miami/renderer/Draw.o \
+	../src/miami/renderer/Fluff.o \
+	../src/miami/renderer/Font.o \
+	../src/miami/renderer/Glass.o \
+	../src/miami/renderer/Hud.o \
+	../src/miami/renderer/Instance.o \
+	../src/miami/renderer/Lines.o \
+	../src/miami/renderer/MBlur.o \
+	../src/miami/renderer/Occlusion.o \
+	../src/miami/renderer/Particle.o \
+	../src/miami/renderer/ParticleMgr.o \
+	../src/miami/renderer/PlayerSkin.o \
+	../src/miami/renderer/PointLights.o \
+	../src/miami/renderer/RenderBuffer.o \
+	../src/miami/renderer/Renderer.o \
+	../src/miami/renderer/Rubbish.o \
+	../src/miami/renderer/Shadows.o \
+	../src/miami/renderer/ShadowCamera.o \
+	../src/miami/renderer/Skidmarks.o \
+	../src/miami/renderer/SpecialFX.o \
+	../src/miami/renderer/Sprite.o \
+	../src/miami/renderer/Sprite2d.o \
+	../src/miami/renderer/TexList.o \
+	../src/miami/renderer/Timecycle.o \
+	../src/miami/renderer/VarConsole.o \
+	../src/miami/renderer/WaterCannon.o \
+	../src/miami/renderer/WaterCreatures.o \
+	../src/miami/renderer/WaterLevel.o \
+	../src/miami/renderer/Weather.o \
+	../src/miami/renderer/WindModifiers.o \
 	\
-	../miami/rw/ClumpRead.o \
-	../miami/rw/Lights.o \
-	../miami/rw/MemoryHeap.o \
-	../miami/rw/MemoryMgr.o \
-	../miami/rw/NodeName.o \
-	../miami/rw/RwHelper.o \
-	../miami/rw/RwMatFX.o \
-	../miami/rw/RwPS2AlphaTest.o \
-	../miami/rw/TexRead.o \
-	../miami/rw/TexturePools.o \
-	../miami/rw/TxdStore.o \
-	../miami/rw/VisibilityPlugins.o \
+	../src/miami/rw/ClumpRead.o \
+	../src/miami/rw/Lights.o \
+	../src/miami/rw/MemoryHeap.o \
+	../src/miami/rw/MemoryMgr.o \
+	../src/miami/rw/NodeName.o \
+	../src/miami/rw/RwHelper.o \
+	../src/miami/rw/RwMatFX.o \
+	../src/miami/rw/RwPS2AlphaTest.o \
+	../src/miami/rw/TexRead.o \
+	../src/miami/rw/TexturePools.o \
+	../src/miami/rw/TxdStore.o \
+	../src/miami/rw/VisibilityPlugins.o \
 	\
-	../miami/skel/crossplatform.o \
-	../miami/skel/events.o \
-	../miami/skel/skeleton.o \
-	../miami/skel/dc/dc.o \
+	../src/miami/skel/crossplatform.o \
+	../src/miami/skel/events.o \
+	../src/miami/skel/skeleton.o \
+	../src/miami/skel/dc/dc.o \
 	\
-	../miami/text/Messages.o \
-	../miami/text/Pager.o \
-	../miami/text/Text.o \
+	../src/miami/text/Messages.o \
+	../src/miami/text/Pager.o \
+	../src/miami/text/Text.o \
 	\
-	../miami/vehicles/Automobile.o \
-	../miami/vehicles/Boat.o \
-	../miami/vehicles/Bike.o \
-	../miami/vehicles/CarGen.o \
-	../miami/vehicles/Cranes.o \
-	../miami/vehicles/DamageManager.o \
-	../miami/vehicles/Door.o \
-	../miami/vehicles/Floater.o \
-	../miami/vehicles/HandlingMgr.o \
-	../miami/vehicles/Heli.o \
-	../miami/vehicles/Plane.o \
-	../miami/vehicles/Train.o \
-	../miami/vehicles/Transmission.o \
-	../miami/vehicles/Vehicle.o \
+	../src/miami/vehicles/Automobile.o \
+	../src/miami/vehicles/Boat.o \
+	../src/miami/vehicles/Bike.o \
+	../src/miami/vehicles/CarGen.o \
+	../src/miami/vehicles/Cranes.o \
+	../src/miami/vehicles/DamageManager.o \
+	../src/miami/vehicles/Door.o \
+	../src/miami/vehicles/Floater.o \
+	../src/miami/vehicles/HandlingMgr.o \
+	../src/miami/vehicles/Heli.o \
+	../src/miami/vehicles/Plane.o \
+	../src/miami/vehicles/Train.o \
+	../src/miami/vehicles/Transmission.o \
+	../src/miami/vehicles/Vehicle.o \
 	\
-	../miami/weapons/BulletInfo.o \
-	../miami/weapons/Explosion.o \
-	../miami/weapons/ProjectileInfo.o \
-	../miami/weapons/ShotInfo.o \
-	../miami/weapons/Weapon.o \
-	../miami/weapons/WeaponEffects.o \
-	../miami/weapons/WeaponInfo.o \
+	../src/miami/weapons/BulletInfo.o \
+	../src/miami/weapons/Explosion.o \
+	../src/miami/weapons/ProjectileInfo.o \
+	../src/miami/weapons/ShotInfo.o \
+	../src/miami/weapons/Weapon.o \
+	../src/miami/weapons/WeaponEffects.o \
+	../src/miami/weapons/WeaponInfo.o \
 	\
-	../miami/audio/AudioCollision.o \
-	../miami/audio/AudioLogic.o \
-	../miami/audio/AudioManager.o \
-	../miami/audio/AudioScriptObject.o \
-	../miami/audio/DMAudio.o \
-	../miami/audio/MusicManager.o \
-	../miami/audio/PolRadio.o \
-	../miami/audio/sampman_miles.o \
-	../miami/audio/sampman_oal.o \
+	../src/miami/audio/AudioCollision.o \
+	../src/miami/audio/AudioLogic.o \
+	../src/miami/audio/AudioManager.o \
+	../src/miami/audio/AudioScriptObject.o \
+	../src/miami/audio/DMAudio.o \
+	../src/miami/audio/MusicManager.o \
+	../src/miami/audio/PolRadio.o \
+	../src/miami/audio/sampman_miles.o \
+	../src/miami/audio/sampman_oal.o \
 	\
-	../miami/save/Date.o \
-	../miami/save/GenericGameStorage.o \
-	../miami/save/MemoryCard.o \
-	../miami/save/PCSave.o \
+	../src/miami/save/Date.o \
+	../src/miami/save/GenericGameStorage.o \
+	../src/miami/save/MemoryCard.o \
+	../src/miami/save/PCSave.o \
 	\
-	../miami/extras/debugmenu.o \
-	../miami/extras/frontendoption.o \
-	../miami/extras/postfx.o \
-	../miami/extras/screendroplets.o \
+	../src/miami/extras/debugmenu.o \
+	../src/miami/extras/frontendoption.o \
+	../src/miami/extras/postfx.o \
+	../src/miami/extras/screendroplets.o \
 	\
 	../vendor/miniLZO/minilzo.o \
 	\
-	../miami/vmu/vmu.o
+	../src/common/vmu/vmu.o
 
 # Excluded \
-	../miami/extras/custompipes.o \
-	../miami/extras/custompipes_d3d9.o \
-	../miami/extras/custompipes_gl.o \
-	../miami/core/CdStream.o \
-	../miami/core/CdStreamPosix.o \
-	../miami/extras \
-	../miami/extras/GitSHA1.cpp.in \
-	../miami/core/AnimViewer.o \
+	../src/miami/extras/custompipes.o \
+	../src/miami/extras/custompipes_d3d9.o \
+	../src/miami/extras/custompipes_gl.o \
+	../src/miami/core/CdStream.o \
+	../src/miami/core/CdStreamPosix.o \
+	../src/miami/extras \
+	../src/miami/extras/GitSHA1.cpp.in \
+	../src/miami/core/AnimViewer.o \
 
 RW_OBJS = \
     ../vendor/librw/src/anim.o \
@@ -366,36 +366,39 @@ RW_OBJS = \
     ../vendor/librw/src/ps2/ps2skin.o \
 
 INCLUDE = \
--I../miami/animation \
--I../miami/audio \
--I../miami/buildings \
--I../miami/collision \
--I../miami/control \
--I../miami/core \
--I../miami/entities \
--I../miami/extras \
--I../miami/fakerw \
--I../miami/math \
--I../miami/modelinfo \
--I../miami/objects \
--I../miami/peds \
--I../miami/renderer \
--I../miami/rw \
--I../miami/save \
--I../miami/skel \
--I../miami/text \
--I../miami/vehicles \
--I../miami/weapons \
--I../miami/audio/eax \
--I../miami/audio/oal \
--I../miami/extras/shaders \
--I../miami/extras/shaders/obj \
--I../miami/skel/glfw \
--I../miami/skel/win \
+-I../src/miami/animation \
+-I../src/miami/audio \
+-I../src/miami/buildings \
+-I../src/miami/collision \
+-I../src/miami/control \
+-I../src/miami/core \
+-I../src/miami/entities \
+-I../src/miami/extras \
+-I../src/miami/fakerw \
+-I../src/miami/math \
+-I../src/miami/modelinfo \
+-I../src/miami/objects \
+-I../src/miami/peds \
+-I../src/miami/renderer \
+-I../src/miami/rw \
+-I../src/miami/save \
+-I../src/miami/skel \
+-I../src/miami/text \
+-I../src/miami/vehicles \
+-I../src/miami/weapons \
+-I../src/miami/audio/eax \
+-I../src/miami/audio/oal \
+-I../src/miami/extras/shaders \
+-I../src/miami/extras/shaders/obj \
+-I../src/miami/skel/glfw \
+-I../src/miami/skel/win \
 \
 -I../vendor/librw \
 \
--I../vendor/miniLZO
+-I../vendor/miniLZO \
+\
+-I../src/common \
+-Igit-version
 
 DEFINES = -DRW_DC -DLIBRW $(if $(WITH_LOGGING),-DWITH_LOGGING) $(if $(WITH_DCLOAD),-DDC_CHDIR=/pc) \
 	$(if $(WITH_BEEPS),-DWITH_BEEPS)
