@@ -14,11 +14,7 @@ CAnimBlendNode::Init(void)
 	player = nil;
 }
 
-void CAnimBlendNode::Setup() {
-	player = nil;
-	// player->Init(sequence->keyFrames, sequence->type, sequence->numFrames);
-}
-void CAnimBlendNode::Destroy() {
+void CAnimBlendNode::Destroy(void) {
 	if (player) {
 		delete player;
 		player = nil;
@@ -28,7 +24,7 @@ void CAnimBlendNode::Destroy() {
 bool
 CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 {
-	assert (player->keyFrames == sequence->keyFrames);
+	assert (player && player->keyFrames == sequence->keyFrames);
 
 	bool looped = false;
 

@@ -497,7 +497,11 @@ struct sequence_t {
         }
 
         if (trans.size() > 0) {
-            if (fabs(trans[0].x) > 127 || fabs(trans[0].y) > 127 || fabs(trans[1].z) > 127) {
+            if (fabs(trans.front().x) > 127 || fabs(trans.front().y) > 127 || fabs(trans.front().z) > 127) {
+                flags |= FLAGS_HAS_TRANS_LARGE;
+            }
+
+            if (fabs(trans.back().x) > 127 || fabs(trans.back().y) > 127 || fabs(trans.back().z) > 127) {
                 flags |= FLAGS_HAS_TRANS_LARGE;
             }
         }

@@ -41,18 +41,6 @@ struct CAnimBlendPlayer {
 	float predicted_tx = 0, predicted_ty = 0, predicted_tz = 0;
 	float nextDeltaTime;
 
-	#if !defined(DC_TEXCONV)
-	// static unsigned count;
-
-	// CAnimBlendPlayer() {
-	// 	count++;
-	// 	fprintf(stderr, "CAnimBlendPlayer count %d\n", count);
-	// }
-	// ~CAnimBlendPlayer() {
-	// 	count--;
-	// }
-	#endif
-	
 	template <typename T>
 	T read_unaligned(uint32_t ro) {
 		T rv;

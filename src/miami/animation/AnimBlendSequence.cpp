@@ -23,26 +23,6 @@ CAnimBlendSequence::SetName(char *name)
 	strncpy(this->name, name, 24);
 }
 
-// void
-// CAnimBlendSequence::RemoveQuaternionFlips(void)
-// {
-// 	int i;
-// 	CQuaternion last;
-
-// 	if(numFrames < 2)
-// 		return;
-
-// 	last = GetRotation(0);
-// 	for(i = 1; i < numFrames; i++){
-// 		auto KFr = GetRotation(i);
-// 		if(DotProduct(last, KFr) < 0.0f)
-// 			SetRotation(i, -KFr);
-// 		last = GetRotation(i);
-// 	}
-// }
-
-// unsigned CAnimBlendPlayer::count = 0;
-
 #ifdef USE_CUSTOM_ALLOCATOR
 bool
 CAnimBlendSequence::MoveMemory(void)

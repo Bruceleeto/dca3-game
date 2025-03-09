@@ -1249,9 +1249,10 @@ CAnimManager::LoadAnimFile(RwStream *stream, bool compress, char (*uncompressedA
 	int j, k, l;
 	float *fbuf = (float*)buf;
 
-	// block name
 	RwStreamRead(stream, &anpv, sizeof(IfpHeader));
 	assert(memcmp(anpv.ident, "ANPV", 4) == 0);
+
+	// block name
 	RwStreamRead(stream, buf, anpv.size);
 	int32_t numAnims;
 	RwStreamRead(stream, &numAnims, sizeof(numAnims));

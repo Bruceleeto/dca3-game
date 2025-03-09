@@ -40,15 +40,6 @@ CAnimBlendHierarchy::CalcTotalTime(void)
 	}
 }
 
-// void
-// CAnimBlendHierarchy::RemoveQuaternionFlips(void)
-// {
-// 	int i;
-
-// 	for(i = 0; i < numSequences; i++)
-// 		sequences[i].RemoveQuaternionFlips();
-// }
-
 void
 CAnimBlendHierarchy::RemoveAnimSequences(void)
 {

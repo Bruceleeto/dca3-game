@@ -21,7 +21,6 @@ public:
 	void Shutdown(void);
 	void SetName(char *name);
 	void CalcTotalTime(void);
-	// void RemoveQuaternionFlips(void);
 	void RemoveAnimSequences(void);
 	void Uncompress(void);
 	void RemoveUncompressedData(void);

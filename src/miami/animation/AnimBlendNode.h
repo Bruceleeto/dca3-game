@@ -20,15 +20,13 @@ public:
 	CAnimBlendAssociation *association;
 
 	void Init(void);
+	void Destroy(void);
 	bool Update(CVector &trans, CQuaternion &rot, float weight);
 	bool NextKeyFrame(void);
 	bool FindKeyFrame(float t);
 	void CalcDeltas(void);
 	void GetCurrentTranslation(CVector &trans, float weight);
 	void GetEndTranslation(CVector &trans, float weight);
-
-	void Setup();
-	void Destroy();
 };
 
 

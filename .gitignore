@@ -374,6 +374,7 @@ liberty/*.iso
 liberty/dca-liberty.elf
 liberty/dca-liberty.elf.bin
 liberty/dca-liberty-sim.elf
+liberty/animtool*
 liberty/texconv*
 liberty/imgtool*
 liberty/extract-sfx*
@@ -391,6 +392,7 @@ miami/*.iso
 miami/dca-miami.elf
 miami/dca-miami.elf.bin
 miami/dca-miami-sim.elf
+miami/animtool*
 miami/texconv*
 miami/imgtool*
 miami/extract-sfx*
