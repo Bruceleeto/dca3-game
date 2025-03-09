@@ -106,7 +106,17 @@ OBJS_O3 = \
 	../src/renderer/Shadows.o
 
 OBJS_NO_FAST_MATH = \
-	../src/core/Cam.o \texconv.o
+	../src/core/Cam.o \
+	../src/core/Camera.o
+
+KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
+	-mfsrra -mfsca
+
+ifdef KOS_BASE
+include $(KOS_BASE)/Makefile.rules
+else
+$(warning "KOS_BASE is not set. Only prebuilt targets will work.")
+endif
 
 DEPS = $(OBJS:.o=.d) $(OBJS_TEXCONV:.o:.d)
 
@@ -275,7 +285,7 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 	$(CXX) -o $@ $(OBJS_TEXCONV)
 
 %.texconv.o: %.cpp
-	$(CXX) -std=c++2a -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
+	$(CXX) -std=c++2a -c -O3 -g -MMD -MP -o $@ -I../vendor/koshle -I../vendor/librw/src $(INCLUDE) -I../vendor/emu -I../vendor/crypto -I../vendor/TriStripper/include $(DEFINES) -DDC_TEXCONV -DDC_SIM -D_INC_WINDOWS $(TEXCONV_FLAGS) $<
 
 -include $(DEPS)
 

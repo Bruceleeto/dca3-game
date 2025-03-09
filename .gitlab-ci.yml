@@ -149,9 +149,8 @@ build-sim-liberty:
         - $CCACHE_DIR
   stage: build
   before_script:
-    - dpkg --add-architecture i386
     - apt update
-    - apt install -y build-essential gcc g++ gcc-multilib g++-multilib libx11-dev:i386 ccache
+    - apt install -y build-essential gcc g++ libx11-dev ccache
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
@@ -171,9 +170,8 @@ build-sim-liberty-clang:
         - $CCACHE_DIR
   stage: build
   before_script:
-    - dpkg --add-architecture i386
     - apt update
-    - apt install -y build-essential gcc g++ gcc-multilib g++-multilib libx11-dev:i386 clang ccache
+    - apt install -y build-essential gcc g++ libx11-dev clang ccache
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
@@ -193,9 +191,8 @@ build-sim-miami:
         - $CCACHE_DIR
   stage: build
   before_script:
-    - dpkg --add-architecture i386
     - apt update
-    - apt install -y build-essential gcc g++ gcc-multilib g++-multilib libx11-dev:i386 ccache
+    - apt install -y build-essential gcc g++ libx11-dev ccache
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
@@ -215,9 +212,8 @@ build-sim-miami-clang:
         - $CCACHE_DIR
   stage: build
   before_script:
-    - dpkg --add-architecture i386
     - apt update
-    - apt install -y build-essential gcc g++ gcc-multilib g++-multilib libx11-dev:i386 clang ccache
+    - apt install -y build-essential gcc g++ libx11-dev clang ccache
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
