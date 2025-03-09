@@ -13,7 +13,6 @@ public:
 	float invSin;		// 1/Sin(theta)
 	// indices into array in sequence
 	int32 frameA;		// next key frame
-	int32 frameB;		// previous key frame
 	float remainingTime;	// time until frames have to advance
 	CAnimBlendPlayer* player;
 	CAnimBlendSequence *sequence;

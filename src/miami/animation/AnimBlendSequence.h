@@ -219,51 +219,22 @@ struct CAnimBlendPlayer {
 		}
 	}
 
-	CQuaternion GetRotation(unsigned frame) {
-		auto lastFrame = curFrame == 0 ? numFrames - 1 : curFrame - 1;
-		if (frame == lastFrame) {
-			return currentRotation;
-		} else if (frame == curFrame) {
-			return nextRotation;
-		} else {
-			assert(false);
-		}
+	CQuaternion GetPrevRotation() {
+		return currentRotation;
 	}
-	CVector GetTranslation(unsigned frame) {
-		auto lastFrame = curFrame == 0 ? numFrames - 1 : curFrame - 1;
-		if (frame == lastFrame) {
-			return currentTranslation;
-		} else if (frame == curFrame) {
-			return nextTranslation;
-		} else {
-			assert(false);
-		}
+	CQuaternion GetNextRotation() {
+		return nextRotation;
 	}
-	float GetDeltaTime(unsigned frame) {
-		if (frame == curFrame) {
-			return nextDeltaTime;
-		} else {
-			assert(false);
-		}
-		return 1/30.f;
+	float GetNextTimeDelta() {
+		return nextDeltaTime;
 	}
 
-	// CQuaternion GetCurrentRotation() {
-	// 	return currentRotation;
-	// }
-	// CQuaternion GetNextRotation() {
-	// 	return nextRotation;
-	// }
-	// float GetNextTimeDelta() {
-	// 	return nextDeltaTime;
-	// }
-
-	// CVector GetCurrentTranslation() {
-	// 	return currentTranslation;
-	// }
-	// CVector GetNextTranslationDelta() {
-	// 	return nextTranslation - currentTranslation;
-	// }
+	CVector GetPrevTranslation() {
+		return currentTranslation;
+	}
+	CVector GetNextTranslationDelta() {
+		return nextTranslation - currentTranslation;
+	}
 
 	void Init(void* kf, int32 tp, int nF) {
 		keyFrames = kf;
