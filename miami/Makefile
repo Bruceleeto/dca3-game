@@ -299,6 +299,9 @@ texconv: $(OBJS_TEXCONV) | pvrtex # You'll have to rebuild pvrtex manually if yo
 animtool: ../src/tools/animtool.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
+coltool: coltool.cpp
+	$(CXX) -std=c++17 -o $@ -g -O0 $<
+
 -include $(DEPS)
 
 #### Repacking ####
@@ -355,7 +358,7 @@ TEXTURE_DOWNSAMPLE_IMG ?= HALF
 IMG_TEXTURES_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_MODELS))
 IMG_IFP_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_IFP))
-IMG_MISC_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_MISC))
+IMG_COL_DC = $(addprefix $(REPACK_IMG_DC_DIR)/, $(IMG_COL))
 
 CUTS_IFP_DC = $(addprefix $(REPACK_CUTS_DC_DIR)/, $(CUTS_IFP))
 CUTS_MISC_DC = $(addprefix $(REPACK_CUTS_DC_DIR)/, $(CUTS_MISC))
@@ -372,7 +375,7 @@ STREAM_ADPCM_DC = $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_WAV:.wav=.APM)
 IMG_TEXTURES_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MODELS))
 IMG_IFP_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_IFP))
-IMG_MISC_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MISC))
+IMG_COL_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_COL))
 
 CUTS_IFP_ORIG = $(addprefix $(REPACK_CUTS_ORIG_DIR)/, $(CUTS_IFP))
 CUTS_MISC_ORIG = $(addprefix $(REPACK_CUTS_ORIG_DIR)/, $(CUTS_MISC))
@@ -396,7 +399,7 @@ $(REPACK_DIR)/unpacked: imgtool $(GTA_DIR)/models/gta3.img $(GTA_DIR)/models/gta
 	./imgtool unpack "$(GTA_DIR)/models/gta3" "$(REPACK_IMG_ORIG_DIR)"
 	@touch $@
 
-$(IMG_TEXTURES_ORIG) $(IMG_MODELS_ORIG) $(IMG_IFP_ORIG) $(IMG_MISC_ORIG): $(REPACK_DIR)/unpacked
+$(IMG_TEXTURES_ORIG) $(IMG_MODELS_ORIG) $(IMG_IFP_ORIG) $(IMG_COL_ORIG): $(REPACK_DIR)/unpacked
 	@test -f $@
 	@touch $@
 
@@ -442,17 +445,17 @@ $(REPACK_IMG_DC_DIR)/%.TXD: $(REPACK_IMG_ORIG_DIR)/%.TXD texconv
 	./texconv $< $@ $(DEFAULT_RES) $(DEFAULT_RES) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_IMG)
 
 # First try the mods img directory
-$(REPACK_IMG_DC_DIR)/%.col: $(GTA_MOD_IMG_DIR)/%.col
+$(REPACK_IMG_DC_DIR)/%.col: $(GTA_MOD_IMG_DIR)/%.col coltool
 	@mkdir -p $(@D)
-	cp $< $@
+	./coltool $< $@
 $(REPACK_IMG_DC_DIR)/%.ifp: $(GTA_MOD_IMG_DIR)/%.ifp animtool
 	@mkdir -p $(@D)
 	./animtool $< $@
 
 # if not, the extracted img directory
-$(REPACK_IMG_DC_DIR)/%.col: $(REPACK_IMG_ORIG_DIR)/%.col
+$(REPACK_IMG_DC_DIR)/%.col: $(REPACK_IMG_ORIG_DIR)/%.col coltool
 	@mkdir -p $(@D)
-	cp $< $@
+	./coltool $< $@
 $(REPACK_IMG_DC_DIR)/%.ifp: $(REPACK_IMG_ORIG_DIR)/%.ifp animtool
 	@mkdir -p $(@D)
 	./animtool $< $@
@@ -524,7 +527,23 @@ $(REPACK_GTA_DIR)/%.IFP: $(GTA_DIR)/%.IFP animtool
 	@mkdir -p $(@D)
 	./animtool $< $@
 
-$(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC) $(IMG_IFP_DC) $(IMG_MISC_DC)
+# first try the mods loose directory
+$(REPACK_GTA_DIR)/%.col: $(GTA_MOD_LOOSE_DIR)/%.col coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+$(REPACK_GTA_DIR)/%.COL: $(GTA_MOD_LOOSE_DIR)/%.COL coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+
+#if not, the original files
+$(REPACK_GTA_DIR)/%.col: $(GTA_DIR)/%.col coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+$(REPACK_GTA_DIR)/%.COL: $(GTA_DIR)/%.COL coltool
+	@mkdir -p $(@D)
+	./coltool $< $@
+
+$(REPACK_DIR)/packed: $(IMG_TEXTURES_DC) $(IMG_MODELS_DC) $(IMG_IFP_DC) $(IMG_COL_DC)
 	mkdir -p $(@D)
 	mkdir -p "$(REPACK_GTA_DIR)/models/gta3"
 	./imgtool pack "$(REPACK_GTA_DIR)/models/gta3" "$(REPACK_IMG_DC_DIR)"
