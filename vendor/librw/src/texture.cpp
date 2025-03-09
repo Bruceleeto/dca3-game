@@ -10,7 +10,7 @@
 #include "rwpipeline.h"
 #include "rwobjects.h"
 #include "rwengine.h"
-// #include "ps2/rwps2.h"
+#include "ps2-x/rwps2.h"
 // #include "d3d-x/rwd3d.h"
 // #include "d3d/rwxbox.h"
 #include "d3d-x/rwd3d8.h"
@@ -473,8 +473,6 @@ Texture::streamReadNative(Stream *stream)
 	uint32 platform = stream->readU32();
 	stream->seek(-16);
 	#if !defined(RW_DC)
-	if(platform == FOURCC_PS2)
-		return ps2::readNativeTexture(stream);
 	if(platform == PLATFORM_D3D8)
 		return d3d8::readNativeTexture(stream);
 	if(platform == PLATFORM_D3D9)
@@ -485,6 +483,8 @@ Texture::streamReadNative(Stream *stream)
 		return gl3::readNativeTexture(stream);
 	#else
 	#if defined(DC_TEXCONV)
+	if(platform == FOURCC_PS2)
+		return ps2::readNativeTexture(stream);
 	if(platform == PLATFORM_D3D8)
 		return d3d8::readNativeTexture(stream);
 	#endif

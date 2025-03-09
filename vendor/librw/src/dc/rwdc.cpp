@@ -16,7 +16,7 @@ extern const char* currentFile;
 #define texconvf(...) // printf(__VA_ARGS__)
 #endif
 
-#include "../../../src/vmu/vmu.h"
+#include "vmu/vmu.h"
 #include "../rwbase.h"
 #include "../rwerror.h"
 #include "../rwplg.h"
@@ -37,12 +37,15 @@ extern const char* currentFile;
 #include <functional>
 #include <fstream>
 
+#define errorf(...) dbglog(DBG_CRITICAL, __VA_ARGS__)
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
+bool re3EmergencyRemoveModel();
 
 // #include "rwdcimpl.h"
 
 #include <dc/pvr.h>
+#include <dc/matrix.h>
 #include "alloc.h"
 
 #undef PVR_TXRFMT_STRIDE
@@ -166,8 +169,6 @@ static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
 
 #define MATH_Fast_Invert(x) ({ (((x) < 0.0f)? -1.0f : 1.0f) * frsqrt((x) * (x)); }) 
-
-#define logf(...) // printf(__VA_ARGS__)
 
 static pvr_dr_state_t drState;
 
@@ -545,7 +546,7 @@ void DCE_MatrixViewport(float x, float y, float width, float height) {
     DCE_MAT_SCREENVIEW[1][1] = height * 0.5f;
     DCE_MAT_SCREENVIEW[2][2] = 1;
     DCE_MAT_SCREENVIEW[3][0] = -DCE_MAT_SCREENVIEW[0][0] + x;
-    DCE_MAT_SCREENVIEW[3][1] = VIDEO_MODE_HEIGHT - (DCE_MAT_SCREENVIEW[1][1] + y); 
+    DCE_MAT_SCREENVIEW[3][1] = height - (DCE_MAT_SCREENVIEW[1][1] + y); 
 }
 
 void DCE_InitMatrices() {
@@ -787,6 +788,8 @@ void beginUpdate(Camera* cam)  {
 	}
 	proj[14] = -cam->nearPlane*proj[10];
 	memcpy4(&cam->devProj, proj, sizeof(RawMatrix));
+	
+	DCE_MatrixViewport(0, 0, cam->frameBuffer->width, cam->frameBuffer->height);
 	
 	mat_load((matrix_t*)&DCE_MAT_SCREENVIEW);
 	mat_apply((matrix_t*)&cam->devProj);
@@ -1077,15 +1080,29 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 void allocDefrag(int iterations);
 
-void endUpdate(Camera*) {
+void endUpdate(Camera* cam) {
 
+	// TODO: Fix KOS RTT instead
+	if (cam->frameBuffer->type != Raster::CAMERATEXTURE) {
 	#if !defined(DC_SIM) && defined(SKIP_FRAMES)
 	if (pvr_check_ready() >= 0)
 	#endif
 	{
 		pvr_set_zclip(0.0f);
 		pvr_wait_ready();
-		pvr_scene_begin();
+		pvr_set_bg_color(cam->clearColor.red / 255.0f, cam->clearColor.green / 255.0f, cam->clearColor.blue / 255.0f);
+
+		if (cam->frameBuffer->type == Raster::CAMERATEXTURE) {
+			auto natras = GETDCRASTEREXT(cam->frameBuffer);
+			uint32 rx = cam->frameBuffer->width;
+			uint32 ry = cam->frameBuffer->height;
+			pvr_scene_begin_txr(natras->raster->texaddr, &rx, &ry);
+		} else if (cam->frameBuffer->type == Raster::CAMERA) {
+			pvr_scene_begin();
+		} else {
+			assert(false && "invalid cam->frameBuffer type");
+		}
+		
 		pvr_dr_init(&drState);
 		pvr_list_begin(PVR_LIST_OP_POLY);
 		enter_oix();
@@ -1123,6 +1140,7 @@ void endUpdate(Camera*) {
 		pvr_scene_finish();
 		leave_oix();
 	}
+	}
 	opCallbacks.clear();
 	ptCallbacks.clear();
 	blendCallbacks.clear();
@@ -1132,7 +1150,10 @@ void endUpdate(Camera*) {
 	matfxContexts.clear();
 }
 
-void clearCamera(Camera*,RGBA*,uint32) {
+void clearCamera(Camera* cam,RGBA* col,uint32 flags) {
+	if (flags & rwCAMERACLEARIMAGE) {
+		cam->clearColor = *col;
+	}
     UNIMPL_LOG();
 }
 
@@ -2974,7 +2995,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					} while(--count != 0);
 				}
 			} else if (!(flags & 0x80)) {
-				int count = flags & 0x7FFF;
+				int count = (flags & 0x7F) + 1;
 				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
 
 				do {
@@ -3065,7 +3086,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					} while(--count != 0);
 				}
 			} else if (!(flags & 0x80)) {
-				int count = flags & 0x7FFF;
+				int count = (flags & 0x7F) + 1;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
 
 				do {
@@ -3141,9 +3162,9 @@ void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertex
 }
 
 
-inline  __attribute__((always_inline))  RwFrustumTestResult AtomicFrustumSphereCB(Atomic *atomic, rw::Camera *cam)
+inline  __attribute__((always_inline))  int32 AtomicFrustumSphereNearCB(Atomic *atomic, rw::Camera *cam)
 {
-    return RwCameraFrustumTestSphere(cam, atomic->getWorldBoundingSphere());
+	return cam->frustumTestSphereNear(atomic->getWorldBoundingSphere());
 }
 
 static constexpr void (*tnlMeshletTransformSelector[6])(uint8_t* dst, const uint8_t* vertexData, uint32_t vertexCount, uint32_t vertexSize) {
@@ -3505,7 +3526,7 @@ size_t vertexBufferFree() {
 void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
     rw::Camera *cam = engine->currentCamera;
     // Frustum Culling
-    auto global_frustumTestResult = AtomicFrustumSphereCB(atomic, cam);
+    auto global_frustumTestResult = AtomicFrustumSphereNearCB(atomic, cam);
 
 	if (global_frustumTestResult == rwSPHEREOUTSIDE) {
 		return;
@@ -3743,25 +3764,21 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					unsigned clippingRequired = 0;
 
 					if (!global_needsNoClip) {
-						RwSphere sphere = meshlet->boundingSphere;
-						RwV3dTransformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
-						auto local_frustumTestResult = RwCameraFrustumTestSphere(cam, &sphere);
-						if ( local_frustumTestResult == rwSPHEREOUTSIDE) {
-							// printf("Outside frustum cull\n");
-							continue;
-						}
-
-						if (local_frustumTestResult == rwSPHEREBOUNDARY) {
-							// printf("meshlet %d, vertexOffset %d, indexOffset %d, vertexCount %d, indexCount %d\n", meshletNum, meshlet->vertexOffset, meshlet->indexOffset, meshlet->vertexCount, meshlet->indexCount);
-							mat_load(&worldView);  // Number of cycles: ~11.
+						if (!skin) {
+							RwSphere sphere = meshlet->boundingSphere;
+							RwV3dTransformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
 							
-							float x, y, z, w;
-							
-							mat_trans_nodiv_nomod(meshlet->boundingSphere.center.x, meshlet->boundingSphere.center.y, meshlet->boundingSphere.center.z, x, y, z, w);
-
-							if (z < meshlet->boundingSphere.radius) {
+							auto local_frustumTestResult = cam->frustumTestSphereNear(&sphere);;
+							if ( local_frustumTestResult == Camera::SPHEREOUTSIDE) {
+								// printf("Outside frustum cull\n");
+								continue;
+							}
+	
+							if (local_frustumTestResult == Camera::SPHEREBOUNDARY_NEAR) {
 								clippingRequired = 1 + textured;
 							}
+						} else {
+							clippingRequired = 1 + textured;
 						}
 					}
 
@@ -3921,6 +3938,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					}
 				}
 			} else if (geo->meshHeader->flags & rw::MeshHeader::TRISTRIP) {
+				/* TODO: Add back this
 				auto numIndices = mesh->numIndices;
 				auto vertices = geo->morphTargets[0].vertices;
 				auto texcoords = geo->texCoords[0];
@@ -3978,6 +3996,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				}
 
 				clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
+				*/
 			} else { // no trilist assets anymore
 				assert(false && "Unsupported geometry type");
 			}
@@ -4015,6 +4034,10 @@ pvr_ptr_t allocTexture(DcRaster* ctx, size_t size) {
 				break;
 			}
 			dbglog(DBG_CRITICAL, "failed to free or defrag vram, sz: %lu, cont: %lu, free: %lu\n", size, alloc_count_continuous(), alloc_count_free());
+			if (re3EmergencyRemoveModel()) {
+				dbglog(DBG_CRITICAL, "Managed to re3EmergencyRemoveModel, sz: %lu, cont: %lu, free: %lu\n", size, alloc_count_continuous(), alloc_count_free());
+				continue;
+			}
 			return 0;
 		}
 		rv = alloc_malloc(ctx, size);
@@ -4033,9 +4056,33 @@ rasterCreate(Raster* raster)
 {
 	auto natras = GETDCRASTEREXT(raster);
 
-    if (raster->type != Raster::TEXTURE) {
-        printf("rasterCreate: unsupported type %d\n", raster->type);
+    if (raster->type != Raster::TEXTURE && raster->type != Raster::CAMERATEXTURE && raster->type != Raster::ZBUFFER) {
+        logf("rasterCreate: unsupported type %d\n", raster->type);
     }
+
+	if (raster->width < 8) {
+		logf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
+		raster->width = 8;
+	}
+
+	if (raster->height < 8) {
+		logf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
+		raster->height = 8;
+	}
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		logf("CameraTexture: %d x %d\n", raster->width, raster->height);
+	} else if (raster->type == Raster::CAMERA) {
+		logf("Camera: %d x %d  (ignored)\n", raster->width, raster->height);
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;	
+	} else if (raster->type == Raster::ZBUFFER) {
+		logf("ZBuffer: %d x %d (ignored)\n", raster->width, raster->height);
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;	
+	}
 
 	if(raster->width == 0 || raster->height == 0){
 		raster->flags |= Raster::DONTALLOCATE;
@@ -4043,21 +4090,24 @@ rasterCreate(Raster* raster)
         return raster;
 	}
 
-	if (raster->width < 8) {
-		printf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
-		raster->width = 8;
+
+	auto rasterFmt = raster->format & 0x0F00;
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		if (rasterFmt == Raster::DEFAULT && raster->depth == 0) {
+			logf("CameraTexture: Default means 565?\n");
+			raster->depth = 16;
+			raster->format |= Raster::C565;
+		}
 	}
 
-	if (raster->height < 8) {
-		printf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
-		raster->height = 8;
-	}
-	auto rasterFmt = raster->format & 0x0F00;
+	rasterFmt = raster->format & 0x0F00;
+
 	// assert(raster->depth == 16);
 	if (raster->depth != 16) {
-		raster->depth = 16;
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth: this raster will be corrupted\n");
+		errorf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
+		raster->depth = 16;
 	}
 
 	natras->raster = (DcRaster*)malloc(sizeof(DcRaster));
@@ -4065,6 +4115,9 @@ rasterCreate(Raster* raster)
 	natras->raster->refs = 1;
 	natras->raster->u = __builtin_ctz(raster->width) - 3;
 	natras->raster->v = __builtin_ctz(raster->height) - 3;
+
+	assert(raster->width == 1 << (natras->raster->u + 3));
+	assert(raster->height = 1 << (natras->raster->v + 3));
 
 	if (rasterFmt == Raster::C565) {
 		natras->raster->pvr_flags |= PVR_TXRFMT_RGB565;
@@ -4074,11 +4127,17 @@ rasterCreate(Raster* raster)
 		natras->raster->pvr_flags |= PVR_TXRFMT_ARGB4444;
 	} else {
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth: this raster will be corrupted\n");
+		printf("rasterCreate: Usupported raster rasterFmt %X: this raster will be corrupted\n", rasterFmt);
 		// assert(false && "unsupported rasterFmt");
 	}
+	
 
 	raster->stride = raster->width * 2;
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		natras->raster->texaddr = allocTexture(natras->raster, raster->width * raster->height * 2);
+		natras->raster->pvr_flags |= PVR_TXRFMT_NONTWIDDLED;
+	}
 	return raster;
 }
 
@@ -4304,7 +4363,7 @@ rasterFromImage(Raster* raster, Image* image)
 
 	std::vector<Color> imageData;
 	if (image->depth == 32) {
-		assert(rasterFmt == Raster::C4444 || rasterFmt == Raster::C1555);
+		assert(rasterFmt == Raster::C4444 || rasterFmt == Raster::C1555 || rasterFmt == Raster::C565 /* DXT compression */);
 		imageData = createImageFromData_ARGB8888(image->pixels, image->width, image->height, image->stride);
     } else if (image->depth == 24) {
 		assert(rasterFmt == Raster::C565);
@@ -4348,7 +4407,7 @@ rasterFromImage(Raster* raster, Image* image)
 #if defined(_WIN32) || defined(_WIN64)
         case PVRTEX:
             snprintf(encodeCommand, sizeof(encodeCommand),
-                 "pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
+                 "..\\vendor\\pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
         break;
         case PVRTOOL:
             snprintf(encodeCommand, sizeof(encodeCommand),
@@ -4358,7 +4417,7 @@ rasterFromImage(Raster* raster, Image* image)
 #else
         case PVRTEX:
             snprintf(encodeCommand, sizeof(encodeCommand),
-                 "./pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
+                 "../vendor/pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
         break;
         case PVRTOOL:
             snprintf(encodeCommand, sizeof(encodeCommand),
@@ -4757,7 +4816,7 @@ readNativeTexture(Stream *stream)
 		cached->second->refs++;
 		natras->raster = cached->second;
 		stream->seek(pvr_size);
-		printf("Raster reused for texture %s\n", tex->name);
+		logf("Raster reused for texture %s\n", tex->name);
 	} else {
 		natras->raster = (DcRaster*)malloc(sizeof(DcRaster));
 		memset(natras->raster, 0, sizeof(DcRaster));
@@ -4823,7 +4882,7 @@ readNativeTexture(Stream *stream)
 			}
 		} else {
 			stream->seek(pvr_size);
-			printf("Failed to allocate raster pixels for texture %s\n", tex->name);
+			errorf("Failed to allocate raster pixels for texture %s\n", tex->name);
 		}
 	}
 
@@ -4878,7 +4937,7 @@ writeNativeTexture(Texture *tex, Stream *stream)
 }
 #endif
 
-#define DC_MODEL_VERSION 5
+#define DC_MODEL_VERSION 6
 
 void*
 destroyNativeData(void *object, int32, int32)
@@ -5669,8 +5728,9 @@ void processGeom(Geometry *geo) {
 					}
 
 					assert(spanCount);
+					assert(spanCount < 0x80);
 					
-					skinningIndexData.write<uint16_t>(0x8000 | spanCount);			// count + clear flag
+					skinningIndexData.write<uint16_t>(0x8000 | (spanCount-1));			// count + clear flag
 					skinningIndexData.write<uint16_t>(spanStartIdx * 64);			// dst offset
 					assert(spanStartIdx + spanCount <= meshlet.vertices.size());
 
@@ -5699,7 +5759,8 @@ void processGeom(Geometry *geo) {
 					spanCount++;
 				}
 				if (spanCount) {
-					skinningIndexData.write<uint16_t>(0x8000 | spanCount);			// count + clear flag
+					assert(spanCount <= 0x80);
+					skinningIndexData.write<uint16_t>(0x8000 | (spanCount - 1));			// count + clear flag
 					skinningIndexData.write<uint16_t>(spanStartIdx * 64);			// dst offset
 				}
 				
@@ -5725,7 +5786,7 @@ void processGeom(Geometry *geo) {
 							assert(skinMatrix0Only[currentMtx0Idx++] == (startVtx + k));
 						}
 					} else if (!(flags & 0x80)) {
-						int count = flags & 0x7FFF;
+						int count = (flags & 0x7F) + 1;
 						int dstVertex = skinningIndexData[skinningIndexDataStart] | (skinningIndexData[skinningIndexDataStart + 1] << 8);
 						skinningIndexDataStart += 2;
 						texconvf("%s: Clear: count %d, dst %d\n", currentFile, count, dstVertex/64);

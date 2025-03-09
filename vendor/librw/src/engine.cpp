@@ -10,7 +10,7 @@
 #include "rwpipeline.h"
 #include "rwobjects.h"
 #include "rwengine.h"
-// #include "ps2/rwps2.h"
+#include "ps2-x/rwps2.h"
 // #include "d3d/rwxbox.h"
 // #include "d3d/rwd3d.h"
 #include "d3d-x/rwd3d8.h"
@@ -240,6 +240,7 @@ Engine::init(MemoryFunctions *memfuncs)
 	gl3::registerPlatformPlugins();
 	#else
 	#if defined(DC_TEXCONV)
+	ps2::registerPlatformPlugins();
 	d3d8::registerPlatformPlugins();
 	#endif
 	dc::registerPlatformPlugins();

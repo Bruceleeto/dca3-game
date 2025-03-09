@@ -33,7 +33,7 @@ You will also need the following tools installed
 - type `cd dca3-game/dreamcast` (and press enter)
 - type `explorer .` (and press enter).
 - A folder named dreamcast with some files should be open. Keep it on the side.
-- Download the Alpha Prebuilt Elf from https://gitlab.com/skmp/dca3-game/-/releases
+- Download the Alpha Prebuilt Elf from https://gitlab.com/skmp/dca3-game/-/jobs/8725216645
 - Open artifacts.zip and extract dca3.elf to the folder that was kept open before.
 - Close the folder and dreamsdk shell
 
