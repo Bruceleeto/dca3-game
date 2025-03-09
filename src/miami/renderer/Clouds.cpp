@@ -253,7 +253,7 @@ CClouds::Render(void)
 					szx*55.0f, szy*55.0f,
 					tr, tg, tb, br, bg, bb, 0.0f, -1.0f,
 					1.0f/screenpos.z,
-					(uint16)IndividualRotation/65336.0f * 6.28f + ms_cameraRoll,	//TODO: 65536 ?
+					(uint16)IndividualRotation/65536.0f * 6.28f + ms_cameraRoll,	//was: 65336
 					fluffyalpha);
 				bCloudOnScreen[i] = true;
 			}else
