@@ -752,6 +752,15 @@ void CRadar::DrawRadarMask()
 	CVector2D out[8];
 	CVector2D in;
 
+	// First draw with near Z to clear nearer Z from any 3d objects
+	for (int i = 0; i < 4; i++) {
+		in.x = corners[i].x;
+		in.y = corners[i].y;
+		TransformRadarPointToScreenSpace(out[i], in);
+	}
+	CSprite2d::SetMaskVertices(4, (float *)out);
+	RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, CSprite2d::GetVertices(), 4);
+
 	// Draw the shape we want to mask out from the radar in four segments
 	for (int i = 0; i < 4; i++) {
 		// First point is always the corner itself
@@ -767,6 +776,13 @@ void CRadar::DrawRadarMask()
 		};
 
 		CSprite2d::SetMaskVertices(8, (float *)out);
+		// Make the mask depth slightly above the map depth
+		// Not sure how this worked in the original code tbh
+		auto vtx = CSprite2d::GetVertices();
+		for (int j = 0; j < 8; j++) {
+			vtx[j].w /= 5;
+		}
+
 		RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, CSprite2d::GetVertices(), 8);
 	}
 #if !defined(GTA_PS2_STUFF) && defined(RWLIBS)

@@ -1074,10 +1074,12 @@ void CHud::Draw()
 #else
 				rect.Grow(6.0f);
 #endif
+				RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)FALSE);
 				rect.Translate(SCREEN_SCALE_X_FIX(0.0f), SCREEN_SCALE_Y_FIX(2.0f));
 				Sprites[HUD_RADARDISC].Draw(rect, CRGBA(0, 0, 0, 255));
 				rect.Translate(SCREEN_SCALE_X_FIX(0.0f), SCREEN_SCALE_Y_FIX(-2.0f));
 				Sprites[HUD_RADARDISC].Draw(rect, RADARDISC_COLOR);
+				RwRenderStateSet(rwRENDERSTATEZTESTENABLE, (void*)TRUE);
 			}
 			CRadar::DrawBlips();
 		}
