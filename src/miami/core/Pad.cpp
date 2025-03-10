@@ -3590,6 +3590,8 @@ bool CPad::CycleCameraModeUpJustDown(void)
 	switch (CURMODE)
 	{
 		case 0:
+		case 2:
+		case 3:
 		{
 			return !!(NewState.DPadUp && !OldState.DPadUp);
 
@@ -3935,20 +3937,20 @@ bool CPad::GetSprint(void)
 		case 0:	//Xbox Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	!!(NewState.A && !OldState.A);
+				return	!!NewState.A;
 			}
 			else
 			{
-				return	!!(NewState.A && !OldState.A);
+				return	!!NewState.A;
 			}
 		case 1:	//PS2 Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	!!(NewState.A && !OldState.A);
+				return	!!NewState.A;
 			}
 			else
 			{
-				return	!!(NewState.A && !OldState.A);
+				return	!!NewState.A;
 			}
 	}
 #else
