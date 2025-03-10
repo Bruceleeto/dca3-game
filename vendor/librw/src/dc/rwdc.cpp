@@ -1113,7 +1113,7 @@ void endUpdate(Camera* cam) {
 		}
 		pvr_list_finish();
 		if (ptCallbacks.size()) {
-			PVR_SET(0x11C, 128); // PT Alpha test value
+			PVR_SET(0x11C, 64); // PT Alpha test value
 			pvr_dr_init(&drState);
 			pvr_list_begin(PVR_LIST_PT_POLY);
 			for (auto&& cb: ptCallbacks) {
