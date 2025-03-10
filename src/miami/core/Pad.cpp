@@ -3567,8 +3567,8 @@ bool CPad::CycleCameraModeUpJustDown(void)
 		case 0:	//Xbox Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.D;
-				//return !!(NewState.DPadRight&& !OldState.DPadRight);
+				return	!!(NewState.DPadUp && !OldState.DPadUp);
+				
 			}
 			else
 			{
@@ -3577,34 +3577,19 @@ bool CPad::CycleCameraModeUpJustDown(void)
 		case 1:	//PS2 Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.D;
+				return	!!(NewState.DPadUp && !OldState.DPadUp);
 			}
 			else
 			{
 				return !!(NewState.DPadUp && !OldState.DPadUp);
 			}
+			break;
 	}
+
 #else
 	switch (CURMODE)
 	{
 		case 0:
-		case 2:
-#ifdef RW_DC
-		case 3:
-		{
-			return !!(NewState.DPadUp && !OldState.DPadUp);
-
-			break;
-		}
-#else
-		case 3:
-		{
-			return !!(NewState.Select && !OldState.Select);
-
-			break;
-		}
-#endif
-		case 1:
 		{
 			return !!(NewState.DPadUp && !OldState.DPadUp);
 
@@ -3852,20 +3837,20 @@ bool CPad::CollectPickupJustDown(void)
 		case 0:
 		case 1:
 		{
-			return !!(NewState.DPadDown && NewState.A); 
+			return !!((NewState.DPadDown && NewState.A) && !(OldState.DPadDown && OldState.A)); 
 
 			break;
 		}
 		case 2:
 		{
-			return !!(NewState.DPadDown && NewState.A); 
+			return !!((NewState.DPadDown && NewState.A) && !(OldState.DPadDown && OldState.A)); 
 
 			break;
 		}
 
 		case 3:
 		{
-			return !!(NewState.DPadDown && NewState.A);
+			return !!((NewState.DPadDown && NewState.A) && !(OldState.DPadDown && OldState.A));
 
 			break;
 		}
@@ -3902,7 +3887,7 @@ bool CPad::DuckJustDown(void)
 	}
 
 #else
-	return !!(NewState.Square && !OldState.Square);
+	return !!(NewState.LeftShock && !OldState.LeftShock);
 #endif
 }
 
@@ -3916,20 +3901,20 @@ bool CPad::JumpJustDown(void)
 		case 0:	//Xbox Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.B;
+				return	!!(NewState.B && !OldState.B);
 			}
 			else
 			{
-				return	NewState.B;
+				return	!!(NewState.B && !OldState.B);
 			}
 		case 1:	//PS2 Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.X;
+				return	!!(NewState.X && !OldState.X);
 			}
 			else
 			{
-				return	NewState.X;
+				return	!!(NewState.X && !OldState.X);
 			}
 	}
 
@@ -3950,20 +3935,20 @@ bool CPad::GetSprint(void)
 		case 0:	//Xbox Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.A;
+				return	!!(NewState.A && !OldState.A);
 			}
 			else
 			{
-				return	NewState.A;
+				return	!!(NewState.A && !OldState.A);
 			}
 		case 1:	//PS2 Mode
 			if (CPad::GetPad(0)->IsDualAnalog)
 			{
-				return	NewState.A;
+				return	!!(NewState.A && !OldState.A);
 			}
 			else
 			{
-				return	NewState.A;
+				return	!!(NewState.A && !OldState.A);
 			}
 	}
 #else
