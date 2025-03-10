@@ -3593,6 +3593,13 @@ bool CPad::CycleCameraModeUpJustDown(void)
 		case 2:
 		case 3:
 		{
+			return !!(NewState.Select && !OldState.Select);
+
+			break;
+		}
+
+		case 1:
+		{
 			return !!(NewState.DPadUp && !OldState.DPadUp);
 
 			break;
