@@ -8,11 +8,19 @@
 enum Config {
 	NUMPLAYERS = 1,
 
+#if defined(DC_SQUEEZE_RAM)
+	NUMCDIMAGES = 1, // gta3.img duplicates (not used on PC)
+	MAX_CDIMAGES = 1, // additional cdimages
+	MAX_CDCHANNELS = 2,
+
+	MODELINFOSIZE = 4900,	// 4900 on PS2
+#else
 	NUMCDIMAGES = 6, // gta3.img duplicates (not used on PC)
 	MAX_CDIMAGES = 8, // additional cdimages
 	MAX_CDCHANNELS = 5,
 
 	MODELINFOSIZE = 6500,	// 4900 on PS2
+#endif
 	TXDSTORESIZE = 1385,
 	COLSTORESIZE = 31,
 	EXTRADIRSIZE = 256,
@@ -26,15 +34,32 @@ enum Config {
 	VEHICLEMODELSIZE = 110,
 	TWODFXSIZE = 1210,
 
+#if defined(DC_SQUEEZE_RAM)
+	MAXVEHICLESLOADED = 25, // 70 on mobile
+#else
 	MAXVEHICLESLOADED = 50, // 70 on mobile
+#endif
 
 	NUMOBJECTINFO = 210,
 
 	// Pool sizes
+	#if defined(DC_SQUEEZE_RAM)
+	NUMPTRNODES = 27500,
+	#elif defined(DC_ORIGINAL_RAM)
 	NUMPTRNODES = 50000,
+	#else
+	NUMPTRNODES = 40000,	// This is the most important one to reduce
+	#endif
+
+	#if defined(DC_SQUEEZE_RAM)
+	NUMENTRYINFOS = 3200,
+	NUMPEDS = 50,
+	NUMVEHICLES = 50,
+	#else
 	NUMENTRYINFOS = 3200,
 	NUMPEDS = 140,
 	NUMVEHICLES = 110,
+	#endif
 	NUMBUILDINGS = 7000,
 	NUMTREADABLES = 1,
 	NUMOBJECTS = 460,
@@ -311,7 +336,7 @@ enum Config {
 #define USE_TXD_CDIMAGE		// generate and load textures from txd.img
 #define PS2_ALPHA_TEST		// emulate ps2 alpha test 
 #define IMPROVED_VIDEOMODE	// save and load videomode parameters instead of a magic number
-#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
+//#define DISABLE_LOADING_SCREEN // disable the loading screen which vastly improves the loading time
 #define DISABLE_VSYNC_ON_TEXTURE_CONVERSION // make texture conversion work faster by disabling vsync
 #define ANISOTROPIC_FILTERING	// set all textures to max anisotropic filtering
 //#define USE_TEXTURE_POOL
