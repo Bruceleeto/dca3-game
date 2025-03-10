@@ -1,5 +1,3 @@
-
-
 #include <cstdio>
 #include <cstddef>
 #include <cassert>
@@ -8,6 +6,10 @@
 #include <iostream>
 #include <cstdint>
 #include <cmath>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846264338327950288
+#endif
 
 struct Writer: std::vector<uint8_t> {
     template<typename T>
