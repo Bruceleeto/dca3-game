@@ -3938,65 +3938,66 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					}
 				}
 			} else if (geo->meshHeader->flags & rw::MeshHeader::TRISTRIP) {
-				/* TODO: Add back this
-				auto numIndices = mesh->numIndices;
-				auto vertices = geo->morphTargets[0].vertices;
-				auto texcoords = geo->texCoords[0];
-				auto colors = geo->colors;
+				if (geo->numVertices <= 128) {
+					auto numIndices = mesh->numIndices;
+					auto vertices = geo->morphTargets[0].vertices;
+					auto texcoords = geo->texCoords[0];
+					auto colors = geo->colors;
 
-				assert(numIndices >= 3);
-				assert(geo->numVertices <= 128);
-				bool isPrelit = !!(geo->flags & Geometry::PRELIT);
-				assert(isPrelit);
-				assert(textured);
-				bool isNormaled = !!(geo->flags & Geometry::NORMALS);
-				assert(!isNormaled);
+					assert(numIndices >= 3);
+					bool isPrelit = !!(geo->flags & Geometry::PRELIT);
+					assert(isPrelit);
+					assert(textured);
+					bool isNormaled = !!(geo->flags & Geometry::NORMALS);
+					assert(!isNormaled);
 
-				std::vector<int8_t> indices(numIndices);
-				for (int i = 0; i < numIndices; i++) {
-					auto idx = mesh->indices[i];
-					assert(idx < 128);
-					indices[i] = idx;
+					std::vector<int8_t> indices(numIndices);
+					for (int i = 0; i < numIndices; i++) {
+						auto idx = mesh->indices[i];
+						assert(idx < 128);
+						indices[i] = idx;
+					}
+					indices.back() |= 0x80;
+
+					pvr_vertex64_t *vd = (pvr_vertex64_t *)OCR_SPACE;
+					mat_load(&mtx);  // Number of cycles: ~11
+
+					for (int idx = 0; idx < geo->numVertices; idx++) {
+						auto& vert = vertices[idx];
+						auto& c = colors[idx];
+						auto& t = texcoords[idx];
+
+						float x, y, z, w;
+						mat_trans_nodiv_nomod(vert.x, vert.y, vert.z,
+												x, y, z, w);
+						
+						vd->o_a = x;
+						vd->o_r = y;
+						vd->tex_z = z;
+						vd->o_g = w;
+
+						w = frsqrt(w * w);
+
+						vd->x = x * w;
+						vd->y = y * w;
+						vd->z = w;
+
+						vd->a = c.alpha * (1/255.0f);
+						vd->r = c.red * (1/255.0f);
+						vd->g = c.green * (1/255.0f);
+						vd->b = c.blue * (1/255.0f);
+						
+						float16 u = texcoords[idx].u;
+						float16 v = texcoords[idx].v;
+						vd->u = u.raw;
+						vd->v = v.raw;
+						vd++;
+					}
+
+					clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
+				} else {
+					// TODO: Fix this for large meshes (water in miami)
 				}
-				indices.back() |= 0x80;
-
-				pvr_vertex64_t *vd = (pvr_vertex64_t *)OCR_SPACE;
-				mat_load(&mtx);  // Number of cycles: ~11
-
-				for (int idx = 0; idx < geo->numVertices; idx++) {
-					auto& vert = vertices[idx];
-					auto& c = colors[idx];
-					auto& t = texcoords[idx];
-
-					float x, y, z, w;
-					mat_trans_nodiv_nomod(vert.x, vert.y, vert.z,
-											x, y, z, w);
-					
-					vd->o_a = x;
-					vd->o_r = y;
-					vd->tex_z = z;
-					vd->o_g = w;
-
-					w = frsqrt(w * w);
-
-					vd->x = x * w;
-					vd->y = y * w;
-					vd->z = w;
-
-					vd->a = c.alpha * (1/255.0f);
-					vd->r = c.red * (1/255.0f);
-					vd->g = c.green * (1/255.0f);
-					vd->b = c.blue * (1/255.0f);
-					
-					float16 u = texcoords[idx].u;
-					float16 v = texcoords[idx].v;
-					vd->u = u.raw;
-					vd->v = v.raw;
-					vd++;
-				}
-
-				clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
-				*/
 			} else { // no trilist assets anymore
 				assert(false && "Unsupported geometry type");
 			}
