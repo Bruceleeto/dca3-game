@@ -19,7 +19,7 @@ bool gPS2alphaTest = true;
 #else
 bool gPS2alphaTest = false;
 #endif
-bool gBackfaceCulling = true;
+bool gBackfaceCulling = false;	// TODO: Investigate why this needs to be off (skmp)
 
 #if !defined(FINAL) || defined(DEBUGMENU)
 static bool charsetOpen;
