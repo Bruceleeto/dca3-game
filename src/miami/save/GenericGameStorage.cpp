@@ -286,7 +286,6 @@ GenericSave(int file)
 bool
 GenericLoad()
 {
-	printf("GenericLoad\n");
 	uint8 *buf;
 	int32 file;
 	uint32 size;
