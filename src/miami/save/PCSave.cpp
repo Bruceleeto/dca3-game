@@ -15,7 +15,7 @@
 #include "minilzo.h"
 #include "main.h"
 
-#include "../vmu/vmu.h"
+#include "vmu/vmu.h"
 
 const char* _psGetUserFilesFolder();
 
@@ -179,7 +179,7 @@ C_PcSave::PopulateSlotInfo()
 			wchar FileName[24];
 			SYSTEMTIME SaveDateTime;
 		} header;
-		sprintf(savename, "%s%i%s", DefaultPCSaveFileName, i + 1, ".b");
+		sprintf(savename, "%s%i%s", i==7?"GTAVCSF":DefaultPCSaveFileName, i + 1, ".b");
 		int file = CFileMgr::OpenFile(savename, "rb");
 		if (file != 0) {
 			if (C_PcSave::PcClassLoadRoutine(file, (uint8*)work_buff)) {
@@ -192,9 +192,6 @@ C_PcSave::PopulateSlotInfo()
 			}
 			CFileMgr::CloseFile(file);
 		}
-#if defined(RW_DC)		
-		return;
-#endif
 		if (Slots[i] == SLOT_OK) {
 			if (CheckDataNotCorrupt(i, savename)) {
 #ifdef FIX_INCOMPATIBLE_SAVES

@@ -41,7 +41,7 @@
 #include "Timecycle.h"
 #include "Fluff.h"
 
-#include "../vmu/vmu.h"
+#include "vmu/vmu.h"
 
 #define BLOCK_COUNT 22
 #define SIZE_OF_SIMPLEVARS 0xE4
@@ -529,7 +529,7 @@ void
 MakeValidSaveName(int32 slot)
 {
 	ValidSaveName[0] = '\0';
-	sprintf(ValidSaveName, "%s%i", DefaultPCSaveFileName, slot + 1);
+	sprintf(ValidSaveName, "%s%i", slot==7?"GTAVCSF":DefaultPCSaveFileName, slot + 1);
 	strncat(ValidSaveName, ".b", 5);
 }
 
@@ -558,7 +558,11 @@ CheckDataNotCorrupt(int32 slot, char *name)
 	eLevelName level = LEVEL_GENERIC;
 	CheckSum = 0;
 	uint32 bytes_processed = 0;
+	#if !defined(RW_DC)
 	sprintf(filename, "%s%i%s", DefaultPCSaveFileName, slot + 1, ".b");
+	#else
+	sprintf(filename, "%s%i%s", slot==7?"GTAVCSF":DefaultPCSaveFileName, slot + 1, ".b");
+	#endif
 	int file = CFileMgr::OpenFile(filename, "rb");
 	if (file == 0)
 		return false;
