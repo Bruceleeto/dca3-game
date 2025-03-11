@@ -16,6 +16,7 @@ IS_MAC := $(shell uname -s | grep -i "darwin" > /dev/null && echo "yes" || echo 
 MOD_NAME?=
 
 GTA_DIR?=../../gta3
+GTA_GAMEFILES_LOOSE_DIR?=../gamefiles/liberty
 GTA_MOD_DIR?=../../gta3_mod$(MOD_NAME)
 GTA_MOD_IMG_DIR?=$(GTA_MOD_DIR)/img
 GTA_MOD_CUTS_DIR=$(GTA_MOD_DIR)/cuts
@@ -508,6 +509,14 @@ $(REPACK_GTA_DIR)/%.TXD: $(GTA_MOD_LOOSE_DIR)/%.TXD texconv
 	@mkdir -p $(@D)
 	./texconv $< $@ 1024 1024 -e $(PVR_ENCODER) -d NONE
 
+# then the gamefiles directory
+$(REPACK_GTA_DIR)/%.txd: $(GTA_GAMEFILES_LOOSE_DIR)/%.txd texconv
+	@mkdir -p $(@D)
+	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
+$(REPACK_GTA_DIR)/%.TXD: $(GTA_GAMEFILES_LOOSE_DIR)/%.TXD texconv
+	@mkdir -p $(@D)
+	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
+
 # if not, the original files
 $(REPACK_GTA_DIR)/%.txd: $(GTA_DIR)/%.txd texconv
 	@mkdir -p $(@D)
@@ -609,7 +618,19 @@ $(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-# Note: This is last so it has least priority, files should be processed if possible
+# Note: These are last so they have least priority, files should be processed if possible
+
+# first try mods dir
+$(REPACK_GTA_DIR)/%: $(GTA_MOD_LOOSE_DIR)/%
+	@mkdir -p $(@D)
+	cp $< $@
+
+# then gamefiles
+$(REPACK_GTA_DIR)/%: $(GTA_GAMEFILES_LOOSE_DIR)/%
+	@mkdir -p $(@D)
+	cp $< $@
+
+# then original files
 $(REPACK_GTA_DIR)/%: $(GTA_DIR)/%
 	@mkdir -p $(@D)
 	cp $< $@
