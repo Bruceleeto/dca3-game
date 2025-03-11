@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cassert>
 #include <string>
+#include <cstring>
 
 struct WavHeader {
     // RIFF Header
