@@ -174,11 +174,10 @@ static pvr_dr_state_t drState;
 
 #include <kos/dbglog.h>
 
+float VIDEO_MODE_SCALE_X;
+
 #if !defined(DC_TEXCONV) && !defined(DC_SIM)
 #include <kos.h>
-
-#define VIDEO_MODE_WIDTH  vid_mode->width
-#define VIDEO_MODE_HEIGHT vid_mode->height
 
 #define mat_trans_nodiv_nomod(x, y, z, x2, y2, z2, w2) do { \
         register float __x __asm__("fr12") = (x); \
@@ -289,8 +288,6 @@ void rw_mat_load_4x4(rw::Matrix* mtx) {
 }
 
 #include <dc/matrix.h>
-#define VIDEO_MODE_WIDTH		640
-#define VIDEO_MODE_HEIGHT 		480
 #define frsqrt(a) 				(1.0f/sqrt(a))
 #define dcache_pref_block(a)	__builtin_prefetch(a)
 
@@ -554,8 +551,6 @@ void DCE_InitMatrices() {
 	mat_identity();
 	
 	mat_store(&DCE_MAT_SCREENVIEW);
-	
-	DCE_MatrixViewport(0, 0, VIDEO_MODE_WIDTH, VIDEO_MODE_HEIGHT);
 }
 
 }
@@ -789,7 +784,7 @@ void beginUpdate(Camera* cam)  {
 	proj[14] = -cam->nearPlane*proj[10];
 	memcpy4(&cam->devProj, proj, sizeof(RawMatrix));
 	
-	DCE_MatrixViewport(0, 0, cam->frameBuffer->width, cam->frameBuffer->height);
+	DCE_MatrixViewport(0, 0, cam->frameBuffer->width * VIDEO_MODE_SCALE_X, cam->frameBuffer->height);
 	
 	mat_load((matrix_t*)&DCE_MAT_SCREENVIEW);
 	mat_apply((matrix_t*)&cam->devProj);
@@ -831,7 +826,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		auto doquad = [=](float x, float y, float w, float h, float tx, float ty, float tw, float th) {
 			auto vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = 1000000.0f;
 			vtx->u = tx/1024.f;
@@ -841,7 +836,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = 1000000.0f;
 			vtx->u = (tx+tw)/1024.f;
@@ -851,7 +846,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = 1000000.0f;
 			vtx->u = tx/1024.f;
@@ -861,7 +856,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX_EOL;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = 1000000.0f;
 			vtx->u = (tx+tw)/1024.f;
@@ -935,7 +930,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 				  float umin, float umax, float vmin, float vmax, uint32_t col) {
 			auto vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = z;
 			vtx->u = umin;
@@ -945,7 +940,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = z;
 			vtx->u = umax;
@@ -955,7 +950,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = z;
 			vtx->u = umin;
@@ -965,7 +960,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX_EOL;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = z;
 			vtx->u = umax;
@@ -1508,7 +1503,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		{
 			auto *pvrVert  = pvr_dr_target(drState); 
 			pvrVert->flags = flags;
-			pvrVert->x 	   = gtaVert.x;
+			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
 			pvrVert->y	   = gtaVert.y;
 			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
 			pvrVert->u 	   = gtaVert.u;
@@ -4581,6 +4576,14 @@ rasterToImage(Raster*)
 	return nil;
 }
 
+static pvr_init_params_t pvr_params = {
+	.opb_sizes = {
+				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
+				PVR_BINSIZE_8
+	},
+	.autosort_disabled = true
+};
+
 int
 deviceSystem(DeviceReq req, void *arg0, int32 n)
 {
@@ -4616,15 +4619,22 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 		rwmode->flags = VIDEOMODEEXCLUSIVE;
 		return 1;
 	}
-		
-
 	case DEVICEGETMAXMULTISAMPLINGLEVELS:
-		{
-			return 1;
-		}
+		return 2;
 	case DEVICEGETMULTISAMPLINGLEVELS:
-		return 1;
+		return 1 << pvr_params.fsaa_enabled;
 	case DEVICESETMULTISAMPLINGLEVELS:
+		if (n == 1) {
+			VIDEO_MODE_SCALE_X = 1;
+			pvr_params.fsaa_enabled = 0;
+			pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
+			pvr_params.opb_overflow_count = 7; // 268800 bytes
+		} else {
+			VIDEO_MODE_SCALE_X = 2;
+			pvr_params.fsaa_enabled = 1;
+			pvr_params.vertex_buf_size = (1024 + 768) * 1024;
+			pvr_params.opb_overflow_count = 4; // 307200 bytes
+		}
 		return 1;
 	case DEVICESETSUBSYSTEM:
 		return 1;
@@ -4659,16 +4669,6 @@ Device renderdevice = {
 	im3DRenderIndexedPrimitive,
 	im3DEnd,
 	deviceSystem
-};
-
-static pvr_init_params_t pvr_params = {
-	.opb_sizes = {
-				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
-				PVR_BINSIZE_8
-	},
-	.vertex_buf_size = (1024 + 1024) * 1024,
-	.autosort_disabled = true,
-	.opb_overflow_count = 7 // 268800 bytes
 };
 
 void defaultInstance(ObjPipeline *pipe, Atomic *atomic) {
@@ -4757,6 +4757,8 @@ static void*
 driverClose(void *o, int32, int32)
 {
 	pvr_mem_free(fake_tex);
+
+	pvr_shutdown();
 
 	return o;
 }

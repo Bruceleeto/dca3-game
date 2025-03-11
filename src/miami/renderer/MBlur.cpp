@@ -110,7 +110,8 @@ CMBlur::MotionBlurOpen(RwCamera *cam)
 			rect.w = width;
 			rect.h = height;
 			
-			pFrontBuffer = RwRasterCreate(rect.w, rect.h, depth, rwRASTERTYPECAMERATEXTURE);
+			// MBlur disabled for now (skmp)
+			pFrontBuffer = nullptr; // RwRasterCreate(rect.w, rect.h, depth, rwRASTERTYPECAMERATEXTURE);
 			if ( !pFrontBuffer )
 			{
 				debug("MBlurOpen can't create raster.");
