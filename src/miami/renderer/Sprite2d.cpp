@@ -129,6 +129,9 @@ CSprite2d::SetVertices(const CRect &r, const CRGBA &c0, const CRGBA &c1, const C
 {
 	float offset = 1.0f/1024.0f;
 
+	// Workaround for PVR Z-Equality not being exact
+	RecipNearClip *= 1.1f;
+
 	// This is what we draw:
 	// 0---1
 	// | / |
@@ -174,6 +177,9 @@ void
 CSprite2d::SetVertices(const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3,
 	float u0, float v0, float u1, float v1, float u3, float v3, float u2, float v2)
 {
+	// Workaround for PVR Z-Equality not being exact
+	RecipNearClip *= 1.1f;
+
 	// This is what we draw:
 	// 0---1
 	// | / |
@@ -219,6 +225,11 @@ void
 CSprite2d::SetVertices(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4,
 		const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3, DrawType dt)
 {
+	// Workaround for PVR Z-Equality not being exact
+	if (dt == DRAW_NEAR) {
+		RecipNearClip *= 1.1f;
+	}
+
 	float screenZ = dt == DRAW_FAR ? FarScreenZ : NearScreenZ;
 	float camZ = dt == DRAW_FAR ? FarCamZ : NearCamZ;
 	float recipClip = dt == DRAW_FAR ? RecipFarClip : RecipNearClip;
@@ -263,6 +274,9 @@ CSprite2d::SetVertices(float x1, float y1, float x2, float y2, float x3, float y
 void
 CSprite2d::SetVertices(int n, float *positions, float *uvs, const CRGBA &col)
 {
+	// Workaround for PVR Z-Equality not being exact
+	RecipNearClip *= 1.1f;
+
 	int i;
 
 	for(i = 0; i < n; i++){
@@ -300,6 +314,9 @@ void
 CSprite2d::SetVertices(RwIm2DVertex *verts, const CRect &r, const CRGBA &c0, const CRGBA &c1, const CRGBA &c2, const CRGBA &c3,
 		float u0, float v0, float u1, float v1, float u3, float v3, float u2, float v2)
 {
+	// Workaround for PVR Z-Equality not being exact
+	RecipNearClip *= 1.1f;
+
 	RwIm2DVertexSetScreenX(&verts[0], r.left);
 	RwIm2DVertexSetScreenY(&verts[0], r.top);
 	RwIm2DVertexSetScreenZ(&verts[0], NearScreenZ);
