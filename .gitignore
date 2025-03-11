@@ -378,6 +378,7 @@ liberty/animtool*
 liberty/texconv*
 liberty/imgtool*
 liberty/coltool*
+liberty/streamheaderpack*
 liberty/extract-sfx*
 liberty/pack-sfx*
 liberty/analyze-profile*
@@ -397,6 +398,7 @@ miami/animtool*
 miami/texconv*
 miami/imgtool*
 miami/coltool*
+miami/streamheaderpack*
 miami/extract-sfx*
 miami/pack-sfx*
 miami/analyze-profile*

@@ -29,6 +29,7 @@ REPACK_IMG_DC_DIR?=$(REPACK_DIR)/miami-img-dc
 REPACK_SFX_ORIG_DIR?=$(REPACK_DIR)/miami-sfx-orig
 REPACK_SFX_DC_DIR?=$(REPACK_DIR)/miami-sfx-dc
 REPACK_STREAM_DECODED_DIR?=$(REPACK_DIR)/miami-stream-decoded
+REPACK_STREAM_DEST_DIR=$(REPACK_GTA_DIR)/stream
 REPACK_CUTS_ORIG_DIR?=$(REPACK_DIR)/miami-cuts-orig
 REPACK_CUTS_DC_DIR?=$(REPACK_DIR)/miami-cuts-dc
 
@@ -305,6 +306,9 @@ animtool: ../src/tools/animtool.cpp
 coltool: ../src/tools/coltool.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
+streamheaderpack: ../src/tools/streamheaderpack.cpp
+	$(CXX) -std=c++17 -o $@ -g -O0 $<
+
 -include $(DEPS)
 
 #### Repacking ####
@@ -371,9 +375,9 @@ LOOSE_FILES_DC = $(addprefix $(REPACK_GTA_DIR)/, $(MISC_FILES))
 SFX_DC_DIR = $(REPACK_GTA_DIR)/sfx
 SFX_DC_RAW = $(SFX_DC_DIR)/sfx_all.raw
 SFX_DC_DSC = $(SFX_DC_DIR)/sfx_all.dsc
-STREAM_ADPCM_DC = $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_WAV:.wav=.APM)) \
-				  $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_MP3:.mp3=.APM)) \
-				  $(addprefix $(REPACK_GTA_DIR)/stream/, $(STREAM_ADF:.adf=.APM))
+STREAM_ADPCM_DC = $(addprefix $(REPACK_STREAM_DEST_DIR)/, $(STREAM_WAV:.wav=.APM)) \
+				  $(addprefix $(REPACK_STREAM_DEST_DIR)/, $(STREAM_MP3:.mp3=.APM)) \
+				  $(addprefix $(REPACK_STREAM_DEST_DIR)/, $(STREAM_ADF:.adf=.APM))
 
 IMG_TEXTURES_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MODELS))
@@ -391,8 +395,10 @@ STREAM_ADF_DECODED = $(addprefix $(REPACK_STREAM_DECODED_DIR)/, $(STREAM_ADF:.ad
 
 .PRECIOUS: $(SFX_ORIG) $(SFX_REPACK_DC) $(STREAM_ADF_DECODED)
 
-$(REPACK_DIR)/repacked: $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir $(REPACK_GTA_DIR)/anim/cuts.img $(REPACK_GTA_DIR)/anim/cuts.dir $(LOOSE_FILES_DC) $(STREAM_ADPCM_DC) $(SFX_DC_RAW) $(SFX_DC_DSC)
+$(REPACK_DIR)/repacked: $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir $(REPACK_GTA_DIR)/anim/cuts.img $(REPACK_GTA_DIR)/anim/cuts.dir $(LOOSE_FILES_DC) $(STREAM_ADPCM_DC) $(SFX_DC_RAW) $(SFX_DC_DSC) streamheaderpack
 	mkdir -p $(@D)
+# $(REPACK_GTA_DIR) needed as first argument as paths in the game prefix with stream/
+	./streamheaderpack miami $(REPACK_GTA_DIR) $(REPACK_STREAM_DEST_DIR)/hdr.bin
 	@git archive --format zip --output "$(REPACK_GTA_DIR)/DCA3-$(GIT_VERSION).zip" HEAD
 	@touch $@
 	@echo && echo && echo "*** Repack Completed Successfully ($(PROJECT_NAME)) ***" && echo && echo
@@ -592,7 +598,7 @@ $(REPACK_SFX_DC_DIR)/%.pcm: $(REPACK_SFX_ORIG_DIR)/%.wav aud2adpcm
 # stream processing
 
 # first try the mods loose directory
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.wav aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
@@ -600,16 +606,16 @@ $(REPACK_STREAM_DECODED_DIR)/%.mp3: $(GTA_MOD_LOOSE_DIR)/Audio/%.adf adf2mp3
 	@mkdir -p $(@D)
 	./adf2mp3 $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.mp3 aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_MOD_LOOSE_DIR)/Audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(REPACK_STREAM_DECODED_DIR)/%.mp3 aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(REPACK_STREAM_DECODED_DIR)/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
 # then original folder
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/Audio/%.wav aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/Audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
@@ -617,11 +623,11 @@ $(REPACK_STREAM_DECODED_DIR)/%.mp3: $(GTA_DIR)/Audio/%.adf adf2mp3
 	@mkdir -p $(@D)
 	./adf2mp3 $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(GTA_DIR)/Audio/%.mp3 aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/Audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_GTA_DIR)/stream/%.APM: $(REPACK_STREAM_DECODED_DIR)/%.mp3 aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(REPACK_STREAM_DECODED_DIR)/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
