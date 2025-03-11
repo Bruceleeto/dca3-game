@@ -15,6 +15,7 @@
 #define debugf(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
 
 #include "sampman.h"
+#include "sampman_dc_streams.h"
 #include "AudioManager.h"
 #include "MusicManager.h"
 #include "Frontend.h"
@@ -171,6 +172,8 @@ uint8_t nCurrentPedSlot;
 file_t fdPedSfx;
 volatile uint32 nPedSfxReqReadId = 1;
 volatile uint32 nPedSfxReqNextId = 1;
+
+static int32 DCStreamedLength[TOTAL_STREAMED_SOUNDS];
 
 struct WavHeader {
     // RIFF Header
@@ -460,6 +463,12 @@ cSampleManager::Initialise(void)
 	fdPedSfx = fs_open(SampleBankDataFilename, O_RDONLY);
 
 	assert(fdPedSfx >= 0);
+
+	file_t fd = fs_open("stream/hdr.bin", O_RDONLY);
+	assert(fd >= 0);
+	static_assert(sizeof(DCStreamedLength) == TOTAL_STREAMED_SOUNDS*sizeof(int32));
+	assert(fs_read(fd, DCStreamedLength, sizeof(DCStreamedLength)) == sizeof(DCStreamedLength));
+	fs_close(fd);
 
 	_bSampmanInitialised = true;
 	return TRUE;
@@ -1212,21 +1221,10 @@ int32
 cSampleManager::GetStreamedFileLength(uint8 nFile)
 {
 	ASSERT( nFile < TOTAL_STREAMED_SOUNDS );
-	int32 rv = 1; // Look in MusicManager.cpp:268
-	file_t fd = fs_open(DCStreamedNameTable[nFile], O_RDONLY);
-	assert(fd >= 0);
-	WavHeader hdr;
-	assert(fs_read(fd, &hdr, sizeof(hdr)) == sizeof(hdr));
-
-	uint64_t rv64 = (uint64_t)hdr.dataSize * 2000 / hdr.numOfChan / hdr.samplesPerSec;
-
-	assert(rv64 <= INT32_MAX);
-	rv = (int32)rv64;
-
-	fs_close(fd);
+	auto rv = DCStreamedLength[nFile];
 
 	debugf("GetStreamedFileLength: %d %d\n", nFile, rv);
-	return rv <= 0 ? 1 : rv;
+	return rv;
 }
 
 bool8
