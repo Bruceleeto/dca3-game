@@ -32,7 +32,7 @@ template<typename T>
 inline void
 ReadSaveBuf(T *out, uint8 *&buf)
 {
-	*out = *(T *)buf;
+	memcpy(out, buf, sizeof(T));
 	SkipSaveBuf(buf, sizeof(T));
 }
 
@@ -40,7 +40,7 @@ template<typename T>
 inline void
 ReadSaveBuf(T *out, uint8 *&buf, uint32 &length)
 {
-	*out = *(T *)buf;
+	memcpy(out, buf, sizeof(T));
 	SkipSaveBuf(buf, length, sizeof(T));
 }
 
@@ -49,7 +49,7 @@ inline T *
 WriteSaveBuf(uint8 *&buf, const T &value)
 {
 	T *p = (T*)buf;
-	*p = value;
+	memcpy(p, &value, sizeof(T));
 	SkipSaveBuf(buf, sizeof(T));
 	return p;
 }
@@ -59,7 +59,7 @@ inline T *
 WriteSaveBuf(uint8 *&buf, uint32 &length, const T &value)
 {
 	T *p = (T*)buf;
-	*p = value;
+	memcpy(p, &value, sizeof(T));
 	SkipSaveBuf(buf, length, sizeof(T));
 	return p;
 }
