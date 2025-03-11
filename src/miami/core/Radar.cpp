@@ -759,6 +759,14 @@ void CRadar::DrawRadarMask()
 		TransformRadarPointToScreenSpace(out[i], in);
 	}
 	CSprite2d::SetMaskVertices(4, (float *)out);
+	
+	// avoid Z fighting with the map by nudging the clear area bellow the map depth
+	{
+		auto vtx = CSprite2d::GetVertices();
+		for (int i = 0; i < 4; i++) {
+			vtx[i].w *= 2;
+		}
+	}
 	RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, CSprite2d::GetVertices(), 4);
 
 	// Draw the shape we want to mask out from the radar in four segments
