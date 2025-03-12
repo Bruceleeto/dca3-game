@@ -213,6 +213,7 @@ enum Config {
 //#	define GTA_SCENE_EDIT
 #	define PC_MENU
 #	define PC_WATER
+#   define DISABLE_WAVY_WATER
 #elif defined GTA_XBOX
 #elif defined GTA_MOBILE
 #	define MISSION_REPLAY

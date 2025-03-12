@@ -818,6 +818,9 @@ _GetWaterDrawDist()
 inline float
 _GetWavyDrawDist()
 {
+#ifdef DISABLE_WAVY_WATER
+	return 0.0;
+#endif
 	if ( FindPlayerVehicle() && FindPlayerVehicle()->IsBoat() )
 		return 120.0f;
 	else
