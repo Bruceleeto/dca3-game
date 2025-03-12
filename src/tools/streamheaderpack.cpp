@@ -33,6 +33,9 @@ struct WavHeader {
 #include "../miami/audio/sampman_dc_streams.h"
 #undef DCStreamedNameTable
 
+#ifdef _WIN32
+#define fcaseopen fopen
+#else
 // Case-insensitivity on linux (from https://github.com/OneSadCookie/fcaseopen)
 // Returned string should freed manually (if exists)
 char* casepath(char const* path, bool checkPathFirst = true)
@@ -165,6 +168,7 @@ FILE* fcaseopen(char const* filename, char const* mode)
     }
     return result;
 }
+#endif
 
 int main(int argc, const char** argv) {
 
