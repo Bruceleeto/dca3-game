@@ -777,7 +777,7 @@ char *AlphaTestNames[] = {
     "cl_railingb",
     "compound_fence",
     "compound_fence",
-    "concerth",.col
+    "concerth",
     "concerth02",
     "concerth03",
     "concerth04",
@@ -946,12 +946,7 @@ char *AlphaTestNames[] = {
     "ht_veg04_dy",
     "ht_veg04_nt",
     "ht_veg04_nt",
-    "kb_planter",+bush
-    "kb_planter",+bush2
-    "kb_planter",+bush
-    "kb_planter",+bush
-    "kb_planter",+bush2
-    "kb_planter",+bush2
+    "kb_planter",
     "kb_planterbox",
     "kb_planterbox",
     "kb_planterbush2",
@@ -1411,7 +1406,6 @@ char *AlphaTestNames[] = {
     "odrroofst07",
     "odrroofst06",
     "odrroofst02",
-
 	"",
 };
 
