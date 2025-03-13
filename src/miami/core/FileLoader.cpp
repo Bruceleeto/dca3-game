@@ -1407,6 +1407,10 @@ char *AlphaTestNames[] = {
     "xpolytrees3_dt",
     "xpolytrees4_dt",
     "xpolytrees4_dt",
+	"odnwiret",
+    "odrroofst07",
+    "odrroofst06",
+    "odrroofst02",
 	"",
 };
 
