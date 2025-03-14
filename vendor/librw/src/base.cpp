@@ -47,16 +47,17 @@ int32 build = 0xFFFF;
 bool32 streamAppendFrames = 0;
 char *debugFile = nil;
 
-static Matrix identMat = {
+static Matrix identMat = {{
     .right 	= { 1.0f, 0.0f, 0.0f }, 
     .flags 	= Matrix::IDENTITY|Matrix::TYPEORTHONORMAL,
+	.pad0   = 0,
     .up 	= { 0.0f, 1.0f, 0.0f }, 
     .upw 	= 0.0f,
     .at 	= { 0.0f, 0.0f, 1.0f }, 
     .atw 	= 0.0f,
     .pos 	= { 0.0f, 0.0f, 0.0f }, 
     .posw 	= 1.0f
-};
+}};
 
 // lazy implementation
 int
@@ -195,11 +196,11 @@ V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 		out[i] = tmp;
 	}
 #else
-    //mat_load_3x3(reinterpret_cast<const matrix_t *>(m));
-    mat_load_3x3(reinterpret_cast<const matrix_t*>(m));
+    mat_load_3x3(reinterpret_cast<const matrix_t *>(m));
+    //mat_load(reinterpret_cast<const matrix_t*>(m));
 	for(i = 0; i < n; i++) {
         mat_trans_single3_nodiv_nomod(in[i].x, in[i].y, in[i].z,
-                                      out[i].x, out[i].y, out[i].z);
+                                out[i].x, out[i].y, out[i].z);
 	}
 #endif
 }
@@ -219,6 +220,7 @@ RawMatrix::mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2)
 void
 RawMatrix::transpose(RawMatrix *dst, RawMatrix *src)
 {
+#ifndef DC_SH4
 	dst->right.x = src->right.x;
 	dst->up.x = src->right.y;
 	dst->at.x = src->right.z;
@@ -235,17 +237,22 @@ RawMatrix::transpose(RawMatrix *dst, RawMatrix *src)
 	dst->upw = src->pos.y;
 	dst->atw = src->pos.z;
 	dst->posw = src->posw;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(src));
+	mat_transpose();
+	mat_store(reinterpret_cast<matrix_t*>(dst));
+#endif
 }
 
 void
 RawMatrix::setIdentity(RawMatrix *dst)
 {
-	static RawMatrix identity = {
+	static RawMatrix identity = {{
 		{ 1.0f, 0.0f, 0.0f }, 0.0f,
 		{ 0.0f, 1.0f, 0.0f }, 0.0f,
 		{ 0.0f, 0.0f, 1.0f }, 0.0f,
 		{ 0.0f, 0.0f, 0.0f }, 1.0f
-	};
+	}};
 	*dst = identity;
 }
 
@@ -306,8 +313,11 @@ Matrix::mult(Matrix *dst, const Matrix *src1, const Matrix *src2)
 	else if(src2->flags & IDENTITY)
 		*dst = *src1;
 	else{
+		uint8_t flags1 = src1->flags;
+		uint8_t flags2 = src2->flags;
 		mult_(dst, src1, src2);
-		dst->flags = src1->flags & src2->flags;
+		dst->flags = flags1 & flags2;
+		dst->pad0 = 0;
 	}
 	return dst;
 }
@@ -328,6 +338,7 @@ Matrix::invert(Matrix *dst, const Matrix *src)
 Matrix*
 Matrix::transpose(Matrix *dst, const Matrix *src)
 {
+#ifndef DC_SH4
 	if(src->flags & IDENTITY)
 		*dst = *src;
 	dst->right.x = src->right.x;
@@ -342,6 +353,11 @@ Matrix::transpose(Matrix *dst, const Matrix *src)
 	dst->pos.x = 0.0;
 	dst->pos.y = 0.0;
 	dst->pos.z = 0.0;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(src));
+	mat_transpose();
+	mat_store(reinterpret_cast<matrix_t*>(dst));
+#endif
 	return dst;
 }
 
@@ -513,18 +529,67 @@ Matrix::lookAt(const V3d &dir, const V3d &up)
  * i.e. a vector is first xformed by src1, then by src2
  */
 void
-Matrix::mult_(Matrix *__restrict__ dst, const Matrix *__restrict__ src1, const Matrix *__restrict__ src2)
+Matrix::mult_(Matrix *dst, const Matrix *src1, const Matrix *src2)
 {
 
     #if !defined(DC_TEXCONV) && !defined(DC_SIM)
 #if 1 
-    { /* I know, I know, WTF! We're caching and replacing metadata elements. */
-       // Matrix::Normalizer dstNorm(dst), src1Norm(src1), src2Norm(src2);
+#if 1
+	mat_mult(reinterpret_cast<matrix_t *>(dst),
+			 reinterpret_cast<const matrix_t *>(src2),
+			 reinterpret_cast<const matrix_t *>(src1));
 
-        mat_mult(reinterpret_cast<matrix_t *>(dst),
-                 reinterpret_cast<const matrix_t *>(src2),
-                 reinterpret_cast<const matrix_t *>(src1));
-    }
+#else
+    unsigned int prefetch_scratch;
+
+    asm volatile (
+        "mov %[bmtrx], %[pref_scratch]\n\t" // (MT)
+        "add #32, %[pref_scratch]\n\t" // offset by 32 (EX - flow dependency, but 'add' is actually parallelized since 'mov Rm, Rn' is 0-cycle)
+        "fschg\n\t" // switch fmov to paired moves (note: only paired moves can access XDn regs) (FE)
+        "pref @%[pref_scratch]\n\t" // Get a head start prefetching the second half of the 64-byte data (LS)
+        // back matrix
+        "fmov.d @%[bmtrx]+, XD0\n\t" // (LS)
+        "fmov.d @%[bmtrx]+, XD2\n\t"
+        "fmov.d @%[bmtrx]+, XD4\n\t"
+        "fmov.d @%[bmtrx]+, XD6\n\t"
+        "pref @%[fmtrx]\n\t" // prefetch fmtrx now while we wait (LS)
+        "fmov.d @%[bmtrx]+, XD8\n\t" // bmtrx prefetch should work for here
+        "fmov.d @%[bmtrx]+, XD10\n\t"
+        "fmov.d @%[bmtrx]+, XD12\n\t"
+        "mov %[fmtrx], %[pref_scratch]\n\t" // (MT)
+        "add #32, %[pref_scratch]\n\t" // store offset by 32 in r0 (EX - flow dependency, but 'add' is actually parallelized since 'mov Rm, Rn' is 0-cycle)
+        "fmov.d @%[bmtrx], XD14\n\t"
+        "pref @%[pref_scratch]\n\t" // Get a head start prefetching the second half of the 64-byte data (LS)
+        // front matrix
+        // interleave loads and matrix multiply 4x4
+        "fmov.d @%[fmtrx]+, DR0\n\t"
+        "fmov.d @%[fmtrx]+, DR2\n\t"
+        "fmov.d @%[fmtrx]+, DR4\n\t" // (LS) want to issue the next one before 'ftrv' for parallel exec
+		"fldi0 FR3\n\t"
+        "ftrv XMTRX, FV0\n\t" // (FE)
+
+        "fmov.d @%[fmtrx]+, DR6\n\t"
+        "fmov.d @%[fmtrx]+, DR8\n\t"
+		"fldi0 FR7\n\t"
+        "ftrv XMTRX, FV4\n\t"
+
+        "fmov.d @%[fmtrx]+, DR10\n\t"
+		"fldi0 FR11\n\t"
+        "ftrv XMTRX, FV8\n\t"
+
+        "fmov.d @%[fmtrx]+, DR12\n\t"
+		"fmov.d @%[fmtrx]+, DR14\n\t"
+		"fldi1 FR15\n\t"
+        "fschg\n\t" // switch back to single moves (and avoid stalling 'ftrv') (FE)
+        "ftrv XMTRX, FV12\n\t" // (FE)
+        // Save output in XF regs
+        "frchg\n"
+        : [bmtrx] "+&r" ((unsigned int)src2), [fmtrx] "+r" ((unsigned int)src1), [pref_scratch] "=&r" (prefetch_scratch) // outputs, "+" means r/w, "&" means it's written to before all inputs are consumed
+        : // no inputs
+        : "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15" // clobbers (GCC doesn't know about back bank, so writing to it isn't clobbered)
+    );
+	mat_store(reinterpret_cast<matrix_t *>(dst));
+#endif
 #else
     dst->right.x = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.x, src2->up.x, src2->at.x, 0);
     dst->right.y = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.y, src2->up.y, src2->at.y, 0);
@@ -591,7 +656,7 @@ Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 	det = src->up.x * dst->right.y + src->at.x * dst->right.z + dst->right.x * src->right.x;
 	invdet = 1.0;
 	if(det != 0.0f)
-		invdet = Invert(det);
+		invdet = Invert<false>(det);
 	dst->right.x *= invdet;
 	dst->right.y *= invdet;
 	dst->right.z *= invdet;

@@ -1,6 +1,6 @@
 #pragma once
 
-class CMatrix
+class alignas(8) CMatrix
 {
 public:
 	union

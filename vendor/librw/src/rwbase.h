@@ -318,7 +318,7 @@ inline V3d rotate(const V3d &v, const Quat &q) { return mult(mult(q, makeQuat(0.
 Quat lerp(const Quat &q, const Quat &p, float32 r);
 Quat slerp(const Quat &q, const Quat &p, float32 a);
 
-struct __attribute__((aligned(8))) RawMatrix 
+struct alignas(8) RawMatrixBase 
 {
 	V3d right;
 	float32 rightw = 0.0f;
@@ -328,6 +328,24 @@ struct __attribute__((aligned(8))) RawMatrix
 	float32 atw = 0.0f;
 	V3d pos;
 	float32 posw = 1.0f;
+};
+
+struct RawMatrix : public RawMatrixBase
+{
+	RawMatrix() = default;
+
+	RawMatrix(RawMatrixBase &&aggregate):
+		RawMatrixBase{aggregate}
+	{}
+
+	RawMatrix(const RawMatrix& rhs) {
+		*this = rhs;
+	}
+
+	RawMatrix &operator=(const RawMatrix& rhs) {
+		dc::mat_copy(reinterpret_cast<matrix_t*>(this), reinterpret_cast<const matrix_t*>(&rhs));
+		return *this;
+	}
 
 	// NB: this is dst = src2*src1, i.e. src1 is applied first, then src2
 	static void mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2);
@@ -335,29 +353,8 @@ struct __attribute__((aligned(8))) RawMatrix
 	static void setIdentity(RawMatrix *dst);
 };
 
-struct alignas(8) Matrix
+struct alignas(8) MatrixBase
 {
-	class Normalizer {
-	private:
-		const Matrix *owner_;
-
-		union {
-			uint32 flags_;
-			float  rightw_;
-		};
-
-	public:
-		Normalizer(const Matrix *owner, float rightw = 0.0f):
-			owner_(owner), rightw_(owner->rightw) 
-		{
-			owner_->rightw = rightw;
-		}
-
-		~Normalizer() {
-			owner_->rightw = rightw_;
-		}
-	};
-	
 	enum Type {
 		TYPENORMAL	= 1,
 		TYPEORTHOGONAL	= 2,
@@ -373,27 +370,47 @@ struct alignas(8) Matrix
 		float32 identity;
 	};
 
-	V3d right;
+	V3d right = { 1.0f, 0.0f, 0.0f };
 	union {
-		mutable uint32 flags;
-		mutable float  rightw = 0.0f;
+		struct {
+			uint32 flags: 3 = TYPEORTHONORMAL|IDENTITY;
+			uint32_t pad0: 29 = 0;
+		};
+		float  rightw;
 	};
-	V3d up;
+	V3d up = { 0.0f, 1.0f, 0.0f };
 	union {
 		uint32 pad1;
 		float  upw = 0.0f;
 	};
-	V3d at;
+	V3d at = { 0.0f, 0.0f, 1.0f };
 	union {
 		uint32 pad2;
 		float  atw = 0.0f;
 	};
-	V3d pos;
+	V3d pos = { 0.0f, 0.0f, 0.0f };
 	union {
 		uint32 pad3;
 		float  posw = 1.0f;
 	};
+};
 
+struct Matrix: public MatrixBase
+{
+	Matrix() = default;
+	
+	Matrix(MatrixBase &&aggregate):
+		MatrixBase{aggregate}
+	{}
+
+	Matrix(const Matrix& rhs) {
+		*this = rhs;
+	}
+
+	Matrix &operator=(const Matrix& rhs) {
+		dc::mat_copy(reinterpret_cast<matrix_t*>(this), reinterpret_cast<const matrix_t*>(&rhs));
+		return *this;
+	}
 
 	static Matrix *create(void);
 	void destroy(void);

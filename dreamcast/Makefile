@@ -81,7 +81,7 @@ OBJS_TEXCONV += \
 	../vendor/librw/src/d3d-x/d3d8render.texconv.o \
 	../vendor/librw/src/bmp.texconv.o \
 	../vendor/librw/src/png.texconv.o \
-	../vendor/librw/src/lodepng/lodepng.texconv.o	
+	../vendor/librw/src/lodepng/lodepng.texconv.o
 
 # Add compilation units to this list to explicity compile them with
 # -O3 optimizations, while the rest get the default (-Os) treatment
@@ -89,7 +89,11 @@ OBJS_TEXCONV += \
 OBJS_O3 = \
 	../vendor/librw/src/dc/rwdc.o \
 	../src/core/World.o \
+	../src/core/ZoneCull.o \
+	../src/entities/Physical.o \
 	../src/collision/Collision.o \
+	../src/peds/PedAI.o \
+	../src/render/Renderer.o \
 	../src/math/math.o \
 	../src/math/Matrix.o \
 	../src/math/Quaternion.o \
@@ -123,7 +127,7 @@ CXXFLAGS += $(if $(WITH_32MB),-O3,-Os) \
 	-Wno-multichar -Wno-unused-value -Wno-char-subscripts -Wno-reorder \
 	-Wno-unused-function -Wno-class-memaccess -fno-permissive \
 	-fno-asynchronous-unwind-tables -fno-enforce-eh-specs -fno-non-call-exceptions \
-	-fno-strict-aliasing -fwrapv
+	-fno-strict-aliasing -fwrapv -fno-PIC
 
 clean-texconv:
 	-rm -f $(OBJS_TEXCONV)

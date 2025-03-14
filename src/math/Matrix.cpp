@@ -54,20 +54,30 @@ CMatrix::Detach(void)
 void
 CMatrix::Update(void)
 {
+#ifndef DC_SH4
 	GetRight() = m_attachment->right;
 	GetForward() = m_attachment->up;
 	GetUp() = m_attachment->at;
 	GetPosition() = m_attachment->pos;
+#else
+	mat_copy(reinterpret_cast<matrix_t*>(this),
+	         reinterpret_cast<const matrix_t*>(m_attachment));
+#endif
 }
 
 void
 CMatrix::UpdateRW(void)
 {
 	if (m_attachment) {
+#ifndef DC_SH4
 		m_attachment->right = GetRight();
 		m_attachment->up = GetForward();
 		m_attachment->at = GetUp();
 		m_attachment->pos = GetPosition();
+#else
+		mat_copy(reinterpret_cast<matrix_t*>(m_attachment),
+		         reinterpret_cast<const matrix_t*>(this));
+#endif
 		RwMatrixUpdate(m_attachment);
 	}
 }
@@ -75,7 +85,8 @@ CMatrix::UpdateRW(void)
 void
 CMatrix::operator=(CMatrix const &rhs)
 {
-	memcpy(this, &rhs, sizeof(f));
+	mat_copy(reinterpret_cast<matrix_t*>(this),
+	         reinterpret_cast<const matrix_t*>(&rhs));
 	if (m_attachment)
 		UpdateRW();
 }
@@ -83,7 +94,8 @@ CMatrix::operator=(CMatrix const &rhs)
 void
 CMatrix::CopyOnlyMatrix(const CMatrix &other)
 {
-	memcpy(this, &other, sizeof(f));
+	mat_copy(reinterpret_cast<matrix_t*>(this),
+	         reinterpret_cast<const matrix_t*>(&other));
 }
 
 CMatrix &
@@ -276,10 +288,33 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 void
 CMatrix::RotateX(float x)
 {
-#ifdef DC_SH4
-	mat_load(reinterpret_cast<matrix_t *>(this));
-	mat_rotate_x(x);
-	mat_store(reinterpret_cast<matrix_t *>(this));
+#if defined(DC_SH4)
+	x *= 10430.37835f;
+
+	mat_load(reinterpret_cast<const matrix_t*>(this));
+	asm volatile(
+		"ftrc	%[a], fpul\n\t"
+		".short	0xf4fd\n\t" /* fsca dr4 */
+		"fldi0	fr8\n\t"
+		"fldi0	fr11\n\t"
+		"fmov	fr5, fr10\n\t"
+		"fmov	fr4, fr9\n\t"
+		"fneg	fr9\n\t"
+		"ftrv	xmtrx, fv8\n\t"
+		"fmov	fr4, fr6\n\t"
+		"fldi0	fr7\n\t"
+		"fldi0	fr4\n\t"
+		"ftrv	xmtrx, fv4\n\t"
+		"fschg\n\t"
+		"fmov	dr8, xd8\n\t"
+		"fmov	dr10, xd10\n\t"
+		"fmov	dr4, xd4\n\t"
+		"fmov	dr6, xd6\n\t"
+		"fschg\n"
+		:
+		: [a] "f"(x)
+		: "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+	mat_store(reinterpret_cast<matrix_t*>(this));
 #else
 	auto [s, c] = SinCos(x);
 
@@ -306,10 +341,33 @@ CMatrix::RotateX(float x)
 void
 CMatrix::RotateY(float y)
 {
-#ifdef DC_SH4
-	mat_load(reinterpret_cast<matrix_t *>(this));
-	mat_rotate_y(y);
-	mat_store(reinterpret_cast<matrix_t *>(this));
+#if defined(DC_SH4)
+	y *= 10430.37835f;
+
+	mat_load(reinterpret_cast<const matrix_t*>(this));
+	asm volatile(
+		"ftrc	%[a], fpul\n\t"
+		".short	0xf6fd\n\t" /* fsca dr6 */
+		"fldi0	fr9\n\t"
+		"fldi0	fr11\n\t"
+		"fmov	fr6, fr8\n\t"
+		"fmov	fr7, fr10\n\t"
+		"ftrv	xmtrx, fv8\n\t"
+		"fmov	fr7, fr4\n\t"
+		"fldi0	fr5\n\t"
+		"fneg	fr6\n\t"
+		"fldi0	fr7\n\t"
+		"ftrv	xmtrx, fv4\n\t"
+		"fschg\n\t"
+		"fmov	dr8, xd8\n\t"
+		"fmov	dr10, xd10\n\t"
+		"fmov	dr4, xd0\n\t"
+		"fmov	dr6, xd2\n\t"
+		"fschg\n"
+		:
+		: [a] "f"(y)
+		: "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+	mat_store(reinterpret_cast<matrix_t*>(this));
 #else
 	auto [s, c] = SinCos(y);
 
@@ -336,10 +394,32 @@ CMatrix::RotateY(float y)
 void
 CMatrix::RotateZ(float z)
 {
-#ifdef DC_SH4
-	mat_load(reinterpret_cast<matrix_t *>(this));
-	mat_rotate_z(z);
-	mat_store(reinterpret_cast<matrix_t *>(this));
+#if defined(DC_SH4)
+
+	z *= 10430.37835f;
+
+	mat_load(reinterpret_cast<const matrix_t*>(this));
+	asm volatile(
+		"ftrc	%[a], fpul\n\t"
+		".short	0xf8fd\n\t" /* fsca dr8 */
+		"fldi0	fr10\n\t"
+		"fldi0	fr11\n\t"
+		"fmov	fr8, fr5\n\t"
+		"fneg	fr8\n\t"
+		"ftrv	xmtrx, fv8\n\t"
+		"fmov	fr9, fr4\n\t"
+		"fschg\n\t"
+		"fmov	dr10, dr6\n\t"
+		"ftrv	xmtrx, fv4\n\t"
+		"fmov	dr8, xd4\n\t"
+		"fmov	dr10, xd6\n\t"
+		"fmov	dr4, xd0\n\t"
+		"fmov	dr6, xd2\n\t"
+		"fschg\n"
+		:
+		: [a] "f"(z)
+		: "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+	mat_store(reinterpret_cast<matrix_t*>(this));
 #else	
 	auto [s, c] = SinCos(z);
 
@@ -366,7 +446,7 @@ CMatrix::RotateZ(float z)
 void
 CMatrix::Rotate(float x, float y, float z)
 {
-#ifdef DC_SH4
+#if defined(DC_SH4)
 	CMatrix rot;
 	rot.SetRotate(x, y, z);
 	mat_load_apply(reinterpret_cast<matrix_t *>(this),

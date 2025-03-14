@@ -37,18 +37,12 @@ extern const char* currentFile;
 #include <functional>
 #include <fstream>
 
-#define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
 
 // #include "rwdcimpl.h"
 
 #include <dc/pvr.h>
 #include "alloc.h"
-
-#undef PVR_TXRFMT_STRIDE
-#define PVR_TXRFMT_STRIDE       (1 << 25)
-
-static_assert(PVR_TXRFMT_STRIDE == (1 << 25), "PVR_TXRFMT_STRIDE is bugged in your KOS version");
 
 // TODO: probably needs a better place to be
 bool doEnvironmentMaps = true;
@@ -508,13 +502,6 @@ __always_inline void DCE_RenderSubmitVertex(const pvr_vertex_t *v, uint32_t flag
     pvr_dr_commit(sq);
 }
 
-static const float colorScaleCharToFloat = 1.0f / 255.0f / 255.0f;
-
-inline float vec3f_dot_c(V3d * v, V3d * v2)
-{
-    return (v->x * v2->x) + (v->y * v2->y) + (v->z * v2->z);
-}
-
 __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w, 
                                                 const float *uv, uint32_t argb, uint32_t flags)
 {
@@ -537,7 +524,7 @@ __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w,
 
 /* END TA Submission Functions*/
 
-
+static const float colorScaleCharToFloat = 1.0f / 255.0f / 255.0f;
 
 
 #if defined(DC_TEXCONV)
@@ -615,10 +602,9 @@ void beginUpdate(Camera* cam)  {
 	proj[14] = -cam->nearPlane*proj[10];
 	memcpy4(&cam->devProj, proj, sizeof(RawMatrix));
 	
-	mat_load((matrix_t*)&DCE_MAT_SCREENVIEW);
-	mat_apply((matrix_t*)&cam->devProj);
-	mat_store((matrix_t*)&cam->devProjScreen);
-
+	mat_mult((matrix_t*)&cam->devProjScreen, 
+			 (matrix_t*)&DCE_MAT_SCREENVIEW, 
+			 (matrix_t*)&cam->devProj);
 }
 
 
@@ -1316,7 +1302,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x;
 			pvrVert->y	   = gtaVert.y;
-			pvrVert->z 	   = Invert<true, false>(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->z 	   = Invert<true, false>(gtaVert.w); // Sketchy, not quite right
 			pvrVert->u 	   = gtaVert.u;
 			pvrVert->v 	   = gtaVert.v;
 			pvrVert->argb  = (gtaVert.a << 24) |
@@ -1329,13 +1315,13 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		switch(primType) {
 			case PRIMTYPETRILIST:
 				pvrHeaderSubmit();
-				dcache_pref_block(vtx);
+				__builtin_prefetch(vtx);
 				for(int i = 0; i < numVertices; i += 3) [[likely]] {
-					dcache_pref_block(&vtx[i + 1]);
+					__builtin_prefetch(&vtx[i + 1]);
 					pvrVertexSubmit(vtx[i + 0], PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[i + 2]);
+					__builtin_prefetch(&vtx[i + 2]);
 					pvrVertexSubmit(vtx[i + 1], PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[i + 3]);
+					__builtin_prefetch(&vtx[i + 3]);
 					pvrVertexSubmit(vtx[i + 2], PVR_CMD_VERTEX_EOL);
 				}
 			break;
@@ -1343,14 +1329,14 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 				pvrHeaderSubmit();
 				const auto *vtxA = vtx + 0;
 				const auto *vtxB = vtx + 1;
-				dcache_pref_block(vtxA);
+				__builtin_prefetch(vtxA);
 				for(int i = 2; i < numVertices; ++i) [[likely]] {
 					const auto *vtxC = vtx + i;
-					dcache_pref_block(vtxB);
+					__builtin_prefetch(vtxB);
 					pvrVertexSubmit(*vtxA, PVR_CMD_VERTEX);
-					dcache_pref_block(vtxC);
+					__builtin_prefetch(vtxC);
 					pvrVertexSubmit(*vtxB, PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[i]);
+					__builtin_prefetch(&vtx[i]);
 					pvrVertexSubmit(*vtxC, PVR_CMD_VERTEX_EOL);
 					vtxB = vtxC;
 				}
@@ -1371,7 +1357,7 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 	auto idx = (unsigned short*)indices;
 	auto vtx = (Im2DVertex*)vertices;
 
-    static std::vector<Im2DVertex> vertData(numIndices);
+    static std::vector<Im2DVertex> vertData;
 
 	vertData.resize(numIndices);
 	__builtin_prefetch(idx);
@@ -1496,14 +1482,15 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 
 			// assuming near plane is 0.0f
 			// gv1 is visible (posi), and gv2 is behind the plane (negative)
-			float t = (1.0f - gv1.position.z) * -Invert<true, false>(gv2.position.z - gv1.position.z);
+			float t = (1.0f - gv1.position.z) * Invert<false, false>(gv2.position.z - gv1.position.z);
 
-			pvr_vertex_t pvrVert; 
+			pvr_vertex_t &pvrVert = *pvr_dr_target(drState);
 
 			pvrVert.flags  = flags;
-			pvrVert.z	   = gv1.position.z + t * (gv2.position.z - gv1.position.z);
-			pvrVert.x	   = (gv1.position.x + t * (gv2.position.x - gv1.position.x));
-			pvrVert.y	   = (gv1.position.y + t * (gv2.position.y - gv1.position.y));
+			float z	   	   = Invert<true, false>(gv1.position.z + t * (gv2.position.z - gv1.position.z));
+			pvrVert.z 	   = z;
+			pvrVert.x	   = (gv1.position.x + t * (gv2.position.x - gv1.position.x)) * z;
+			pvrVert.y	   = (gv1.position.y + t * (gv2.position.y - gv1.position.y)) * z;
 /*
 			float16 pvrVert_u = gv1.u + t * (gv2.u - gv1.u);
 			float16 pvrVert_v = gv1.v + t * (gv2.v - gv1.v);
@@ -1527,11 +1514,12 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 							  (gv2.r << 16) |
 							  (gv2.g <<  8) |
 							  (gv2.b <<  0);
+			uint32_t argb;
 			for (int i = 0; i < 4; i++) {
-				((uint8_t*)&pvrVert.argb)[i] = ((uint8_t*)&gv1_argb)[i] + t * (((uint8_t*)&gv2_argb)[i] - ((uint8_t*)&gv1_argb)[i]);
+				((uint8_t*)&argb)[i] = ((uint8_t*)&gv1_argb)[i] + t * (((uint8_t*)&gv2_argb)[i] - ((uint8_t*)&gv1_argb)[i]);
 			}
-
-			DCE_RenderSubmitVertex(&pvrVert, flags);
+			pvrVert.argb = argb;
+			pvr_dr_commit(&pvrVert);
 		};
 
 		if(primType == PRIMTYPETRILIST) [[likely]] {
@@ -1642,7 +1630,7 @@ void transform_kos(Vout& vd, const Vin& vs) {
 }
 
 void addInterpolatedVertex(const pvr_vertex16_t& v1, const pvr_vertex16_t& v2, uint32_t flags = PVR_CMD_VERTEX) {
-	float t = Div<true, false>(v1.z, (v2.z - v1.z));
+	float t = Div<false>(v1.z, (v2.z - v1.z));
 	// float t = (-v1.w - v1.z) / ((v2.z - v2.w) - (v1.z - v1.w));
 
 	pvr_vertex_t v;
@@ -1698,9 +1686,10 @@ struct MeshletInfo {
 static_assert(sizeof(MeshletInfo) == 40); // or 32 if !skin
 
 
- inline __attribute__((always_inline))  void setLights(Atomic *atomic, WorldLights *lightData, UniformObject &uniformObject)
+ inline __attribute__((always_inline)) 
+ void setLights(Atomic *atomic, WorldLights *lightData, UniformObject &uniformObject)
 {
-	int n = 0;
+	int i = 0;
 
 	uniformObject.ambLight = lightData->ambient;
 
@@ -1708,31 +1697,28 @@ static_assert(sizeof(MeshletInfo) == 40); // or 32 if !skin
 		Matrix mat;
 		Matrix matsrc = *atomic->getFrame()->getLTM();
 		matsrc.pos = V3d {0,0,0};
+		matsrc.posw = 0.0f;
 		Matrix::invert(&mat, &matsrc);
+		mat_load(reinterpret_cast<const matrix_t*>(&mat));
 		
-		n = 0;
-		for(int i = 0; i < lightData->numDirectionals && i < MAX_LIGHTS; i++){
+		for(; i < lightData->numDirectionals && i < MAX_LIGHTS; i++){
 			Light *l = lightData->directionals[i];
-			uniformObject.col[n] = scale(l->color, 255);
+			uniformObject.col[i] = scale(l->color, 255);
 			V3d at = l->getFrame()->getLTM()->at;
 
 			V3d dir;
+			mat_trans_vec3_nomod(at.x, at.y, at.z,
+						         dir.x, dir.y, dir.z);
+			//V3d::transformVectors(&dir, &at, 1, &mat);
 
-			V3d::transformVectors(&dir, &at, 1, &mat);
-
-			uniformObject.dir[n>>2][0][n&3] = -dir.x / 127.0f;
-			uniformObject.dir[n>>2][1][n&3] = -dir.y / 127.0f;
-			uniformObject.dir[n>>2][2][n&3] = -dir.z / 127.0f;
-			uniformObject.dir[n>>2][3][n&3] = 0;
-
-			n++;
-			if(n >= MAX_LIGHTS)
-				goto out;
+			uniformObject.dir[i>>2][0][i&3] = -dir.x / 127.0f;
+			uniformObject.dir[i>>2][1][i&3] = -dir.y / 127.0f;
+			uniformObject.dir[i>>2][2][i&3] = -dir.z / 127.0f;
+			uniformObject.dir[i>>2][3][i&3] = 0;
 		}
 	}
 
-out:
-	uniformObject.lightCount = n;
+	uniformObject.lightCount = i;
 }
 
 
@@ -1959,7 +1945,7 @@ __attribute__ ((noinline)) void tnlMeshletCopyUVs(uint8_t* dst, const uint8_t* u
 		auto vertex = next_vertex;
 		next_vertex += vertexSize;
 
-		if (!small_uv) {
+		if constexpr(!small_uv) {
 			sq->uv = *(const uint32_t*)vertex;
 		} else {
 			sq->u = decompress_table[*(const int8_t*)vertex++].raw;
@@ -2164,7 +2150,7 @@ template <unsigned cntDiffuse, bool floatNormals>
 __attribute__ ((noinline)) void tnlMeshletDiffuseColor(uint8_t* dstCol, const uint8_t* normalData, uint32_t vertexCount, uint32_t vertexSize, const RGBAf *lights) {
 	
 	const uint8_t* next_vertex = normalData;
-	dcache_pref_block(next_vertex);
+	__builtin_prefetch(next_vertex);
 
 	const float light1R = lights[0].red;
 	const float light1G = lights[0].green;
@@ -2186,13 +2172,13 @@ __attribute__ ((noinline)) void tnlMeshletDiffuseColor(uint8_t* dstCol, const ui
 
 	do {
 		auto vertex = next_vertex;
-		dcache_pref_block(vertex + 32);
+		__builtin_prefetch(vertex + 32);
 		next_vertex += vertexSize;
 
 		const int8_t* inxyz = (const int8_t*)vertex;
 
 		V3d normal;
-		if (!floatNormals) {
+		if constexpr(!floatNormals) {
 			normal = { static_cast<float32>(inxyz[0]), static_cast<float32>(inxyz[1]), static_cast<float32>(inxyz[2])};
 		} else {
 			normal = *(V3d*)inxyz;
@@ -2209,23 +2195,26 @@ __attribute__ ((noinline)) void tnlMeshletDiffuseColor(uint8_t* dstCol, const ui
 			dB += light1 * light1B;
 		}
 
-		if (cntDiffuse > 1 && light2 > 0) {
-			dR += light2 * light2R;
-			dG += light2 * light2G;
-			dB += light2 * light2B;
-		}
+		if constexpr(cntDiffuse > 1)
+			if(light2 > 0) {
+				dR += light2 * light2R;
+				dG += light2 * light2G;
+				dB += light2 * light2B;
+			}
 
-		if (cntDiffuse > 2 && light3 > 0) {
-			dR += light3 * light3R;
-			dG += light3 * light3G;
-			dB += light3 * light3B;
-		}
+		if constexpr(cntDiffuse > 2)
+			if(light3 > 0) {
+				dR += light3 * light3R;
+				dG += light3 * light3G;
+				dB += light3 * light3B;
+			}
 
-		if (cntDiffuse > 3 && light4 > 0) {
-			dR += light4 * light4R;
-			dG += light4 * light4G;
-			dB += light4 * light4B;
-		}
+		if constexpr(cntDiffuse > 3)
+			if(light4 > 0) {
+				dR += light4 * light4R;
+				dG += light4 * light4G;
+				dB += light4 * light4B;
+			}
 
 		float *cols = (float*)dstCol;
 
@@ -2391,7 +2380,7 @@ void* interpolateAndSubmit(void* dst, const void* src1, const void* src2, uint32
 	// float t = fclamp0_1((1.0f - v1->o_g) / (v2->o_g - v1->o_g));
 	float SA = (hasTexture?v1->tex_z : v1->o_b) + v1->o_g;
 	float SB = (hasTexture?v2->tex_z : v2->o_b) + v2->o_g;
-	float t  = Div<true, false>(SA, (SA - SB));
+	float t  = Div<false, false>(SA, (SA - SB));
 
 	float x = v1->o_a + t * (v2->o_a - v1->o_a);
 	float y = v1->o_r + t * (v2->o_r - v1->o_r);
@@ -2426,7 +2415,7 @@ void* interpolateAndSubmit(void* dst, const void* src1, const void* src2, uint32
 
 	float v1_a, v1_r, v1_g, v1_b, v2_a, v2_r, v2_g, v2_b;
 
-	if (hasTexture) {
+	if constexpr (hasTexture) {
 		auto v1t = (const pvr_vertex64_t *)v1;
 		v1_a = v1t->a;
 		v1_r = v1t->r;
@@ -2758,7 +2747,7 @@ __attribute__ ((noinline)) void clipAndsubmitMeshletFallback(uint8_t* vertexData
 	#undef SUBMIT_INTERPOLATE
 }
 
-
+#if 1
 template<bool small_xyz, bool matrix0Identity>
 void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* vertex, const uint8_t* normals, const uint8_t* skinWeights, const uint8_t* skinIndexes, int vertexCount, int vertexSize, Matrix* skinMatrices) {
 	
@@ -2801,17 +2790,16 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					V3d* dstVertex = (V3d*)(dstVertexBytes);
 					dstVertexBytes += 64;
 
-					if constexpr(matrix0Identity)
+					if constexpr(matrix0Identity && !small_xyz)
 						*dstVertex = *srcVtx;
-					else {
-						float w;
-						mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, dstVertex->x, dstVertex->y, dstVertex->z, w);
-					}
+					else
+						mat_trans_single3_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, 
+										              dstVertex->x, dstVertex->y, dstVertex->z);
 				};
 
 				__builtin_prefetch(srcVtxBytes);
 				for(int c = 0; c < count - 1; ++c)
-					innerLoop.template operator()<true>();
+					innerLoop.template operator()<false>();
 				innerLoop.template operator()<false>();
 	
 			} else if (!(flags & 0x80)) {
@@ -2854,13 +2842,14 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				auto srcVtxBytes = vertex + srcOffset;
 				auto srcVtx = (const V3d*)(srcVtxBytes);
 				V3d tmpSrc;
-				if (small_xyz) {
+				if constexpr(small_xyz) {
 					tmpSrc = makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
 					srcVtx = &tmpSrc;
 				}
 				auto dstVtx = (V3d*)(dest + dstOffset);
-				V3d tmp; float w;
-				mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, tmp.x, tmp.y, tmp.z, w);
+				V3d tmp;
+				mat_trans_single3_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, 
+											  tmp.x, tmp.y, tmp.z);
 				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
 				*dstVtx = add(*dstVtx, tmp);
 			} while (--count != 0);
@@ -2884,27 +2873,21 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				int count = *skinningIndexData++;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
 
-				auto innerLoop = []<bool identity>(auto srcNormalBytes, auto dstNormalBytes, int vertexSize) __attribute__((always_inline)) {
+				auto innerLoop = [&]<bool identity>(void) __attribute__((always_inline)) {
 					V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
 					srcNormalBytes += vertexSize;
 
 					V3d* dstNormal = (V3d*)(dstNormalBytes);
 
 					if constexpr(!identity) {
-						float w;
-						mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, 
-													dstNormal->x, dstNormal->y, dstNormal->z, w);
+						mat_trans_vec3_nomod(srcNormal.x, srcNormal.y, srcNormal.z, dstNormal->x, dstNormal->y, dstNormal->z);
 					} else *dstNormal = srcNormal;
 					dstNormalBytes += 64;
 				};
 
-				if constexpr (matrix0Identity) {
-					for(int i = 0; i < count; ++i)
-						innerLoop.template operator()<true>(srcNormalBytes, dstNormalBytes, vertexSize);
-				} else {
-					for(int i = 0; i < count; ++i)
-						innerLoop.template operator()<false>(srcNormalBytes, dstNormalBytes, vertexSize);
-				}
+				for(int i = 0; i < count; ++i)
+					innerLoop.template operator()<matrix0Identity>();
+
 			} else if (!(flags & 0x80)) {
 				int count = flags & 0x7FFF;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
@@ -2943,6 +2926,202 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				auto dstNormal = (V3d*)(destNormal + dstOffset);
 
 				V3d tmp;
+				mat_trans_vec3_nomod(srcNormal.x, srcNormal.y, srcNormal.z, 
+										tmp.x, tmp.y, tmp.z);
+				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
+				*dstNormal = add(*dstNormal, tmp);
+			} while (--count != 0);
+			currentMatrix++;
+		}
+	}
+}
+#else
+
+template<bool small_xyz, bool matrix0Identity>
+void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* vertex, const uint8_t* normals, const uint8_t* skinWeights, const uint8_t* skinIndexes, int vertexCount, int vertexSize, Matrix* skinMatrices) {
+	
+	auto dest = OCR + 4;
+	auto destNormal = OCR_normal;
+
+	// do vertexes
+	{
+		auto skinningIndexData = (int16_t*)skinIndexes;
+		auto skinningWeightData = (uint8_t*)skinWeights;
+
+		if (!matrix0Identity) {
+			mat_load((const matrix_t *)&skinMatrices[0]);
+			if (small_xyz) {
+				mat_apply(&DCE_MESHLET_MAT_DECODE);
+			}
+		} else {
+			if (small_xyz) {
+				mat_load(&DCE_MESHLET_MAT_DECODE);
+			}
+		}
+
+		for(;;) {
+			int16_t flags = *skinningIndexData++;
+			if (flags >= 0) {
+				const uint8_t* srcVtxBytes = vertex + flags;
+				int count = *skinningIndexData++;
+				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
+
+				if (matrix0Identity && !small_xyz) {
+					do {
+						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
+						srcVtxBytes += vertexSize;
+						V3d* dstVertex = (V3d*)(dstVertexBytes);
+						dstVertexBytes += 64;
+						*dstVertex = *srcVtx;
+					} while(--count != 0);
+				} else {
+					do {
+						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
+						V3d tmp;
+						if (small_xyz) {
+							tmp =  makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
+							srcVtx = &tmp;
+						}
+						srcVtxBytes += vertexSize;
+						V3d* dstVertex = (V3d*)(dstVertexBytes);
+						dstVertexBytes += 64;
+						float x, y, z, w;
+						mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
+						dstVertex->x = x;
+						dstVertex->y = y;
+						dstVertex->z = z;
+					} while(--count != 0);
+				}
+			} else if (!(flags & 0x80)) {
+				int count = (flags & 0x7F) + 1;
+				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
+
+				do {
+					V3d* dstVertex = (V3d*)(dstVertexBytes);
+					*dstVertex = { 0, 0 ,0 };
+					dstVertexBytes += 64;
+				} while(--count != 0);
+
+			} else {
+				break;
+			}
+		}
+
+		Matrix* currentMatrix = skinMatrices;
+		for(;;) {
+			auto count = *skinningIndexData++;
+			if (!count) { //some matrixes may be empty
+				currentMatrix++;
+				continue;
+			}
+
+			if (count < 0) {	// end of skinning
+				break;
+			}
+
+			mat_load((const matrix_t *)currentMatrix);
+			if (small_xyz){
+				mat_apply(&DCE_MESHLET_MAT_DECODE);
+			}
+
+			do {
+				auto srcOffset = *skinningIndexData++;
+				auto dstOffset = *skinningIndexData++;
+
+				auto srcVtxBytes = vertex + srcOffset;
+				auto srcVtx = (const V3d*)(srcVtxBytes);
+				V3d tmpSrc;
+				if (small_xyz) {
+					tmpSrc = makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
+					srcVtx = &tmpSrc;
+				}
+				auto dstVtx = (V3d*)(dest + dstOffset);
+				float x, y, z, w;
+				mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
+				V3d tmp = { x, y, z };
+				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
+				*dstVtx = add(*dstVtx, tmp);
+			} while (--count != 0);
+			currentMatrix++;
+		}
+	}
+
+	// now do normals
+	{
+		auto skinningIndexData = (int16_t*)skinIndexes;
+		auto skinningWeightData = (uint8_t*)skinWeights;
+
+		if (!matrix0Identity) {
+			mat_load_3x3((matrix_t*)&skinMatrices[0]);
+		}
+
+		for(;;) {
+			int16_t flags = *skinningIndexData++;
+			if (flags >= 0) {
+				const int8_t* srcNormalBytes = (int8_t*)(normals + flags);
+				int count = *skinningIndexData++;
+				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
+
+				if (matrix0Identity) {
+					do {
+						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
+						
+						srcNormalBytes += vertexSize;
+						V3d* dstNormal = (V3d*)(dstNormalBytes);
+						dstNormalBytes += 64;
+
+						*dstNormal = srcNormal;
+					} while(--count != 0);
+				} else {
+					do {
+						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
+						srcNormalBytes += vertexSize;
+						V3d* dstNormal = (V3d*)(dstNormalBytes);
+						dstNormalBytes += 64;
+						float x, y, z, w;
+						mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, x, y, z, w);
+						*dstNormal = { x, y, z };
+					} while(--count != 0);
+				}
+			} else if (!(flags & 0x80)) {
+				int count = (flags & 0x7F) + 1;
+				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
+
+				do {
+					V3d* dstNormal = (V3d*)(dstNormalBytes);
+					*dstNormal = { 0, 0 ,0 };
+					dstNormalBytes += 64;
+				} while(--count != 0);
+
+			} else {
+				break;
+			}
+		}
+
+		Matrix* currentMatrix = skinMatrices;
+		for(;;) {
+			auto count = *skinningIndexData++;
+			if (!count) { //some matrixes may be empty
+				currentMatrix++;
+				continue;
+			}
+
+			if (count < 0) {	// end of skinning
+				break;
+			}
+
+			mat_load_3x3((matrix_t*)currentMatrix);
+
+			do {
+				auto srcOffset = *skinningIndexData++;
+				auto dstOffset = *skinningIndexData++;
+
+				const int8_t* srcNormalBytes = (int8_t*)(normals + srcOffset);
+
+				V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
+				auto dstNormal = (V3d*)(destNormal + dstOffset);
+
+				V3d tmp;
 				float w;
 				mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, tmp.x, tmp.y, tmp.z, w);
 				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
@@ -2952,6 +3131,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		}
 	}
 }
+#endif
 
 __attribute__((noinline))
 void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertexSize, matrix_t* matfxMatrix, float matfxCoefficient) {
@@ -3058,6 +3238,7 @@ static constexpr void(*tnlMeshletSkinVerticesSelector[4])(uint8_t *OCR, uint8_t 
 	&tnlMeshletSkinVertices<true , true >,
 };
 
+#if 1
 bool
 uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 {
@@ -3073,31 +3254,67 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 
 		__builtin_prefetch(hier->matrices);
 		if(hier->flags & HAnimHierarchy::LOCALSPACEMATRICES){
-			for(i = 0; i < hier->numNodes - 1; i++) {
+			for(i = 0; i < hier->numNodes; i++) {
 				__builtin_prefetch(&hier->matrices[i + 1]);
-				invMats[i].flags = 0;
-				Matrix::mult(m, &invMats[i], &hier->matrices[i]);
+				mat_mult(reinterpret_cast<matrix_t*>(m), 
+						 reinterpret_cast<const matrix_t*>(&invMats[i]), 
+						 reinterpret_cast<const matrix_t*>(&hier->matrices[i]));
 				m++;
 			}
-			invMats[i].flags = 0;
-			Matrix::mult(m, &invMats[i], &hier->matrices[i]);
 		}else{
 			Matrix invAtmMat;
 			Matrix::invert(&invAtmMat, a->getFrame()->getLTM());
-			for(i = 0; i < hier->numNodes - 2; i++){
+			for(i = 0; i < hier->numNodes; i++){
 				__builtin_prefetch(&hier->matrices[i + 1]);
-				invMats[i].flags = 0;
 				mat_load_apply(reinterpret_cast<const matrix_t *>(&invAtmMat),
 							   reinterpret_cast<const matrix_t *>(&hier->matrices[i]));
 				mat_apply(reinterpret_cast<const matrix_t *>(&invMats[i]));
 				mat_store(reinterpret_cast<matrix_t *>(m));
 				m++;
 			}
-			invMats[i].flags = 0;
-			mat_load_apply(reinterpret_cast<const matrix_t *>(&invAtmMat),
-							reinterpret_cast<const matrix_t *>(&hier->matrices[i]));
-			mat_apply(reinterpret_cast<const matrix_t *>(&invMats[i]));
-			mat_store(reinterpret_cast<matrix_t *>(m));
+		}
+	}else{
+		for(i = 0; i < skin->numBones; i++){
+			m->setIdentity();
+			m++;
+		}
+
+		return true;
+	}
+
+	// optimization if the first matrix is identity
+	return skinMatrices[0].identityError() < 0.01f;
+}
+#else
+
+bool
+uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
+{
+	int i;
+	Skin *skin = Skin::get(a->geometry);
+	Matrix *m = (Matrix*)skinMatrices;
+	HAnimHierarchy *hier = Skin::getHierarchy(a);
+
+	if(hier){
+		Matrix *invMats = (Matrix*)skin->inverseMatrices;
+		Matrix tmp;
+
+		assert(skin->numBones == hier->numNodes);
+		if(hier->flags & HAnimHierarchy::LOCALSPACEMATRICES){
+			for(i = 0; i < hier->numNodes; i++){
+				invMats[i].flags = 0;
+				Matrix::mult(m, &invMats[i], &hier->matrices[i]);
+				m++;
+			}
+		}else{
+			Matrix invAtmMat;
+			Matrix::invert(&invAtmMat, a->getFrame()->getLTM());
+			for(i = 0; i < hier->numNodes; i++){
+				invMats[i].flags = 0;
+				Matrix::mult(&tmp, &hier->matrices[i], &invAtmMat);
+				Matrix::mult(m, &invMats[i], &tmp);
+				m++;
+			}
 		}
 	}else{
 		for(i = 0; i < skin->numBones; i++){
@@ -3112,12 +3329,15 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 	return skinMatrices[0].identityError() < 0.01f;
 }
 
-static RawMatrix normal2texcoord = {
+
+#endif
+
+static RawMatrix normal2texcoord = {{
 	{ 0.5f / 127,  0.0f, 0.0f }, 0.0f,
 	{ 0.0f, -0.5f / 127, 0.0f }, 0.0f,
 	{ 0.0f,  0.0f, 1.0f }, 0.0f,
 	{ 0.5f,  0.5f, 0.0f }, 1.0f
-};
+}};
 
 void
 uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
@@ -3455,6 +3675,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			isMatFX = true;
 			matfxCoefficient = matfx->fx[0].env.coefficient;
 			matfxContexts.resize(matfxContexts.size() + 1);
+#warning "Get rid of me by creating mat_apply_3x3()!"
 			if(!worldOrientValid) {
 				rw::convMatrix(&worldOrient, atomic->getFrame()->getLTM());
 				worldOrient.pos = { 0, 0, 0 };

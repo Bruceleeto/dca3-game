@@ -44,6 +44,7 @@
                   "PVR_TXRFMT_STRIDE is bugged in your KOS version");
 #endif
 
+#define F_PI_2          (F_PI * 0.5f)
 #define __hot           __attribute__((hot))
 #define __cold          __attribute__((cold))
 
@@ -65,12 +66,8 @@ struct quaternion_t {
 __always_inline __hot constexpr float Sin(float x) { return sinf(x); }
 __always_inline __hot constexpr float Cos(float x) { return cosf(x); }
 __always_inline __hot constexpr auto  SinCos(float x) { return std::pair { Sin(x), Cos(x) }; }
-__always_inline __hot constexpr float Tan(float x) { return tanf(x); }
 __always_inline __hot constexpr float Abs(float x) { return fabsf(x); }
 __always_inline __hot constexpr float Sqrt(float x) { return sqrtf(x); }
-__always_inline __hot constexpr float Asin(float x) { return asinf(x); }
-__always_inline __hot constexpr float Acos(float x) { return acosf(x); }
-__always_inline __hot constexpr float Atan(float x) { return atanf(x); }
 __always_inline __hot constexpr float RecipSqrt(float x, float y) { return x / Sqrt(y); }
 __always_inline __hot constexpr float Pow(float x, float y) { return powf(x, y); }
 __always_inline __hot constexpr float Floor(float x) { return floorf(x); }
@@ -133,9 +130,34 @@ __always_inline __hot constexpr auto Norm(auto value, auto min, auto max) {
         return numerator / denominator;
 }
 
+template<bool FAST_APPROX=false, bool FAST_DIV=false, bool DIV_COPY_SIGN=false>
+__always_inline __hot constexpr float Tan(float x) { 
+    if(!std::is_constant_evaluated() && FAST_APPROX) {
+        constexpr float pisqby4 = 2.4674011002723397f;
+        constexpr float adjpisqby4 = 2.471688400562703f;
+        constexpr float adj1minus8bypisq = 0.189759681063053f;
+        float xsq = x * x;
+        
+        return x * Div<FAST_DIV, DIV_COPY_SIGN>(adjpisqby4 - adj1minus8bypisq * xsq, 
+                                                pisqby4 - xsq);
+    } else
+        return tanf(x); 
+}
+
+template<bool FAST_APPROX=false>
+__always_inline __hot constexpr float Atan(float x) { 
+    if(FAST_APPROX && !std::is_constant_evaluated()) {
+        constexpr float a[3] = { // 
+            0.998418889819911f, -2.9993501171084700E-01f, 0.0869142852883849f};
+        float xx = x * x;
+        return ((a[2] * xx + a[1]) * xx + a[0]) * x;
+    } else return atanf(x); 
+}
+
 template<bool FAST_APPROX=false>
 __hot constexpr float Atan2(float y, float x) {
     if(FAST_APPROX && !std::is_constant_evaluated()) {
+#if 0
         constexpr float halfpi_i754 = M_PI * 0.5f;
         constexpr float quarterpi_i754 = M_PI * 0.25f;
         // kludge to prevent 0/0 condition
@@ -146,7 +168,40 @@ __hot constexpr float Atan2(float y, float x) {
         float r = (x - copysignf(abs_y, x)) * inv_absy_plus_absx;
         angle += (0.1963f * r * r - 0.9817f) * r;
         return copysignf(angle, y);
+#else
+    // Ensure input is in [-1, +1]
+    bool swap = fabs(x) < fabs(y);
+    float atan_input = (swap ? x : y) / (swap ? y : x);
+
+    // Approximate atan
+    float res = Atan<true>(atan_input);
+
+    // If swapped, adjust atan output
+    res = swap ? (atan_input >= 0.0f ? F_PI_2 : -F_PI_2) - res : res;
+    // Adjust quadrants
+    if      (x >= 0.0f && y >= 0.0f) {}                     // 1st quadrant
+    else if (x <  0.0f && y >= 0.0f) { res =  F_PI + res; } // 2nd quadrant
+    else if (x <  0.0f && y <  0.0f) { res = -F_PI + res; } // 3rd quadrant
+    else if (x >= 0.0f && y <  0.0f) {}                     // 4th quadrant
+
+    // Store result
+    return res;
+#endif
     } else return atan2f(y, x);
+}
+
+template<bool FAST_APPROX=false>
+__always_inline __hot constexpr float Asin(float x) { 
+    if(FAST_APPROX && !std::is_constant_evaluated()) {
+        Atan(Div<true, false>(x, Sqrt(1.0f-(x*x))));
+    } else return asinf(x); 
+}
+
+template<bool FAST_APPROX=false>
+__always_inline __hot constexpr float Acos(float x) {
+    if(FAST_APPROX && !std::is_constant_evaluated()) {
+         return (-0.69813170079773212f * x * x - 0.87266462599716477f) * x + 1.5707963267948966f;
+    } else return acosf(x); 
 }
 
 #ifdef RW_DC
@@ -184,6 +239,33 @@ __hot constexpr float Atan2(float y, float x) {
                               : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
         w = __w; \
     } while(false)
+
+#define mat_trans_vec3(x, y, z) do { \
+        register float __x __asm__("fr12") = (x); \
+        register float __y __asm__("fr13") = (y); \
+        register float __z __asm__("fr14") = (z); \
+        __asm__ __volatile__( \
+                              "fldi0 fr15\n" \
+                              "ftrv  xmtrx, fv12\n" \
+                              : "=f" (__x), "=f" (__y), "=f" (__z) \
+                              : "0" (__x), "1" (__y), "2" (__z) \
+                              : "fr15" ); \
+        x = __x; y = __y; z = __z; \
+    } while(false)
+
+
+#define mat_trans_vec3_nomod(x, y, z, x2, y2, z2) { \
+        register float __x __asm__("fr12") = (x); \
+        register float __y __asm__("fr13") = (y); \
+        register float __z __asm__("fr14") = (z); \
+        __asm__ __volatile__( \
+                              "fldi0 fr15\n" \
+                              "ftrv  xmtrx, fv12\n" \
+                              : "=f" (__x), "=f" (__y), "=f" (__z) \
+                              : "0" (__x), "1" (__y), "2" (__z) \
+                              : "fr15" ); \
+        x2 = __x; y2 = __y; z2 = __z; \
+    }
 
 // no declspec naked, so can't do rts / fschg. instead compiler pads with nop?
 __always_inline __hot void mat_load_3x3(const matrix_t* mtx) {
@@ -276,6 +358,7 @@ __always_inline __hot void mat_transpose(void) {
         : "fpul" // clobbers
     );
 }
+
 
 template<bool FAST_APPROX=true>
 __hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, const quaternion_t &q2) {
@@ -431,6 +514,18 @@ __hot inline void mat_load_apply(const matrix_t* matrix1, const matrix_t* matrix
 #           define pvr_fog_table_linear(s,e)
 #       endif
 
+#define mat_trans_vec3(x_, y_, z_) do { \
+        vector_t tmp = { x_, y_, z_, 0.0f }; \
+        mat_transform(&tmp, &tmp, 1, 0); \
+        x_ = tmp.x; y_ = tmp.y; z_ = tmp.z; \
+    } while(false)
+
+#define mat_trans_vec3_nomod(x_, y_, z_, x2, y2, z2) do { \
+        vector_t tmp = { x_, y_, z_, 0.0f }; \
+        mat_transform(&tmp, &tmp, 1, 0); \
+        x2 = tmp.x; y2 = tmp.y; z2 = tmp.z; \
+    } while(false)
+
 #define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
 		vector_t tmp = { x_, y_, z_, 1.0f }; \
 		mat_transform(&tmp, &tmp, 1, 0); \
@@ -501,8 +596,8 @@ __hot inline void quat_mult(quaternion_t *r, const quaternion_t &q1, const quate
 }
 
 __hot inline void mat_load_apply(const matrix_t* matrix1, const matrix_t* matrix2) {
-    mat_load(matrix2);
-    mat_apply(matrix1);
+    mat_load(matrix1);
+    mat_apply(matrix2);
 }
 
 #endif
@@ -511,6 +606,78 @@ __hot inline void mat_mult(matrix_t *out, const matrix_t* matrix1, const matrix_
     mat_load_apply(matrix1, matrix2);
     mat_store(out);
 }
+
+__always_inline __hot void mat_copy(matrix_t *dst, const matrix_t *src) {
+    mat_load(src);
+    mat_store(dst);
+}
+
+#if defined(DC_SH4)
+inline uint8_t* OCRAM = (uint8_t*)0x7c001000;
+#else
+alignas(32) inline uint8_t OCRAM[32 * 256];
+#endif
+
+inline void ocram_enter() {
+	#if defined(DC_SH4)
+	auto mask = irq_disable();
+	dcache_purge_all();
+	volatile uint32_t * CCN_CCR = (uint32_t *)0xFF00001C;
+	*CCN_CCR |= (1 << 5); // enable OCR (ORA)
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+
+	irq_restore(mask);
+	#endif
+}
+
+inline void ocram_leave() {
+	#if defined(DC_SH4)
+	auto mask = irq_disable();
+	dcache_inval_range(0x92000000, 8192);
+	dcache_purge_all();
+	volatile uint32_t * CCN_CCR = (uint32_t *)0xFF00001C;
+	*CCN_CCR &= ~( 1 << 5); // disable OCR (ORA)
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	__asm__ __volatile__ ("nop");
+	irq_restore(mask);
+	#endif
+}
+
 
 #endif
 

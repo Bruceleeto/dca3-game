@@ -15,6 +15,10 @@
 #include "Debug.h"
 #include "Renderer.h"
 
+#include "VuVector.h"
+
+#include <array>
+
 int32     CCullZones::NumCullZones;
 CCullZone CCullZones::aZones[NUMCULLZONES];
 int32     CCullZones::NumAttributeZones;
@@ -1496,10 +1500,22 @@ CCullZone::TestEntityVisibilityFromCullZone(CEntity *entity, float extraDist, CE
 	else
 		boundMaxZ += extraDist;
 
-	CVector vecMin = entity->GetMatrix() * CVector(boundMinX, boundMinY, boundMinZ);
-	CVector vecMaxX = entity->GetMatrix() * CVector(boundMaxX, boundMinY, boundMinZ);
-	CVector vecMaxY = entity->GetMatrix() * CVector(boundMinX, boundMaxY, boundMinZ);
-	CVector vecMaxZ = entity->GetMatrix() * CVector(boundMinX, boundMinY, boundMaxZ);
+	std::array<CVector, 4> inVecs = {
+		CVector(boundMinX, boundMinY, boundMinZ),
+		CVector(boundMaxX, boundMinY, boundMinZ),
+		CVector(boundMinX, boundMaxY, boundMinZ),
+		CVector(boundMinX, boundMinY, boundMaxZ)
+	};
+
+	std::array<CVector, 4> outVecs;
+	auto &[vecMin, vecMaxX, vecMaxY, vecMaxZ] = outVecs;
+
+	TransformPoints(reinterpret_cast<CVuVector*>(&outVecs),
+	                4,
+					entity->GetMatrix(),
+					inVecs.data(),
+					sizeof(CVector));
+
 	CVector dirx = vecMaxX - vecMin;
 	CVector diry = vecMaxY - vecMin;
 	CVector dirz = vecMaxZ - vecMin;
@@ -1520,22 +1536,23 @@ CCullZone::TestEntityVisibilityFromCullZone(CEntity *entity, float extraDist, CE
 
 	float distToZone = CalcDistToCullZone(entity->GetPosition().x, entity->GetPosition().y)/15.0f;
 	distToZone = Max(distToZone, 7.0f);
-	int numX = (boundMaxX - boundMinX)/distToZone + 2.0f;
-	int numY = (boundMaxY - boundMinY)/distToZone + 2.0f;
-	int numZ = (boundMaxZ - boundMinZ)/distToZone + 2.0f;
+	float invDistToZone = Invert<true, false>(distToZone);
+	int numX = (boundMaxX - boundMinX)*invDistToZone + 2.0f;
+	int numY = (boundMaxY - boundMinY)*invDistToZone + 2.0f;
+	int numZ = (boundMaxZ - boundMinZ)*invDistToZone + 2.0f;
 
-	float stepX = 1.0f/(numX-1);
-	float stepY = 1.0f/(numY-1);
-	float stepZ = 1.0f/(numZ-1);
+	float stepX = Invert<true, false>(numX-1);
+	float stepY = Invert<true, false>(numY-1);
+	float stepZ = Invert<true, false>(numZ-1);
 	float midX = (boundMaxX + boundMinX)/2.0f;
 	float midY = (boundMaxY + boundMinY)/2.0f;
 	float midZ = (boundMaxZ + boundMinZ)/2.0f;
 
 	// check both xy planes
+	CVector mid = entity->GetMatrix() * CVector(midX, midY, midZ);
+	mid.z += 0.1f;
 	for(int i = 0; i < NumTestPoints; i++){
 		CVector testPoint = aTestPoints[i];
-		CVector mid = entity->GetMatrix() * CVector(midX, midY, midZ);
-		mid.z += 0.1f;
 		if(DoThoroughLineTest(testPoint, mid, entity))
 			return true;
 

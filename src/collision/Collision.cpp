@@ -2157,15 +2157,27 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 
 	return numCollisions;	// sphere collisions
 #else
-	static int aSphereIndicesA[MAXNUMSPHERES];
-	static int aLineIndicesA[MAXNUMLINES];
-	static int aSphereIndicesB[MAXNUMSPHERES];
-	static int aBoxIndicesB[MAXNUMBOXES];
-	static int aTriangleIndicesB[MAXNUMTRIS];
-	static bool aCollided[MAXNUMLINES];
-	static CColSphere aSpheresA[MAXNUMSPHERES];
-	static CColLine aLinesA[MAXNUMLINES];
-	static CMatrix matAB, matBA;
+#if 1
+	static auto *aSpheresA 		   = reinterpret_cast<CColSphere*>((uintptr_t)OCRAM);
+	static auto *aLinesA 		   = reinterpret_cast<CColLine  *>((uintptr_t)aSpheresA         + sizeof(CColSphere) * MAXNUMSPHERES);
+	static auto *aSphereIndicesA   = reinterpret_cast<uint16_t  *>((uintptr_t)aLinesA   		+ sizeof(CColLine)   * MAXNUMLINES);
+	static auto *aLineIndicesA	   = reinterpret_cast<uint16_t  *>((uintptr_t)aSphereIndicesA   + sizeof(uint16_t)   * MAXNUMSPHERES);
+	static auto *aSphereIndicesB   = reinterpret_cast<uint16_t  *>((uintptr_t)aLineIndicesA     + sizeof(uint16_t)   * MAXNUMLINES);
+	static auto *aBoxIndicesB	   = reinterpret_cast<uint16_t  *>((uintptr_t)aSphereIndicesB   + sizeof(uint16_t)   * MAXNUMSPHERES);
+	static auto *aTriangleIndicesB = reinterpret_cast<uint16_t  *>((uintptr_t)aBoxIndicesB      + sizeof(uint16_t)   * MAXNUMBOXES);
+	static auto *aCollided		   = reinterpret_cast<bool      *>((uintptr_t)aTriangleIndicesB + sizeof(uint16_t)   * MAXNUMTRIS);
+	CMatrix matAB, matBA;
+#else
+       static CColSphere aSpheresA[MAXNUMSPHERES];
+       static CColLine aLinesA[MAXNUMLINES];
+       static int aSphereIndicesA[MAXNUMSPHERES];
+       static int aLineIndicesA[MAXNUMLINES];
+       static int aSphereIndicesB[MAXNUMSPHERES];
+       static int aBoxIndicesB[MAXNUMBOXES];
+       static int aTriangleIndicesB[MAXNUMTRIS];
+       static bool aCollided[MAXNUMLINES];
+       static CMatrix matAB, matBA;
+#endif
 	CColSphere s;
 	int i, j;
 
@@ -2322,11 +2334,9 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 		mat_trans_single3_nodiv(spherepoints[i].point.x, 
 				    		 	spherepoints[i].point.y,
 								spherepoints[i].point.z);
-		float w = 0.0f;
-		mat_trans_nodiv(spherepoints[i].normal.x, 
-						spherepoints[i].normal.y,
-						spherepoints[i].normal.z,
-						w);
+		mat_trans_vec3(spherepoints[i].normal.x, 
+					   spherepoints[i].normal.y,
+	    			   spherepoints[i].normal.z);
 #endif
 	}
 
@@ -2362,14 +2372,12 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 			linepoints[j].point = matrixB * linepoints[j].point;
 			linepoints[j].normal = Multiply3x3(matrixB, linepoints[j].normal);
 #else
-			mat_trans_single3_nodiv(linepoints[i].point.x, 
-									linepoints[i].point.y,
-									linepoints[i].point.z);
-			float w = 0.0f;
-			mat_trans_nodiv(linepoints[i].normal.x, 
-							linepoints[i].normal.y,
-							linepoints[i].normal.z,
-							w);	
+			mat_trans_single3_nodiv(linepoints[j].point.x, 
+									linepoints[j].point.y,
+									linepoints[j].point.z);
+			mat_trans_vec3(linepoints[j].normal.x, 
+			    		   linepoints[j].normal.y,
+						   linepoints[j].normal.z);	
 #endif
 		}
 

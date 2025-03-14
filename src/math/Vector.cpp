@@ -47,8 +47,8 @@ Multiply3x3(const CVector &vec, const CMatrix &mat)
 	CVector out;
 	mat_load(reinterpret_cast<const matrix_t*>(&mat));
 	mat_transpose();
-	mat_trans_normal3_nomod(vec.x, vec.y, vec.z,
-							out.x, out.y, out.z);
+	mat_trans_vec3_nomod(vec.x, vec.y, vec.z,
+				         out.x, out.y, out.z);
 	return out;
 }
 
