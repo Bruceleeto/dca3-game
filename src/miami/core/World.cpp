@@ -25,6 +25,7 @@
 #include "World.h"
 #include "ColStore.h"
 #include <map>
+#include <vector>
 
 #define OBJECT_REPOSITION_OFFSET_Z 2.0f
 
