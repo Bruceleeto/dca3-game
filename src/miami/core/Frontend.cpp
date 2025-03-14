@@ -67,6 +67,9 @@ const CRGBA SCROLLBAR_COLOR = LABEL_COLOR;
 #define MAX_VISIBLE_OPTION_ON_SCREEN (hasNativeList(m_nCurrScreen) ? MAX_VISIBLE_LIST_ROW : MAX_VISIBLE_OPTION)
 #define SCREEN_HAS_AUTO_SCROLLBAR (m_nTotalListRow > MAX_VISIBLE_OPTION && !hasNativeList(m_nCurrScreen))
 
+#define MIN_DRAWDIST 0.5f // default was 0.925f
+#define MAX_DRAWDIST 1.8f
+
 int GetOptionCount(int screen)
 {
 	int i = 0;
@@ -728,10 +731,10 @@ CMenuManager::CheckSliderMovement(int value)
 		break;
 	case MENUACTION_DRAWDIST:
 		if(value > 0)
-			m_PrefsLOD += ((1.8f - 0.925f) / MENUSLIDER_LOGICAL_BARS);
+			m_PrefsLOD += ((MAX_DRAWDIST - MIN_DRAWDIST) / MENUSLIDER_LOGICAL_BARS);
 		else
-			m_PrefsLOD -= ((1.8f - 0.925f) / MENUSLIDER_LOGICAL_BARS);
-		m_PrefsLOD = Clamp(m_PrefsLOD, 0.925f, 1.8f);
+			m_PrefsLOD -= ((MAX_DRAWDIST - MIN_DRAWDIST) / MENUSLIDER_LOGICAL_BARS);
+		m_PrefsLOD = Clamp(m_PrefsLOD, MIN_DRAWDIST, MAX_DRAWDIST);
 		CRenderer::ms_lodDistScale = m_PrefsLOD;
 		break;
 
@@ -1561,7 +1564,7 @@ CMenuManager::DrawStandardMenus(bool activeScreen)
 							ProcessSlider(m_PrefsBrightness / 384.0f, SLIDER_Y(70.0f), HOVEROPTION_INCREASE_BRIGHTNESS, HOVEROPTION_DECREASE_BRIGHTNESS, SCREEN_WIDTH, true);
 							break;
 						case MENUACTION_DRAWDIST:
-							ProcessSlider((m_PrefsLOD - 0.925f) / 0.875f, SLIDER_Y(99.0f), HOVEROPTION_INCREASE_DRAWDIST, HOVEROPTION_DECREASE_DRAWDIST, SCREEN_WIDTH, true);
+							ProcessSlider((m_PrefsLOD - MIN_DRAWDIST) / (MAX_DRAWDIST - MIN_DRAWDIST), SLIDER_Y(99.0f), HOVEROPTION_INCREASE_DRAWDIST, HOVEROPTION_DECREASE_DRAWDIST, SCREEN_WIDTH, true);
 							break;
 						case MENUACTION_MUSICVOLUME:
 							if(m_nPrefsAudio3DProviderIndex != NO_AUDIO_PROVIDER)
