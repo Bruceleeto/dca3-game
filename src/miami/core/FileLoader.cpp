@@ -34,6 +34,7 @@ void* obj_alloc(size_t size, void** storage);
 void obj_free(void* ptr);
 void* obj_move(void* ptr);
 
+bool ColModelOnlyBBox = false;
 
 char CFileLoader::ms_line[256];
 
@@ -106,7 +107,9 @@ CFileLoader::LoadLevel(const char *filename)
 				CStreaming::Init();
 				POP_MEMID();
 				PUSH_MEMID(MEMID_COLLISION);
+				ColModelOnlyBBox = true;
 				CColStore::LoadAllCollision();
+				ColModelOnlyBBox = false;
 				POP_MEMID();
 				for(int i = 0; i < MODELINFOSIZE; i++)
 					if(CModelInfo::GetModelInfo(i))
@@ -130,6 +133,8 @@ CFileLoader::LoadLevel(const char *filename)
 
 	CFileMgr::CloseFile(fd);
 	RwTexDictionarySetCurrent(savedTxd);
+
+	CColStore::RemoveAllCollision();
 
 	int i;
 	for(i = 1; i < COLSTORESIZE; i++)
@@ -306,7 +311,18 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname, b
 	model.boundingBox.max.x = *(float*)(buf+28);
 	model.boundingBox.max.y = *(float*)(buf+32);
 	model.boundingBox.max.z = *(float*)(buf+36);
-
+	if (ColModelOnlyBBox) {
+		model.numSpheres = 1;
+		model.spheres = nil;
+		model.numLines = 1;
+		model.lines = nil;
+		model.numBoxes = 1;
+		model.boxes = nil;
+		model.vertices = nil;
+		model.numTriangles = 1;
+		model.triangles = nil;
+		return;
+	}
 	model.numSpheres = *(int16*)(buf+40);
 	buf += 44;
 	if(model.numSpheres > 0){

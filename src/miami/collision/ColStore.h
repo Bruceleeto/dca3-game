@@ -32,6 +32,7 @@ public:
 	static void LoadCollision(const CVector2D &pos);
 	static void RequestCollision(const CVector2D &pos);
 	static void EnsureCollisionIsInMemory(const CVector2D &pos);
+	static void EnsureCollisionIsInMemoryInstant(const CVector2D &pos);
 	static bool HasCollisionLoaded(const CVector2D &pos);
 
 	static ColDef *GetSlot(int slot) {

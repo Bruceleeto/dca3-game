@@ -242,6 +242,21 @@ CColStore::EnsureCollisionIsInMemory(const CVector2D &pos)
 		}
 }
 
+void
+CColStore::EnsureCollisionIsInMemoryInstant(const CVector2D &pos)
+{
+	int i;
+
+	for(i = 1; i < COLSTORESIZE; i++)
+		if(GetSlot(i) && GetBoundingBox(i).IsPointInside(pos, -110.0f) &&
+		   !CStreaming::HasColLoaded(i)){
+			CStreaming::RequestCol(i, 0);
+			CTimer::Suspend();
+			CStreaming::LoadAllRequestedModels(false);
+			CTimer::Resume();
+		}
+}
+
 bool
 CColStore::HasCollisionLoaded(const CVector2D &pos)
 {

@@ -51,7 +51,7 @@ bool re3EmergencyRemoveModel();
 
 std::map<void*, void**> relocatableAllocs;
 
-uint8_t obj_heap[4 * 1024 * 1024 + 768 * 1024];
+uint8_t obj_heap[4 * 1024 * 1024 + 256 * 1024];
 tlsf_t obj_pool;
 
 void obj_init() {
@@ -63,7 +63,7 @@ bool obj_relocate();
 
 size_t total_alloc;
 void* obj_alloc(size_t size, void** storage) {
-	fprintf(stdout, "obj_alloc: %d, %d\n", size, total_alloc);
+	// fprintf(stdout, "obj_alloc: %d, %d\n", size, total_alloc);
 	auto rv = tlsf_malloc(obj_pool, size);
 
 	while (rv == nullptr) {

@@ -23,6 +23,8 @@
 #include "TempColModels.h"
 #include "WaterLevel.h"
 #include "World.h"
+#include "ColStore.h"
+#include <map>
 
 #define OBJECT_REPOSITION_OFFSET_Z 2.0f
 
@@ -1774,13 +1776,93 @@ CWorld::ClearForRestart(void)
 	CPools::CheckPoolsEmpty();
 }
 
+
+bool
+GetRepositionOneObjectPosition(CEntity *pEntity, CVector2D* pos)
+{
+	int16 modelId = pEntity->GetModelIndex();
+	if (modelId == MI_PARKINGMETER || modelId == MI_PHONEBOOTH1 || modelId == MI_WASTEBIN ||
+		modelId == MI_BIN || modelId == MI_POSTBOX1 || modelId == MI_NEWSSTAND || modelId == MI_TRAFFICCONE ||
+		modelId == MI_DUMP1 || modelId == MI_ROADWORKBARRIER1 || modelId == MI_BUSSIGN1 || modelId == MI_NOPARKINGSIGN1 ||
+		modelId == MI_PHONESIGN || modelId == MI_FIRE_HYDRANT || modelId == MI_BOLLARDLIGHT ||
+		modelId == MI_PARKTABLE || modelId == MI_PARKINGMETER2 || modelId == MI_TELPOLE02 ||
+		modelId == MI_PARKBENCH || modelId == MI_BARRIER1 || IsTreeModel(modelId)
+		) {
+		CVector& position = pEntity->GetMatrix().GetPosition();
+		CColModel* pColModel = pEntity->GetColModel();
+		float fBoundingBoxMinZ = pColModel->boundingBox.min.z;
+		float fHeight = pColModel->boundingBox.max.z - pColModel->boundingBox.min.z;
+		if (fHeight < OBJECT_REPOSITION_OFFSET_Z) fHeight = OBJECT_REPOSITION_OFFSET_Z;
+		*pos = CVector2D(position.x, position.y);
+		return true;
+	} else if(IsLightThatNeedsRepositioning(modelId)) {
+		CVector position = pEntity->GetMatrix().GetPosition();
+		CColModel* pColModel = pEntity->GetColModel();
+		float fBoundingBoxMinZ = pColModel->boundingBox.min.z;
+		float fHeight = pColModel->boundingBox.max.z - pColModel->boundingBox.min.z;
+		if (fHeight < OBJECT_REPOSITION_OFFSET_Z) fHeight = OBJECT_REPOSITION_OFFSET_Z;
+		if (pColModel->numBoxes == 1)
+			position = pEntity->GetMatrix() * CVector(
+				(pColModel->boxes[0].min.x + pColModel->boxes[0].max.x) / 2,
+				(pColModel->boxes[0].min.y + pColModel->boxes[0].max.y) / 2,
+				pColModel->boxes[0].min.z);
+		else if (pColModel->numSpheres > 0) {
+			position.z = 1000.0f;
+			for (int i = 0; i < pColModel->numSpheres; i++) {
+				if (pColModel->spheres[i].center.z < position.z)
+					position = pColModel->spheres[i].center;
+			}
+			if (position.z < 1000.0f)
+				position = pEntity->GetMatrix() * position;
+		}
+		*pos = CVector2D(position.x, position.y);
+		return true;
+	}
+	if(modelId == MI_BUOY) {
+		bool bFound = true;
+		const CVector &position = pEntity->GetPosition();
+		*pos = CVector2D(position.x, position.y);
+		return true;
+	}
+
+	return false;
+}
+
+uint32_t GetSectorKey(uint32_t x, uint32_t y)
+{
+	static_assert(NUMSECTORS_X < 128);
+	static_assert(NUMSECTORS_Y < 128);
+	uint32_t rv = 0;
+	for (uint32_t i = 0; i < 7; i++) {
+		rv |= (x & 1) << (i*2 + 0);
+		rv |= (y & 1) << (i*2 + 1);
+		x >>= 1;
+		y >>= 1;
+	}
+	return rv;
+}
 void
 CWorld::RepositionCertainDynamicObjects()
 {
+	std::map<uint32_t, std::vector<CDummy*>> partitionedDummies;
+
 	int32 i = CPools::GetDummyPool()->GetSize();
 	while(--i >= 0) {
 		CDummy *dummy = CPools::GetDummyPool()->GetSlot(i);
-		if(dummy) { RepositionOneObject(dummy); }
+		if(dummy) {
+			CVector2D pos;
+			if (GetRepositionOneObjectPosition(dummy, &pos)) {
+				uint32_t key = GetSectorKey(GetSectorIndexX(pos.x), GetSectorIndexY(pos.y));
+				partitionedDummies[key].push_back(dummy);
+			}
+		}
+	}
+
+	fprintf(stderr, "partitionedDummies.size() = %d\n", partitionedDummies.size());
+	for (auto& pair : partitionedDummies) {
+		for (CDummy* dummy : pair.second) {
+			RepositionOneObject(dummy);
+		}
 	}
 }
 
@@ -1800,6 +1882,11 @@ CWorld::RepositionOneObject(CEntity *pEntity)
 		float fBoundingBoxMinZ = pColModel->boundingBox.min.z;
 		float fHeight = pColModel->boundingBox.max.z - pColModel->boundingBox.min.z;
 		if (fHeight < OBJECT_REPOSITION_OFFSET_Z) fHeight = OBJECT_REPOSITION_OFFSET_Z;
+		if (!CColStore::HasCollisionLoaded(CVector2D(position.x, position.y)))
+		{
+			CColStore::RemoveAllCollision();
+			CColStore::EnsureCollisionIsInMemoryInstant(CVector2D(position.x, position.y));
+		}
 		position.z = FindGroundZFor3DCoord(position.x, position.y,
 			position.z + fHeight, nil) -
 			fBoundingBoxMinZ;
@@ -1825,6 +1912,11 @@ CWorld::RepositionOneObject(CEntity *pEntity)
 			if (position.z < 1000.0f)
 				position = pEntity->GetMatrix() * position;
 		}
+		if (!CColStore::HasCollisionLoaded(CVector2D(position.x, position.y)))
+		{
+			CColStore::RemoveAllCollision();
+			CColStore::EnsureCollisionIsInMemoryInstant(CVector2D(position.x, position.y));
+		}
 		pEntity->GetMatrix().GetPosition().z = FindGroundZFor3DCoord(position.x, position.y, pEntity->GetMatrix().GetPosition().z + fHeight, nil) - fBoundingBoxMinZ;
 		pEntity->GetMatrix().UpdateRW();
 		pEntity->UpdateRwFrame();
@@ -1833,6 +1925,11 @@ CWorld::RepositionOneObject(CEntity *pEntity)
 	if(modelId == MI_BUOY) {
 		bool bFound = true;
 		const CVector &position = pEntity->GetPosition();
+		if (!CColStore::HasCollisionLoaded(CVector2D(position.x, position.y)))
+		{
+			CColStore::RemoveAllCollision();
+			CColStore::EnsureCollisionIsInMemoryInstant(CVector2D(position.x, position.y));
+		}
 		float fGroundZ = FindGroundZFor3DCoord(position.x, position.y,
 		                                               position.z + OBJECT_REPOSITION_OFFSET_Z, &bFound);
 		CColModel *pColModel = pEntity->GetColModel();
