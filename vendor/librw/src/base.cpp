@@ -530,79 +530,11 @@ void
 Matrix::mult_(Matrix *dst, const Matrix *src1, const Matrix *src2)
 {
 
-    #if !defined(DC_TEXCONV) && !defined(DC_SIM)
-#if 1 
-#if 1
+#ifdef RW_DC
 	mat_mult(reinterpret_cast<matrix_t *>(dst),
 			 reinterpret_cast<const matrix_t *>(src2),
 			 reinterpret_cast<const matrix_t *>(src1));
-
 #else
-    unsigned int prefetch_scratch;
-
-    asm volatile (
-        "mov %[bmtrx], %[pref_scratch]\n\t" // (MT)
-        "add #32, %[pref_scratch]\n\t" // offset by 32 (EX - flow dependency, but 'add' is actually parallelized since 'mov Rm, Rn' is 0-cycle)
-        "fschg\n\t" // switch fmov to paired moves (note: only paired moves can access XDn regs) (FE)
-        "pref @%[pref_scratch]\n\t" // Get a head start prefetching the second half of the 64-byte data (LS)
-        // back matrix
-        "fmov.d @%[bmtrx]+, XD0\n\t" // (LS)
-        "fmov.d @%[bmtrx]+, XD2\n\t"
-        "fmov.d @%[bmtrx]+, XD4\n\t"
-        "fmov.d @%[bmtrx]+, XD6\n\t"
-        "pref @%[fmtrx]\n\t" // prefetch fmtrx now while we wait (LS)
-        "fmov.d @%[bmtrx]+, XD8\n\t" // bmtrx prefetch should work for here
-        "fmov.d @%[bmtrx]+, XD10\n\t"
-        "fmov.d @%[bmtrx]+, XD12\n\t"
-        "mov %[fmtrx], %[pref_scratch]\n\t" // (MT)
-        "add #32, %[pref_scratch]\n\t" // store offset by 32 in r0 (EX - flow dependency, but 'add' is actually parallelized since 'mov Rm, Rn' is 0-cycle)
-        "fmov.d @%[bmtrx], XD14\n\t"
-        "pref @%[pref_scratch]\n\t" // Get a head start prefetching the second half of the 64-byte data (LS)
-        // front matrix
-        // interleave loads and matrix multiply 4x4
-        "fmov.d @%[fmtrx]+, DR0\n\t"
-        "fmov.d @%[fmtrx]+, DR2\n\t"
-        "fmov.d @%[fmtrx]+, DR4\n\t" // (LS) want to issue the next one before 'ftrv' for parallel exec
-		"fldi0 FR3\n\t"
-        "ftrv XMTRX, FV0\n\t" // (FE)
-
-        "fmov.d @%[fmtrx]+, DR6\n\t"
-        "fmov.d @%[fmtrx]+, DR8\n\t"
-		"fldi0 FR7\n\t"
-        "ftrv XMTRX, FV4\n\t"
-
-        "fmov.d @%[fmtrx]+, DR10\n\t"
-		"fldi0 FR11\n\t"
-        "ftrv XMTRX, FV8\n\t"
-
-        "fmov.d @%[fmtrx]+, DR12\n\t"
-		"fmov.d @%[fmtrx]+, DR14\n\t"
-		"fldi1 FR15\n\t"
-        "fschg\n\t" // switch back to single moves (and avoid stalling 'ftrv') (FE)
-        "ftrv XMTRX, FV12\n\t" // (FE)
-        // Save output in XF regs
-        "frchg\n"
-        : [bmtrx] "+&r" ((unsigned int)src2), [fmtrx] "+r" ((unsigned int)src1), [pref_scratch] "=&r" (prefetch_scratch) // outputs, "+" means r/w, "&" means it's written to before all inputs are consumed
-        : // no inputs
-        : "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15" // clobbers (GCC doesn't know about back bank, so writing to it isn't clobbered)
-    );
-	mat_store(reinterpret_cast<matrix_t *>(dst));
-#endif
-#else
-    dst->right.x = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.x, src2->up.x, src2->at.x, 0);
-    dst->right.y = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.y, src2->up.y, src2->at.y, 0);
-    dst->right.z = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.z, src2->up.z, src2->at.z, 0);
-    dst->up.x    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.x, src2->up.x, src2->at.x, 0);
-    dst->up.y    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.y, src2->up.y, src2->at.y, 0);
-    dst->up.z    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.z, src2->up.z, src2->at.z, 0);
-    dst->at.x    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.x, src2->up.x, src2->at.x, 0);
-    dst->at.y    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.y, src2->up.y, src2->at.y, 0);
-    dst->at.z    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.z, src2->up.z, src2->at.z, 0);
-    dst->pos.x   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  		  src2->right.x, src2->up.x, src2->at.x, src2->pos.x);
-    dst->pos.y   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  	 	  src2->right.y, src2->up.y, src2->at.y, src2->pos.y);
-    dst->pos.z   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  		  src2->right.z, src2->up.z, src2->at.z, src2->pos.z);
-#endif
-    #else
     dst->right.x = src1->right.x*src2->right.x + src1->right.y*src2->up.x + src1->right.z*src2->at.x;
     dst->right.y = src1->right.x*src2->right.y + src1->right.y*src2->up.y + src1->right.z*src2->at.y;
     dst->right.z = src1->right.x*src2->right.z + src1->right.y*src2->up.z + src1->right.z*src2->at.z;
@@ -615,13 +547,12 @@ Matrix::mult_(Matrix *dst, const Matrix *src1, const Matrix *src2)
     dst->pos.x   = src1->pos.x*src2->right.x   + src1->pos.y*src2->up.x   + src1->pos.z*src2->at.x + src2->pos.x;
     dst->pos.y   = src1->pos.x*src2->right.y   + src1->pos.y*src2->up.y   + src1->pos.z*src2->at.y + src2->pos.y;
     dst->pos.z   = src1->pos.x*src2->right.z   + src1->pos.y*src2->up.z   + src1->pos.z*src2->at.z + src2->pos.z;
-    #endif
+#endif
 }
 
 void
 Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 {
-#if 0
 	dst->right.x = src->right.x;
 	dst->right.y = src->up.x;
 	dst->right.z = src->at.x;
@@ -645,15 +576,11 @@ Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 	               src->pos.y*src->at.y +
 	               src->pos.z*src->at.z);
 	dst->posw = 1.0f;
-#else
-	invertGeneral(dst, src);
-#endif
 }
 
 Matrix*
 Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 {
-#if 0
 	float32 det, invdet;
 	// calculate a few cofactors
 	dst->right.x = src->up.y*src->at.z - src->up.z*src->at.y;
@@ -677,136 +604,10 @@ Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 	dst->pos.y = -(src->pos.x*dst->right.y + src->pos.y*dst->up.y + src->pos.z*dst->at.y);
 	dst->pos.z = -(src->pos.x*dst->right.z + src->pos.y*dst->up.z + src->pos.z*dst->at.z);
 	dst->flags &= ~IDENTITY;
-#else
-	float inv[16], det;
-	const float *m = reinterpret_cast<const float*>(src);
-	float *out = reinterpret_cast<float*>(dst);
-    int i;
-
-    inv[0] = m[5]  * m[10] * m[15] - 
-             m[5]  * m[11] * m[14] - 
-             m[9]  * m[6]  * m[15] + 
-             m[9]  * m[7]  * m[14] +
-             m[13] * m[6]  * m[11] - 
-             m[13] * m[7]  * m[10];
-
-    inv[4] = -m[4]  * m[10] * m[15] + 
-              m[4]  * m[11] * m[14] + 
-              m[8]  * m[6]  * m[15] - 
-              m[8]  * m[7]  * m[14] - 
-              m[12] * m[6]  * m[11] + 
-              m[12] * m[7]  * m[10];
-
-    inv[8] = m[4]  * m[9] * m[15] - 
-             m[4]  * m[11] * m[13] - 
-             m[8]  * m[5] * m[15] + 
-             m[8]  * m[7] * m[13] + 
-             m[12] * m[5] * m[11] - 
-             m[12] * m[7] * m[9];
-
-    inv[12] = -m[4]  * m[9] * m[14] + 
-               m[4]  * m[10] * m[13] +
-               m[8]  * m[5] * m[14] - 
-               m[8]  * m[6] * m[13] - 
-               m[12] * m[5] * m[10] + 
-               m[12] * m[6] * m[9];
-
-    inv[1] = -m[1]  * m[10] * m[15] + 
-              m[1]  * m[11] * m[14] + 
-              m[9]  * m[2] * m[15] - 
-              m[9]  * m[3] * m[14] - 
-              m[13] * m[2] * m[11] + 
-              m[13] * m[3] * m[10];
-
-    inv[5] = m[0]  * m[10] * m[15] - 
-             m[0]  * m[11] * m[14] - 
-             m[8]  * m[2] * m[15] + 
-             m[8]  * m[3] * m[14] + 
-             m[12] * m[2] * m[11] - 
-             m[12] * m[3] * m[10];
-
-    inv[9] = -m[0]  * m[9] * m[15] + 
-              m[0]  * m[11] * m[13] + 
-              m[8]  * m[1] * m[15] - 
-              m[8]  * m[3] * m[13] - 
-              m[12] * m[1] * m[11] + 
-              m[12] * m[3] * m[9];
-
-    inv[13] = m[0]  * m[9] * m[14] - 
-              m[0]  * m[10] * m[13] - 
-              m[8]  * m[1] * m[14] + 
-              m[8]  * m[2] * m[13] + 
-              m[12] * m[1] * m[10] - 
-              m[12] * m[2] * m[9];
-
-    inv[2] = m[1]  * m[6] * m[15] - 
-             m[1]  * m[7] * m[14] - 
-             m[5]  * m[2] * m[15] + 
-             m[5]  * m[3] * m[14] + 
-             m[13] * m[2] * m[7] - 
-             m[13] * m[3] * m[6];
-
-    inv[6] = -m[0]  * m[6] * m[15] + 
-              m[0]  * m[7] * m[14] + 
-              m[4]  * m[2] * m[15] - 
-              m[4]  * m[3] * m[14] - 
-              m[12] * m[2] * m[7] + 
-              m[12] * m[3] * m[6];
-
-    inv[10] = m[0]  * m[5] * m[15] - 
-              m[0]  * m[7] * m[13] - 
-              m[4]  * m[1] * m[15] + 
-              m[4]  * m[3] * m[13] + 
-              m[12] * m[1] * m[7] - 
-              m[12] * m[3] * m[5];
-
-    inv[14] = -m[0]  * m[5] * m[14] + 
-               m[0]  * m[6] * m[13] + 
-               m[4]  * m[1] * m[14] - 
-               m[4]  * m[2] * m[13] - 
-               m[12] * m[1] * m[6] + 
-               m[12] * m[2] * m[5];
-
-    inv[3] = -m[1] * m[6] * m[11] + 
-              m[1] * m[7] * m[10] + 
-              m[5] * m[2] * m[11] - 
-              m[5] * m[3] * m[10] - 
-              m[9] * m[2] * m[7] + 
-              m[9] * m[3] * m[6];
-
-    inv[7] = m[0] * m[6] * m[11] - 
-             m[0] * m[7] * m[10] - 
-             m[4] * m[2] * m[11] + 
-             m[4] * m[3] * m[10] + 
-             m[8] * m[2] * m[7] - 
-             m[8] * m[3] * m[6];
-
-    inv[11] = -m[0] * m[5] * m[11] + 
-               m[0] * m[7] * m[9] + 
-               m[4] * m[1] * m[11] - 
-               m[4] * m[3] * m[9] - 
-               m[8] * m[1] * m[7] + 
-               m[8] * m[3] * m[5];
-
-    inv[15] = m[0] * m[5] * m[10] - 
-              m[0] * m[6] * m[9] - 
-              m[4] * m[1] * m[10] + 
-              m[4] * m[2] * m[9] + 
-              m[8] * m[1] * m[6] - 
-              m[8] * m[2] * m[5];
-
-    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
-
-    if (det == 0.0f)
-        det = 1.0f;
-	else 
-    	det = 1.0 / det;
-
-    for (i = 0; i < 16; i++)
-		out[i] = inv[i] * det;
-
-	dst->flags &= IDENTITY;
-#endif
+	dst->pad0 = 0;
+	dst->upw = 0.0f;
+	dst->atw = 0.0f;
+	dst->posw = 1.0f;
 	return dst;
 }
 

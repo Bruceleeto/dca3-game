@@ -3041,7 +3041,6 @@ static constexpr void(*tnlMeshletSkinVerticesSelector[4])(uint8_t *OCR, uint8_t 
 	&tnlMeshletSkinVertices<true , true >,
 };
 
-#if 1
 bool
 uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 {
@@ -3057,17 +3056,20 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 
 		__builtin_prefetch(hier->matrices);
 		if(hier->flags & HAnimHierarchy::LOCALSPACEMATRICES){
-			for(i = 0; i < hier->numNodes; i++) {
+			for(i = 0; i < hier->numNodes - 1; i++) {
 				__builtin_prefetch(&hier->matrices[i + 1]);
 				mat_mult(reinterpret_cast<matrix_t*>(m), 
 						 reinterpret_cast<const matrix_t*>(&hier->matrices[i]),
 						 reinterpret_cast<const matrix_t*>(&invMats[i]));
 				m++;
 			}
+			mat_mult(reinterpret_cast<matrix_t*>(m), 
+					 reinterpret_cast<const matrix_t*>(&hier->matrices[i]),
+					 reinterpret_cast<const matrix_t*>(&invMats[i]));
 		}else{
 			Matrix invAtmMat;
 			Matrix::invert(&invAtmMat, a->getFrame()->getLTM());
-			for(i = 0; i < hier->numNodes; i++){
+			for(i = 0; i < hier->numNodes - 1; i++){
 				__builtin_prefetch(&hier->matrices[i + 1]);
 				mat_load_apply(reinterpret_cast<const matrix_t *>(&invAtmMat),
 							   reinterpret_cast<const matrix_t *>(&hier->matrices[i]));
@@ -3075,49 +3077,10 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 				mat_store(reinterpret_cast<matrix_t *>(m));
 				m++;
 			}
-		}
-	}else{
-		for(i = 0; i < skin->numBones; i++){
-			m->setIdentity();
-			m++;
-		}
-
-		return true;
-	}
-
-	// optimization if the first matrix is identity
-	return skinMatrices[0].identityError() < 0.01f;
-}
-#else
-
-bool
-uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
-{
-	int i;
-	Skin *skin = Skin::get(a->geometry);
-	Matrix *m = (Matrix*)skinMatrices;
-	HAnimHierarchy *hier = Skin::getHierarchy(a);
-
-	if(hier){
-		Matrix *invMats = (Matrix*)skin->inverseMatrices;
-		Matrix tmp;
-
-		assert(skin->numBones == hier->numNodes);
-		if(hier->flags & HAnimHierarchy::LOCALSPACEMATRICES){
-			for(i = 0; i < hier->numNodes; i++){
-				invMats[i].flags = 0;
-				Matrix::mult(m, &invMats[i], &hier->matrices[i]);
-				m++;
-			}
-		}else{
-			Matrix invAtmMat;
-			Matrix::invert(&invAtmMat, a->getFrame()->getLTM());
-			for(i = 0; i < hier->numNodes; i++){
-				invMats[i].flags = 0;
-				Matrix::mult(&tmp, &hier->matrices[i], &invAtmMat);
-				Matrix::mult(m, &invMats[i], &tmp);
-				m++;
-			}
+			mat_load_apply(reinterpret_cast<const matrix_t *>(&invAtmMat),
+							reinterpret_cast<const matrix_t *>(&hier->matrices[i]));
+			mat_apply(reinterpret_cast<const matrix_t *>(&invMats[i]));
+			mat_store(reinterpret_cast<matrix_t *>(m));
 		}
 	}else{
 		for(i = 0; i < skin->numBones; i++){
@@ -3132,8 +3095,6 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 	return skinMatrices[0].identityError() < 0.01f;
 }
 
-
-#endif
 
 static RawMatrix normal2texcoord = {{
 	{ 0.5f / 127,  0.0f, 0.0f }, 0.0f,
