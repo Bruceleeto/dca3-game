@@ -35,6 +35,7 @@
 #include "FileLoader.h"
 #include "User.h"
 #include "sampman.h"
+#include "../skel/dc/dc.h"
 
 // Similar story to Hud.cpp:
 // Game has colors inlined in code.
@@ -2294,6 +2295,15 @@ CMenuManager::DrawFrontEnd()
 		bMenuChangeOngoing = false;
 
 	DrawBackground(false);
+
+	char strver[200];
+	wchar ustr[200];
+	snprintf(strver, sizeof(strver), "dca-miami: %s", getExecutableTag());
+	AsciiToUnicode(strver, ustr);
+
+	CFont::SetScale(MENU_X(MENUACTION_SCALE_MULT*3/4), MENU_Y(MENUACTION_SCALE_MULT*3/4));
+	CFont::SetColor(CRGBA(MENUOPTION_COLOR.r, MENUOPTION_COLOR.g, MENUOPTION_COLOR.b, FadeIn(255)));
+	CFont::PrintString(MENU_X_LEFT_ALIGNED(BUILDID_TEXT_LEFT_MARGIN), SCREEN_SCALE_FROM_BOTTOM(BUILDID_TEXT_BOTTOM_MARGIN), ustr);
 }
 
 void

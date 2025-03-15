@@ -3585,6 +3585,7 @@ bool CPad::CycleCameraModeUpJustDown(void)
 			}
 			break;
 	}
+	return false;
 
 #else
 	switch (CURMODE)
@@ -3895,6 +3896,7 @@ bool CPad::DuckJustDown(void)
 			}
 	}
 
+	return false;
 #else
 	return !!(NewState.LeftShock && !OldState.LeftShock);
 #endif
@@ -3927,6 +3929,7 @@ bool CPad::JumpJustDown(void)
 			}
 	}
 
+	return false;
 #else
 	return !!(NewState.Square && !OldState.Square);
 #endif

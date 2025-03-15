@@ -2028,65 +2028,10 @@ __attribute__((noinline)) void stacktrace() {
 #include <iomanip>
 #include <sstream>
 
-extern "C" {
-    extern const unsigned char _build_id_start[];
-    extern const unsigned char _build_id_end[];
-}
-
-std::string getBuildId()
-{
-    // Pointer to the start of the .note.gnu.build-id section
-    const unsigned char *p = _build_id_start;
-
-    // Parse the ELF note header
-    struct NoteHeader {
-        uint32_t n_namesz;
-        uint32_t n_descsz;
-        uint32_t n_type;
-    };
-    
-    // Read header fields (be careful with endianness if needed)
-    const auto* note = reinterpret_cast<const NoteHeader*>(p);
-
-    // Move p beyond the note header
-    p += sizeof(NoteHeader);
-
-    // Skip the "name" field + alignment (e.g. "GNU\0")
-    // name is note->n_namesz bytes, then align up to 4 bytes
-    auto nameBytes = (note->n_namesz + 3u) & ~3u;
-    p += nameBytes;
-
-    // Now p should point to the actual build-id bytes, which are note->n_descsz in length.
-    const unsigned char* buildId = p;
-    auto buildIdSize = note->n_descsz;
-
-    // Convert it to a hex string
-    std::ostringstream oss;
-    oss << std::hex << std::setfill('0');
-    for (uint32_t i = 0; i < buildIdSize; i++) {
-        oss << std::setw(2) << static_cast<unsigned>(buildId[i]);
-    }
-
-    return oss.str();
-}
-#else
-std::string getBuildId() {
-	return "non-dreamcast-build";
-}
 #endif
 
-const char* getSourceId() {
-	return GIT_VERSION;
-}
-
-const char* getCIJobId() {
-	return CI_JOB_ID;
-}
-
-static std::string executableTag = getBuildId().substr(0, 10) + ":" + getSourceId() + ":" + getCIJobId();
-
 const char* getExecutableTag() {
-	return executableTag.c_str();
+	return GIT_VERSION ":" CI_JOB_ID;
 }
 
 int
