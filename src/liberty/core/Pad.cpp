@@ -3211,6 +3211,7 @@ bool CPad::JumpJustDown(void)
 			}
 	}
 
+	return false;
 #else
 	return !!(NewState.Square && !OldState.Square);
 #endif
@@ -3297,6 +3298,8 @@ bool CPad::ShiftTargetLeftJustDown(void)
 				return !!(NewState.DPadLeft && !OldState.DPadLeft);
 			}
 	}
+
+	return false;
 #else
 
 	return !!(NewState.LeftShoulder2 && !OldState.LeftShoulder2);
@@ -3331,6 +3334,8 @@ bool CPad::ShiftTargetRightJustDown(void)
 				return !!(NewState.DPadRight && !OldState.DPadRight);
 			}
 	}
+
+	return false;
 #else
 
 	return !!(NewState.RightShoulder2 && !OldState.RightShoulder2);
