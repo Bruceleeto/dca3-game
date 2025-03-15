@@ -526,7 +526,7 @@ void
 CPathFind::PreparePathDataForType(uint8 type, CTempNode *tempnodes, CPathInfoForObject *objectpathinfo,
 	float maxdist, CTempDetachedNode *detachednodes, int32 numDetached)
 {
-	static CVector CoorsXFormed;
+	CVector CoorsXFormed;
 	int i, j, k, l;
 	int l1, l2;
 	int start;

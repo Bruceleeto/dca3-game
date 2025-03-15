@@ -736,7 +736,7 @@ CCollision::TestLineOfSight(const CColLine &line, const CMatrix &matrix, CColMod
 
 	return false;
 #else
-	static CMatrix matTransform;
+	CMatrix matTransform;
 	int i;
 
 	// transform line to model space
@@ -1582,7 +1582,7 @@ CCollision::ProcessLineOfSight(const CColLine &line,
 	}
 	return false;
 #else
-	static CMatrix matTransform;
+	CMatrix matTransform;
 	int i;
 
 	// transform line to model space

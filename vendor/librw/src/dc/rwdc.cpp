@@ -2747,7 +2747,6 @@ __attribute__ ((noinline)) void clipAndsubmitMeshletFallback(uint8_t* vertexData
 	#undef SUBMIT_INTERPOLATE
 }
 
-#if 1
 template<bool small_xyz, bool matrix0Identity>
 void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* vertex, const uint8_t* normals, const uint8_t* skinWeights, const uint8_t* skinIndexes, int vertexCount, int vertexSize, Matrix* skinMatrices) {
 	
@@ -2916,6 +2915,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 			}
 
 			mat_load(reinterpret_cast<matrix_t*>(currentMatrix));
+
 			do {
 				auto srcOffset = *skinningIndexData++;
 				auto dstOffset = *skinningIndexData++;
@@ -2935,203 +2935,6 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		}
 	}
 }
-#else
-
-template<bool small_xyz, bool matrix0Identity>
-void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* vertex, const uint8_t* normals, const uint8_t* skinWeights, const uint8_t* skinIndexes, int vertexCount, int vertexSize, Matrix* skinMatrices) {
-	
-	auto dest = OCR + 4;
-	auto destNormal = OCR_normal;
-
-	// do vertexes
-	{
-		auto skinningIndexData = (int16_t*)skinIndexes;
-		auto skinningWeightData = (uint8_t*)skinWeights;
-
-		if (!matrix0Identity) {
-			mat_load((const matrix_t *)&skinMatrices[0]);
-			if (small_xyz) {
-				mat_apply(&DCE_MESHLET_MAT_DECODE);
-			}
-		} else {
-			if (small_xyz) {
-				mat_load(&DCE_MESHLET_MAT_DECODE);
-			}
-		}
-
-		for(;;) {
-			int16_t flags = *skinningIndexData++;
-			if (flags >= 0) {
-				const uint8_t* srcVtxBytes = vertex + flags;
-				int count = *skinningIndexData++;
-				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
-
-				if (matrix0Identity && !small_xyz) {
-					do {
-						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
-						srcVtxBytes += vertexSize;
-						V3d* dstVertex = (V3d*)(dstVertexBytes);
-						dstVertexBytes += 64;
-						*dstVertex = *srcVtx;
-					} while(--count != 0);
-				} else {
-					do {
-						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
-						V3d tmp;
-						if (small_xyz) {
-							tmp =  makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
-							srcVtx = &tmp;
-						}
-						srcVtxBytes += vertexSize;
-						V3d* dstVertex = (V3d*)(dstVertexBytes);
-						dstVertexBytes += 64;
-						float x, y, z, w;
-						mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
-						dstVertex->x = x;
-						dstVertex->y = y;
-						dstVertex->z = z;
-					} while(--count != 0);
-				}
-			} else if (!(flags & 0x80)) {
-				int count = (flags & 0x7F) + 1;
-				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
-
-				do {
-					V3d* dstVertex = (V3d*)(dstVertexBytes);
-					*dstVertex = { 0, 0 ,0 };
-					dstVertexBytes += 64;
-				} while(--count != 0);
-
-			} else {
-				break;
-			}
-		}
-
-		Matrix* currentMatrix = skinMatrices;
-		for(;;) {
-			auto count = *skinningIndexData++;
-			if (!count) { //some matrixes may be empty
-				currentMatrix++;
-				continue;
-			}
-
-			if (count < 0) {	// end of skinning
-				break;
-			}
-
-			mat_load((const matrix_t *)currentMatrix);
-			if (small_xyz){
-				mat_apply(&DCE_MESHLET_MAT_DECODE);
-			}
-
-			do {
-				auto srcOffset = *skinningIndexData++;
-				auto dstOffset = *skinningIndexData++;
-
-				auto srcVtxBytes = vertex + srcOffset;
-				auto srcVtx = (const V3d*)(srcVtxBytes);
-				V3d tmpSrc;
-				if (small_xyz) {
-					tmpSrc = makeV3d(*(int16_t*)srcVtxBytes, *(int16_t*)(srcVtxBytes + 2), *(int16_t*)(srcVtxBytes + 4));
-					srcVtx = &tmpSrc;
-				}
-				auto dstVtx = (V3d*)(dest + dstOffset);
-				float x, y, z, w;
-				mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
-				V3d tmp = { x, y, z };
-				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
-				*dstVtx = add(*dstVtx, tmp);
-			} while (--count != 0);
-			currentMatrix++;
-		}
-	}
-
-	// now do normals
-	{
-		auto skinningIndexData = (int16_t*)skinIndexes;
-		auto skinningWeightData = (uint8_t*)skinWeights;
-
-		if (!matrix0Identity) {
-			mat_load_3x3((matrix_t*)&skinMatrices[0]);
-		}
-
-		for(;;) {
-			int16_t flags = *skinningIndexData++;
-			if (flags >= 0) {
-				const int8_t* srcNormalBytes = (int8_t*)(normals + flags);
-				int count = *skinningIndexData++;
-				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
-
-				if (matrix0Identity) {
-					do {
-						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
-						
-						srcNormalBytes += vertexSize;
-						V3d* dstNormal = (V3d*)(dstNormalBytes);
-						dstNormalBytes += 64;
-
-						*dstNormal = srcNormal;
-					} while(--count != 0);
-				} else {
-					do {
-						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
-						srcNormalBytes += vertexSize;
-						V3d* dstNormal = (V3d*)(dstNormalBytes);
-						dstNormalBytes += 64;
-						float x, y, z, w;
-						mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, x, y, z, w);
-						*dstNormal = { x, y, z };
-					} while(--count != 0);
-				}
-			} else if (!(flags & 0x80)) {
-				int count = (flags & 0x7F) + 1;
-				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
-
-				do {
-					V3d* dstNormal = (V3d*)(dstNormalBytes);
-					*dstNormal = { 0, 0 ,0 };
-					dstNormalBytes += 64;
-				} while(--count != 0);
-
-			} else {
-				break;
-			}
-		}
-
-		Matrix* currentMatrix = skinMatrices;
-		for(;;) {
-			auto count = *skinningIndexData++;
-			if (!count) { //some matrixes may be empty
-				currentMatrix++;
-				continue;
-			}
-
-			if (count < 0) {	// end of skinning
-				break;
-			}
-
-			mat_load_3x3((matrix_t*)currentMatrix);
-
-			do {
-				auto srcOffset = *skinningIndexData++;
-				auto dstOffset = *skinningIndexData++;
-
-				const int8_t* srcNormalBytes = (int8_t*)(normals + srcOffset);
-
-				V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
-				auto dstNormal = (V3d*)(destNormal + dstOffset);
-
-				V3d tmp;
-				float w;
-				mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, tmp.x, tmp.y, tmp.z, w);
-				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
-				*dstNormal = add(*dstNormal, tmp);
-			} while (--count != 0);
-			currentMatrix++;
-		}
-	}
-}
-#endif
 
 __attribute__((noinline))
 void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertexSize, matrix_t* matfxMatrix, float matfxCoefficient) {
@@ -3257,8 +3060,8 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 			for(i = 0; i < hier->numNodes; i++) {
 				__builtin_prefetch(&hier->matrices[i + 1]);
 				mat_mult(reinterpret_cast<matrix_t*>(m), 
-						 reinterpret_cast<const matrix_t*>(&invMats[i]), 
-						 reinterpret_cast<const matrix_t*>(&hier->matrices[i]));
+						 reinterpret_cast<const matrix_t*>(&hier->matrices[i]),
+						 reinterpret_cast<const matrix_t*>(&invMats[i]));
 				m++;
 			}
 		}else{
@@ -6014,6 +5817,15 @@ writeNativeSkin(Stream *stream, int32 len, void *object, int32 offset)
 
 	stream->write8(&skin->numBones, 4);
 
+	for(int32 i = 0; i < skin->numBones; i++){
+		Matrix &m = *reinterpret_cast<Matrix *>(&skin->inverseMatrices[i * 16]);
+		if(m.flags & MatrixBase::IDENTITY_OLD)
+			m.flags |= MatrixBase::IDENTITY;
+		m.pad0 = 0;
+		m.upw = 0.0f;
+		m.atw = 0.0f;
+		m.posw = 1.0f;
+	}
 	stream->write32(skin->inverseMatrices, skin->numBones*64);
 	return stream;
 }

@@ -362,7 +362,8 @@ struct alignas(8) MatrixBase
 		TYPEMASK = 3
 	};
 	enum Flags {
-		IDENTITY = 0x4
+		IDENTITY = 0x4,
+		IDENTITY_OLD = 0x20000
 	};
 	struct Tolerance {
 		float32 normal;

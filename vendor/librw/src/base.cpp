@@ -196,11 +196,11 @@ V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 		out[i] = tmp;
 	}
 #else
-    mat_load_3x3(reinterpret_cast<const matrix_t *>(m));
-    //mat_load(reinterpret_cast<const matrix_t*>(m));
+    //mat_load_3x3(reinterpret_cast<const matrix_t *>(m));
+    mat_load(reinterpret_cast<const matrix_t*>(m));
 	for(i = 0; i < n; i++) {
-        mat_trans_single3_nodiv_nomod(in[i].x, in[i].y, in[i].z,
-                                out[i].x, out[i].y, out[i].z);
+        mat_trans_vec3_nomod(in[i].x, in[i].y, in[i].z,
+                             out[i].x, out[i].y, out[i].z);
 	}
 #endif
 }
@@ -313,11 +313,9 @@ Matrix::mult(Matrix *dst, const Matrix *src1, const Matrix *src2)
 	else if(src2->flags & IDENTITY)
 		*dst = *src1;
 	else{
-		uint8_t flags1 = src1->flags;
-		uint8_t flags2 = src2->flags;
+		uint8_t flags = src1->flags & src2->flags;
 		mult_(dst, src1, src2);
-		dst->flags = flags1 & flags2;
-		dst->pad0 = 0;
+		dst->flags = flags;
 	}
 	return dst;
 }
@@ -623,15 +621,20 @@ Matrix::mult_(Matrix *dst, const Matrix *src1, const Matrix *src2)
 void
 Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 {
+#if 0
 	dst->right.x = src->right.x;
 	dst->right.y = src->up.x;
 	dst->right.z = src->at.x;
+	dst->flags = TYPEORTHONORMAL;
+	dst->pad0 = 0;
 	dst->up.x = src->right.y;
 	dst->up.y = src->up.y;
 	dst->up.z = src->at.y;
+	dst->upw = 0.0f;
 	dst->at.x = src->right.z;
 	dst->at.y = src->up.z;
 	dst->at.z = src->at.z;
+	dst->atw = 0.0f;
 	dst->pos.x = -(src->pos.x*src->right.x +
 	               src->pos.y*src->right.y +
 	               src->pos.z*src->right.z);
@@ -641,12 +644,16 @@ Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 	dst->pos.z = -(src->pos.x*src->at.x +
 	               src->pos.y*src->at.y +
 	               src->pos.z*src->at.z);
-	dst->flags = TYPEORTHONORMAL;
+	dst->posw = 1.0f;
+#else
+	invertGeneral(dst, src);
+#endif
 }
 
 Matrix*
 Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 {
+#if 0
 	float32 det, invdet;
 	// calculate a few cofactors
 	dst->right.x = src->up.y*src->at.z - src->up.z*src->at.y;
@@ -670,6 +677,136 @@ Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 	dst->pos.y = -(src->pos.x*dst->right.y + src->pos.y*dst->up.y + src->pos.z*dst->at.y);
 	dst->pos.z = -(src->pos.x*dst->right.z + src->pos.y*dst->up.z + src->pos.z*dst->at.z);
 	dst->flags &= ~IDENTITY;
+#else
+	float inv[16], det;
+	const float *m = reinterpret_cast<const float*>(src);
+	float *out = reinterpret_cast<float*>(dst);
+    int i;
+
+    inv[0] = m[5]  * m[10] * m[15] - 
+             m[5]  * m[11] * m[14] - 
+             m[9]  * m[6]  * m[15] + 
+             m[9]  * m[7]  * m[14] +
+             m[13] * m[6]  * m[11] - 
+             m[13] * m[7]  * m[10];
+
+    inv[4] = -m[4]  * m[10] * m[15] + 
+              m[4]  * m[11] * m[14] + 
+              m[8]  * m[6]  * m[15] - 
+              m[8]  * m[7]  * m[14] - 
+              m[12] * m[6]  * m[11] + 
+              m[12] * m[7]  * m[10];
+
+    inv[8] = m[4]  * m[9] * m[15] - 
+             m[4]  * m[11] * m[13] - 
+             m[8]  * m[5] * m[15] + 
+             m[8]  * m[7] * m[13] + 
+             m[12] * m[5] * m[11] - 
+             m[12] * m[7] * m[9];
+
+    inv[12] = -m[4]  * m[9] * m[14] + 
+               m[4]  * m[10] * m[13] +
+               m[8]  * m[5] * m[14] - 
+               m[8]  * m[6] * m[13] - 
+               m[12] * m[5] * m[10] + 
+               m[12] * m[6] * m[9];
+
+    inv[1] = -m[1]  * m[10] * m[15] + 
+              m[1]  * m[11] * m[14] + 
+              m[9]  * m[2] * m[15] - 
+              m[9]  * m[3] * m[14] - 
+              m[13] * m[2] * m[11] + 
+              m[13] * m[3] * m[10];
+
+    inv[5] = m[0]  * m[10] * m[15] - 
+             m[0]  * m[11] * m[14] - 
+             m[8]  * m[2] * m[15] + 
+             m[8]  * m[3] * m[14] + 
+             m[12] * m[2] * m[11] - 
+             m[12] * m[3] * m[10];
+
+    inv[9] = -m[0]  * m[9] * m[15] + 
+              m[0]  * m[11] * m[13] + 
+              m[8]  * m[1] * m[15] - 
+              m[8]  * m[3] * m[13] - 
+              m[12] * m[1] * m[11] + 
+              m[12] * m[3] * m[9];
+
+    inv[13] = m[0]  * m[9] * m[14] - 
+              m[0]  * m[10] * m[13] - 
+              m[8]  * m[1] * m[14] + 
+              m[8]  * m[2] * m[13] + 
+              m[12] * m[1] * m[10] - 
+              m[12] * m[2] * m[9];
+
+    inv[2] = m[1]  * m[6] * m[15] - 
+             m[1]  * m[7] * m[14] - 
+             m[5]  * m[2] * m[15] + 
+             m[5]  * m[3] * m[14] + 
+             m[13] * m[2] * m[7] - 
+             m[13] * m[3] * m[6];
+
+    inv[6] = -m[0]  * m[6] * m[15] + 
+              m[0]  * m[7] * m[14] + 
+              m[4]  * m[2] * m[15] - 
+              m[4]  * m[3] * m[14] - 
+              m[12] * m[2] * m[7] + 
+              m[12] * m[3] * m[6];
+
+    inv[10] = m[0]  * m[5] * m[15] - 
+              m[0]  * m[7] * m[13] - 
+              m[4]  * m[1] * m[15] + 
+              m[4]  * m[3] * m[13] + 
+              m[12] * m[1] * m[7] - 
+              m[12] * m[3] * m[5];
+
+    inv[14] = -m[0]  * m[5] * m[14] + 
+               m[0]  * m[6] * m[13] + 
+               m[4]  * m[1] * m[14] - 
+               m[4]  * m[2] * m[13] - 
+               m[12] * m[1] * m[6] + 
+               m[12] * m[2] * m[5];
+
+    inv[3] = -m[1] * m[6] * m[11] + 
+              m[1] * m[7] * m[10] + 
+              m[5] * m[2] * m[11] - 
+              m[5] * m[3] * m[10] - 
+              m[9] * m[2] * m[7] + 
+              m[9] * m[3] * m[6];
+
+    inv[7] = m[0] * m[6] * m[11] - 
+             m[0] * m[7] * m[10] - 
+             m[4] * m[2] * m[11] + 
+             m[4] * m[3] * m[10] + 
+             m[8] * m[2] * m[7] - 
+             m[8] * m[3] * m[6];
+
+    inv[11] = -m[0] * m[5] * m[11] + 
+               m[0] * m[7] * m[9] + 
+               m[4] * m[1] * m[11] - 
+               m[4] * m[3] * m[9] - 
+               m[8] * m[1] * m[7] + 
+               m[8] * m[3] * m[5];
+
+    inv[15] = m[0] * m[5] * m[10] - 
+              m[0] * m[6] * m[9] - 
+              m[4] * m[1] * m[10] + 
+              m[4] * m[2] * m[9] + 
+              m[8] * m[1] * m[6] - 
+              m[8] * m[2] * m[5];
+
+    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+    if (det == 0.0f)
+        det = 1.0f;
+	else 
+    	det = 1.0 / det;
+
+    for (i = 0; i < 16; i++)
+		out[i] = inv[i] * det;
+
+	dst->flags &= IDENTITY;
+#endif
 	return dst;
 }
 

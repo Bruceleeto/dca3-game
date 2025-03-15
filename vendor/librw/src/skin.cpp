@@ -224,6 +224,16 @@ writeSkin(Stream *stream, int32 len, void *object, int32 offset, int32)
 	for(int32 i = 0; i < skin->numBones; i++){
 		if(oldFormat)
 			stream->writeU32(0xdeaddead);
+
+		printf("ROFLCOPTER!\n"); fflush(stdout);
+		Matrix &m = *reinterpret_cast<Matrix *>(&skin->inverseMatrices[i * 16]);
+		if(m.flags & MatrixBase::IDENTITY_OLD)
+			m.flags |= MatrixBase::IDENTITY;
+		m.pad0 = 0;
+		m.upw = 0.0f;
+		m.atw = 0.0f;
+		m.posw = 1.0f;
+
 		stream->write32(&skin->inverseMatrices[i*16], 64);
 	}
 
