@@ -286,6 +286,7 @@ GenericLoad()
 	CPad::ResetCheats();
 	file = CFileMgr::OpenFile(LoadFileName, "rb");
 	if (file == 0) {
+		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_OPEN;
 		return false;
 	}
 	size = C_PcSave::PcClassLoadRoutine(file, work_buff);
