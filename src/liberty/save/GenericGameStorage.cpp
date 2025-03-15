@@ -74,6 +74,10 @@ uint32 TimeToStayFadedBeforeFadeOut = 1750;
 do {\
 	size = C_PcSave::PcClassLoadRoutine(file, work_buff); \
 	if (!size) {\
+		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_READ; \
+		if (!CloseFile(file)) { \
+			PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_CLOSE; \
+		} \
 		return false; \
 	} \
 	buf = work_buff;\
@@ -95,8 +99,12 @@ do {\
 	MakeSpaceForSizeInBufferPointer(presize, buf, postsize);\
 	save_func(buf, &size);\
 	CopySizeAndPreparePointer(presize, buf, postsize, reserved, size);\
-	if (!PcSaveHelper.PcClassSaveRoutine(file, work_buff, buf - work_buff))\
+	if (!PcSaveHelper.PcClassSaveRoutine(file, work_buff, buf - work_buff)) { \
+		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_WRITE; \
+		if (!CloseFile(file)) \
+			PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_CLOSE; \
 		return false;\
+	} \
 	totalSize += buf - work_buff;\
 } while (0)
 
@@ -195,8 +203,12 @@ GenericSave(int file)
 	postsize = buf;
 	CTheScripts::SaveAllScripts(buf, &size);
 	CopySizeAndPreparePointer(presize, buf, postsize, reserved, size);
-	if (!PcSaveHelper.PcClassSaveRoutine(file, work_buff, buf - work_buff))
+	if (!PcSaveHelper.PcClassSaveRoutine(file, work_buff, buf - work_buff)) {
+		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
+		if (!CloseFile(file))
+			PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_CLOSE;
 		return false;
+	}
 
 	totalSize = buf - work_buff;
 
@@ -232,15 +244,19 @@ GenericSave(int file)
 		if (size > sizeof(work_buff))
 			size = sizeof(work_buff);
 		if (size > 4) {
-			if (!PcSaveHelper.PcClassSaveRoutine(file, work_buff, size))
+			if (!PcSaveHelper.PcClassSaveRoutine(file, work_buff, size)) {
+				PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
+				if (!CloseFile(file))
+					PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_CLOSE;
 				return false;
+			}
 			totalSize += size;
 		}
 	}
 	
 	// Write checksum and close
-	CFileMgr::Write(file, (const char *) &CheckSum, sizeof(CheckSum));
-	if (CFileMgr::GetErrorReadWrite(file)) {
+	bool err = CFileMgr::Write(file, (const char *) &CheckSum, sizeof(CheckSum)) != sizeof(CheckSum);
+	if (err || CFileMgr::GetErrorReadWrite(file)) {
 		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
 		if (!CloseFile(file))
 			PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_CLOSE;
@@ -269,9 +285,18 @@ GenericLoad()
 	CDate dummy; // unused
 	CPad::ResetCheats();
 	file = CFileMgr::OpenFile(LoadFileName, "rb");
-	assert(file != 0);
+	if (file == 0) {
+		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_OPEN;
+		return false;
+	}
 	size = C_PcSave::PcClassLoadRoutine(file, work_buff);
-	assert(size != 0);
+	if (!size) {
+		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_READ;
+		if (!CloseFile(file)) {
+			PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_CLOSE;
+		}
+		return false;
+	}
 	buf = (work_buff + 0x40);
 	ReadDataFromBufferPointer(buf, saveSize);
 #ifdef MISSION_REPLAY // a hack to keep compatibility but get new data from save
@@ -563,10 +588,9 @@ RestoreForStartLoad()
 	}
 
 	uint32_t size = C_PcSave::PcClassLoadRoutine(file, work_buff);
-	assert(size != 0);
 	uint8 *buf = work_buff;
 
-	if (CFileMgr::GetErrorReadWrite(file)) {
+	if (size == 0 || CFileMgr::GetErrorReadWrite(file)) {
 		PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_READ;
 		if (!CloseFile(file))
 			PcSaveHelper.nErrorCode = SAVESTATUS_ERR_LOAD_CLOSE;

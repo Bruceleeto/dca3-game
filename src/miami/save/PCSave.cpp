@@ -60,15 +60,17 @@ C_PcSave::SaveSlot(int32 slot)
 #endif
 			DoGameSpecificStuffBeforeSave();
 		if (GenericSave(file)) {
-			if (!!CFileMgr::CloseFile(file))
+			if (!!CFileMgr::CloseFile(file)) {
 				nErrorCode = SAVESTATUS_ERR_SAVE_CLOSE;
+				return 2;
+			}
 			return 0;
 		}
 
 		return 2;
 	}
 	PcSaveHelper.nErrorCode = SAVESTATUS_ERR_SAVE_CREATE;
-	return false;
+	return 2;
 }
 
 bool
@@ -82,26 +84,36 @@ C_PcSave::PcClassSaveRoutine(int32 file, uint8 *data, uint32 size)
 
 	if (crv == LZO_E_OK) {
 		uint32_t compressed_size32 = compressed_size | 0x80000000;
-		CFileMgr::Write(file, (const char*)&compressed_size32, sizeof(compressed_size32));
-		if (CFileMgr::GetErrorReadWrite(file)) {
+		bool err = CFileMgr::Write(file, (const char*)&compressed_size32, sizeof(compressed_size32)) != sizeof(compressed_size32);
+		if (err || CFileMgr::GetErrorReadWrite(file)) {
 			free(compressed);
 			nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
 			strncpy(SaveFileNameJustSaved, ValidSaveName, sizeof(ValidSaveName) - 1);
 			return false;
 		}
 
-		CFileMgr::Write(file, (const char*)compressed, compressed_size);
+		err = CFileMgr::Write(file, (const char*)compressed, compressed_size) != compressed_size;
 		free(compressed);
-	} else if (crv == LZO_E_NOT_COMPRESSIBLE) {
-		free(compressed);
-		uint32_t compressed_size32 = size;
-		CFileMgr::Write(file, (const char*)&compressed_size32, sizeof(compressed_size32));
-		if (CFileMgr::GetErrorReadWrite(file)) {
+		if (err || CFileMgr::GetErrorReadWrite(file)) {
 			nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
 			strncpy(SaveFileNameJustSaved, ValidSaveName, sizeof(ValidSaveName) - 1);
 			return false;
 		}
-		CFileMgr::Write(file, (const char*)data, align4bytes(size));
+	} else if (crv == LZO_E_NOT_COMPRESSIBLE) {
+		free(compressed);
+		uint32_t compressed_size32 = size;
+		bool err = CFileMgr::Write(file, (const char*)&compressed_size32, sizeof(compressed_size32)) != sizeof(compressed_size32);
+		if (err || CFileMgr::GetErrorReadWrite(file)) {
+			nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
+			strncpy(SaveFileNameJustSaved, ValidSaveName, sizeof(ValidSaveName) - 1);
+			return false;
+		}
+		err = CFileMgr::Write(file, (const char*)data, align4bytes(size)) != align4bytes(size);
+		if (err || CFileMgr::GetErrorReadWrite(file)) {
+			nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
+			strncpy(SaveFileNameJustSaved, ValidSaveName, sizeof(ValidSaveName) - 1);
+			return false;
+		}
 	} else {
 		free(compressed);
 		return false;
@@ -125,23 +137,25 @@ C_PcSave::PcClassSaveRoutine(int32 file, uint8 *data, uint32 size)
 
 uint32_t C_PcSave::PcClassLoadRoutine(int32 file, uint8 *data) {
 	uint32 size;
-	CFileMgr::Read(file, (char*)&size, sizeof(size));
+	bool err = CFileMgr::Read(file, (char*)&size, sizeof(size)) != sizeof(size);
+	if (err) {
+		return 0;
+	}
 	
-
 	assert(data == work_buff);
 
 	if (!(size & 0x80000000)) {
 		assert(align4bytes(size) == size);
-		CFileMgr::Read(file, (char*)data, align4bytes(size));
-		if (CFileMgr::GetErrorReadWrite(file)) {
+		err = CFileMgr::Read(file, (char*)data, align4bytes(size)) != align4bytes(size);
+		if (err || CFileMgr::GetErrorReadWrite(file)) {
 			return 0;
 		}
 		return size;
 	} else {
 		size &= ~0x80000000;
 		uint8* compressed = (uint8*)malloc(size);
-		CFileMgr::Read(file, (const char*)compressed, size);
-		if (CFileMgr::GetErrorReadWrite(file)) {
+		err = CFileMgr::Read(file, (const char*)compressed, size) != size;
+		if (err || CFileMgr::GetErrorReadWrite(file)) {
 			free(compressed);
 			return 0;
 		}
