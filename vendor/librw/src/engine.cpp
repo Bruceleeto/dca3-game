@@ -56,7 +56,6 @@ size_t totalMemoryAllocated;
 // We align managed memory blocks on a 16 byte boundary
 
 #define ALIGN16(x) ((x) + 0xF & ~0xF)
-#define ALIGN64(x) ((x) + 0x3F & ~0x3F)
 void*
 malloc_managed(size_t sz, uint32 hint)
 {
@@ -66,13 +65,13 @@ malloc_managed(size_t sz, uint32 hint)
 
 	if(sz == 0) return nil;
 	bool align64 = !!(hint & ID_MATRIX);
-	origPtr = malloc(sz + sizeof(MemoryBlock) + ((align64)? 63 : 15));
+	origPtr = malloc(sz + sizeof(MemoryBlock) + 15);
 	if(origPtr == nil)
 		return nil;
 	totalMemoryAllocated += sz;
 	data = (uint8*)origPtr;
 	data += sizeof(MemoryBlock);
-	data = (uint8*) ((align64)? ALIGN64((uintptr)data) : ALIGN16((uintptr)data));
+	data = (uint8*) ALIGN16((uintptr)data);
 	mem = (MemoryBlock*)(data-sizeof(MemoryBlock));
 
 	mem->sz = sz;
