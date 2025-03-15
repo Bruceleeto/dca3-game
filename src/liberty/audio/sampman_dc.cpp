@@ -21,6 +21,8 @@
 #include "Frontend.h"
 #include "Timer.h"
 
+#include "thread/thread.h"
+
 #include <dc/spu.h>
 #include <dc/g2bus.h>
 #include <dc/sound/aica_comm.h>
@@ -312,7 +314,8 @@ static struct {
 // 	return si->buffer;
 // }
 
-std::thread snd_thread;
+static dc::Thread snd_thread;
+
 bool8
 cSampleManager::Initialise(void)
 {
@@ -345,8 +348,8 @@ cSampleManager::Initialise(void)
 
 	if (!InitialiseSampleBanks())
 		return FALSE;
-	
-	snd_thread = std::thread([]() {
+
+	snd_thread.spawn("Audio Streamer", 1024 * 2, true, [](void*) -> void* {
 		for(;;) {
 			{
 				std::lock_guard<std::mutex> lk(channel_mtx);
@@ -446,6 +449,7 @@ cSampleManager::Initialise(void)
 			}
 			thd_sleep(50);
 		}
+		return nullptr;
 	});
 	
 	nPedSfxReqNextId = 1;

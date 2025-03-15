@@ -268,6 +268,7 @@ RE3_OBJS = \
 	../src/liberty/extras/screendroplets.o \
 	\
 	../src/common/vmu/vmu.o \
+	../src/common/thread/thread.o \
 	../vendor/miniLZO/minilzo.o \
 	\
 

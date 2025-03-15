@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "crossplatform.h"
+#include "thread/thread.h"
 
 #if !defined(AUDIO_OAL) &&  !defined(AUDIO_MSS)
 #define verbosef(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
@@ -318,7 +319,8 @@ static struct {
 // 	return si->buffer;
 // }
 
-std::thread snd_thread;
+static dc::Thread snd_thread;
+
 bool8
 cSampleManager::Initialise(void)
 {
@@ -351,8 +353,8 @@ cSampleManager::Initialise(void)
 
 	if (!InitialiseSampleBanks())
 		return FALSE;
-	
-	snd_thread = std::thread([]() {
+
+	snd_thread.spawn("Audio Streamer", 1024 * 2, true, [](void*) -> void* {
 		for(;;) {
 			{
 				std::lock_guard<std::mutex> lk(channel_mtx);
@@ -452,6 +454,7 @@ cSampleManager::Initialise(void)
 			}
 			thd_sleep(50);
 		}
+		return nullptr;
 	});
 	
 	nPedSfxReqNextId = 1;
