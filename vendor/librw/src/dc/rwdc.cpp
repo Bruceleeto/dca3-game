@@ -1159,7 +1159,7 @@ void endUpdate(Camera* cam) {
 		pvr_list_finish();
 
 		// dbglog(DBG_CRITICAL, "Free vertex target: %d\n", freeVertexTarget);
-		
+
 		// XXX not by definition the best place to do this XXX
 		// We need to know that pvr isn't using textures before moving them
 		// XXX This is also very slow right now XXX
@@ -4647,8 +4647,8 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 		if (n == 1) {
 			VIDEO_MODE_SCALE_X = 1;
 			pvr_params.fsaa_enabled = 0;
-			pvr_params.vertex_buf_size = (1024) * 1024;
-			pvr_params.opb_overflow_count = 2; // 268800 bytes
+			pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
+			pvr_params.opb_overflow_count = 7; // 268800 bytes
 		} else {
 			VIDEO_MODE_SCALE_X = 2;
 			pvr_params.fsaa_enabled = 1;
