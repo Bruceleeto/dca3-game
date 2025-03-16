@@ -2015,7 +2015,11 @@ __attribute__((noinline)) void stacktrace() {
 		: "+r" (sp), "+r" (pr)
 		:
 		: );
+<<<<<<< HEAD
 	dbglog(DBG_CRITICAL, "DCA3: %s\n", getExecutableTag());
+=======
+	dbglog(DBG_CRITICAL, "%s\n", getExecutableTag());
+>>>>>>> origin/main
 	dbglog(DBG_CRITICAL, "Stack trace: %p ", (void*)pr);
 	int found = 0;
 	if(!(sp & 3) && sp > 0x8c000000 && sp < _arch_mem_top) {
@@ -2064,14 +2068,24 @@ __attribute__((noinline)) void stacktrace() {
 
 #endif
 
+<<<<<<< HEAD
 const char* getExecutableTag() {
 	return GIT_VERSION ":" CI_JOB_ID;
+=======
+// extern "C" cus also used by KOS
+extern "C" const char* getExecutableTag() {
+	return "dca-miami " GIT_VERSION ":" CI_JOB_ID;
+>>>>>>> origin/main
 }
 
 int
 main(int argc, char *argv[])
 {
+<<<<<<< HEAD
     dbglog(DBG_CRITICAL, "DCA3: %s\n", getExecutableTag());
+=======
+    dbglog(DBG_CRITICAL, "%s\n", getExecutableTag());
+>>>>>>> origin/main
 	#if !defined(DC_SIM)
 	std::set_terminate([]() {
 		fflush(stdout);

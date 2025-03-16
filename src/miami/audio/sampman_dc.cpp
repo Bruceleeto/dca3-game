@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "crossplatform.h"
+#include "thread/thread.h"
 
 #if !defined(AUDIO_OAL) &&  !defined(AUDIO_MSS)
 #define verbosef(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
@@ -318,7 +319,8 @@ static struct {
 // 	return si->buffer;
 // }
 
-std::thread snd_thread;
+static dc::Thread snd_thread;
+
 bool8
 cSampleManager::Initialise(void)
 {
@@ -351,8 +353,8 @@ cSampleManager::Initialise(void)
 
 	if (!InitialiseSampleBanks())
 		return FALSE;
-	
-	snd_thread = std::thread([]() {
+
+	snd_thread.spawn("Audio Streamer", 1024 * 2, true, [](void*) -> void* {
 		for(;;) {
 			{
 				std::lock_guard<std::mutex> lk(channel_mtx);
@@ -452,6 +454,7 @@ cSampleManager::Initialise(void)
 			}
 			thd_sleep(50);
 		}
+		return nullptr;
 	});
 	
 	nPedSfxReqNextId = 1;
@@ -772,7 +775,7 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		}
 	}
 
-	assert(m_aSamples[nComment].nByteSize < PED_BLOCKSIZE_ADPCM);
+	assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 
 	debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
 	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
@@ -1340,11 +1343,17 @@ cSampleManager::InitialiseSampleBanks(void)
 		channels[i].nBank = -1;
 	}
 
+	// validate all ped comments are within bounds
+	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
+		assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
+	}
+
 #ifdef FIX_BUGS
+
 	// Find biggest player comment
 	uint32 nMaxPlayerSize = 0;
 	for (uint32 i = PLAYER_COMMENTS_START; i <= PLAYER_COMMENTS_END; i++)
-	nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
+		nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
 
 	debugf("Max player comment size: %d\n", nMaxPlayerSize);
 	gPlayerTalkData = snd_mem_malloc(nMaxPlayerSize);

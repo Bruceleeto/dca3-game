@@ -136,7 +136,11 @@ CXXFLAGS += $(if $(WITH_32MB),-O3,-Os) \
 	$(if $(WITH_PROF),-DWITH_PROF=\"$(WITH_PROF)\") \
 	-MMD -MP -ffunction-sections -fdata-sections -ffast-math \
 	-fmerge-all-constants -fomit-frame-pointer -ml -std=gnu++20 \
+<<<<<<< HEAD
 	-fno-exceptions -fno-rtti -fipa-pta -Wno-write-strings \
+=======
+	-fno-exceptions -fno-rtti -fipa-pta -fno-PIC -Wno-write-strings \
+>>>>>>> origin/main
 	-Wno-deprecated-enum-enum-conversion -Wno-deprecated-enum-float-conversion \
 	-Wno-multichar -Wno-unused-value -Wno-char-subscripts -Wno-reorder \
 	-Wno-unused-function -Wno-class-memaccess -fno-permissive \

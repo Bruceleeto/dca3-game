@@ -4,6 +4,8 @@
 #include "common.h"
 #include "sampman.h"
 
+#include "thread/thread.h"
+
 #include <thread>
 #include <mutex>
 #include <shared_mutex>
@@ -40,13 +42,13 @@ public:
     ~RAIIVmuBeeper();
 };
 
-class VmuProfiler: public std::thread {
+class VmuProfiler: public dc::Thread {
 private:
     constexpr static auto         updateRate_  = std::chrono::milliseconds(100);
-    constexpr static size_t       fpsSamples   = 20;
+    constexpr static size_t       fpsSamples   = 10;
 
     static inline 
-    std::unique_ptr<VmuProfiler> instance_     = {};
+    std::unique_ptr<VmuProfiler>  instance_    = {};
     
     mutable std::shared_mutex     mtx_         = {};
     bool                          updated_     = false;
@@ -60,7 +62,7 @@ protected:
     VmuProfiler();
 
     // Main entry point and loop for the monitor thread
-    virtual void run();
+    void run();
 
 public:
 
@@ -73,9 +75,6 @@ public:
     // Returns pointer to singleton, creating it + spawning monitor thread upon first call
     static VmuProfiler *getInstance();
     static void destroyInstance();
-
-    // Automatically signals thread to exit
-    ~VmuProfiler();
 
     // To be called every frame, so we can update FPS stats too!
     void updateVertexBufferUsage();

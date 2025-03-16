@@ -21,6 +21,8 @@
 #include "Frontend.h"
 #include "Timer.h"
 
+#include "thread/thread.h"
+
 #include <dc/spu.h>
 #include <dc/g2bus.h>
 #include <dc/sound/aica_comm.h>
@@ -312,7 +314,8 @@ static struct {
 // 	return si->buffer;
 // }
 
-std::thread snd_thread;
+static dc::Thread snd_thread;
+
 bool8
 cSampleManager::Initialise(void)
 {
@@ -345,8 +348,8 @@ cSampleManager::Initialise(void)
 
 	if (!InitialiseSampleBanks())
 		return FALSE;
-	
-	snd_thread = std::thread([]() {
+
+	snd_thread.spawn("Audio Streamer", 1024 * 2, true, [](void*) -> void* {
 		for(;;) {
 			{
 				std::lock_guard<std::mutex> lk(channel_mtx);
@@ -446,6 +449,7 @@ cSampleManager::Initialise(void)
 			}
 			thd_sleep(50);
 		}
+		return nullptr;
 	});
 	
 	nPedSfxReqNextId = 1;
@@ -722,7 +726,7 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		}
 	}
 
-	assert(m_aSamples[nComment].nByteSize < PED_BLOCKSIZE_ADPCM);
+	assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 
 	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
 		debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
@@ -1257,6 +1261,11 @@ cSampleManager::InitialiseSampleBanks(void)
 		channels[i].ch = -1;
 		channels[i].nSfx = -1;
 		channels[i].nBank = -1;
+	}
+
+	// validate all ped comments are within bounds
+	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
+		assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 	}
 
 	LoadSampleBank(SFX_BANK_0);

@@ -24,7 +24,6 @@ VmuProfiler *VmuProfiler::getInstance() {
 void VmuProfiler::destroyInstance() {
     if(instance_) {
         instance_->stopRequest_ = true;
-        instance_->join();
         instance_.reset();
     }
 }
@@ -74,12 +73,15 @@ float VmuProfiler::vertexBufferUtilization() {
 // ===== INSTANCE METHODS =====
 
 VmuProfiler::VmuProfiler():
-    std::thread(std::bind_front(&VmuProfiler::run, this))
-{}
-
-VmuProfiler::~VmuProfiler() {
-    stopRequest_ = true;
-}
+    dc::Thread("VMU Profiler",
+               1024 * 2,
+               false,
+               [](void *param) -> void* {
+                   static_cast<VmuProfiler*>(param)->run();
+                   return nullptr;
+               },
+               this)
+    {}
 
 void VmuProfiler::run() {
     while(!stopRequest_) {

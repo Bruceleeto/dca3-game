@@ -284,7 +284,8 @@ RE3_OBJS = \
 	\
 	../vendor/miniLZO/minilzo.o \
 	\
-	../src/common/vmu/vmu.o
+	../src/common/vmu/vmu.o \
+	../src/common/thread/thread.o
 
 # Excluded \
 	../src/miami/extras/custompipes.o \
