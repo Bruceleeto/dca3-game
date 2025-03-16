@@ -115,8 +115,9 @@ enum
 #endif
 };
 #define MAX_PEDSFX                 7
-#define PED_BLOCKSIZE              105504
-#define PED_BLOCKSIZE_ADPCM        (PED_BLOCKSIZE/4)
+// these are now dynamically calculated
+// #define PED_BLOCKSIZE              105504
+// #define PED_BLOCKSIZE_ADPCM        (PED_BLOCKSIZE/4)
 
 #define MAXPROVIDERS               64
 

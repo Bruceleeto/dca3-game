@@ -170,6 +170,8 @@ int nPedSlotSfx[MAX_PEDSFX];
 uint32 nPedSlotSfxReqId[MAX_PEDSFX];
 uintptr_t nPedSlotSfxAddr[MAX_PEDSFX];
 uint8_t nCurrentPedSlot;
+uint32_t pedBlocksizeMax;
+
 file_t fdPedSfx;
 volatile uint32 nPedSfxReqReadId = 1;
 volatile uint32 nPedSfxReqNextId = 1;
@@ -463,7 +465,7 @@ cSampleManager::Initialise(void)
 	{
 		nPedSlotSfx[i]     = -1;
 		nPedSlotSfxReqId[i] = 0;
-		nPedSlotSfxAddr[i] = snd_mem_malloc(PED_BLOCKSIZE_ADPCM);
+		nPedSlotSfxAddr[i] = snd_mem_malloc(pedBlocksizeMax);
 		debugf("PedSlot %d buffer: %p\n", i, (void*)nPedSlotSfxAddr[i]);
 	}
 	
@@ -775,7 +777,7 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		}
 	}
 
-	assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
+	assert(m_aSamples[nComment].nByteSize <= pedBlocksizeMax);
 
 	debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
 	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
@@ -1345,8 +1347,9 @@ cSampleManager::InitialiseSampleBanks(void)
 
 	// validate all ped comments are within bounds
 	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
-		assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
+		pedBlocksizeMax = Max(pedBlocksizeMax, m_aSamples[nComment].nByteSize);
 	}
+	debugf("Max ped comment size: %d\n", pedBlocksizeMax);
 
 #ifdef FIX_BUGS
 
