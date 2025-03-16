@@ -38,6 +38,10 @@
 #include "Debug.h"
 #include "SaveBuf.h"
 
+void* obj_alloc(size_t size, void** storage);
+void obj_free(void* ptr);
+void* obj_move(void* ptr);
+
 const uint32 CBike::nSaveStructSize =
 #ifdef COMPATIBLE_SAVES
 	1260;
@@ -163,7 +167,7 @@ CBike::CBike(int32 id, uint8 CreatedBy)
 
 	CColModel *colModel = mi->GetColModel();
 	if(colModel->lines == nil){
-		colModel->lines = (CColLine*)RwMalloc(4*sizeof(CColLine));
+		colModel->lines = (CColLine*)obj_alloc(4*sizeof(CColLine), (void**)&colModel->lines);
 		colModel->numLines = 4;
 	}
 	// BUG? this would make more sense in the if above
