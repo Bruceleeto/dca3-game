@@ -46,7 +46,7 @@ struct Im2DVertex
 	void setScreenZ(float32 z) { this->z = z; }
 	// This is a bit unefficient but we have to counteract GL's divide, so multiply
 	void setCameraZ(float32 z) { this->w = z; }
-	void setRecipCameraZ(float32 recipz) { this->w = 1.0f/recipz; }
+	void setRecipCameraZ(float32 recipz) { /* don't change w here, as recipz is not always the correct one, see Coronas.cpp */ }
 	void setColor(uint8 r, uint8 g, uint8 b, uint8 a) {
 		this->r = r; this->g = g; this->b = b; this->a = a; }
 	void setU(float32 u, float recipz) { this->u = u; }

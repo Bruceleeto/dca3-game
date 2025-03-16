@@ -123,7 +123,7 @@ void pvr_scene_begin(void) {
 /* Currently the resize functionality is not implemented, so make sure that
    rx and ry are appropriate (i.e. *rx = 1024 and *ry = 512 for 640x480).
    Also, note that this probably won't work with DMA mode for now... */
-void pvr_scene_begin_txr(pvr_ptr_t txr, uint32 *rx, uint32 *ry) {
+void pvr_scene_begin_txr(pvr_ptr_t txr, uint32_t *rx, uint32_t *ry) {
     int buf = pvr_state.view_target ^ 1;
     (void)ry;
 
@@ -340,10 +340,21 @@ int pvr_scene_finish(void) {
     return 0;
 }
 
+#include "emu/emu.h"
+#include "dc/asic.h"
+#include "refsw/refsw_tile.h"
+
+
 int pvr_wait_ready(void) {
     int t;
 
     assert(pvr_state.valid);
+
+    // This is a hack til vlbanks are raised in a nicer way
+    if (!pvr_state.to_texture[pvr_state.view_target^1]) {
+        Hackpresent();
+    }
+    pvr_queue_interrupt(ASIC_EVT_PVR_VBLANK_BEGIN);
 
     t = sem_wait_timed((semaphore_t *)&pvr_state.ready_sem, 100);
 

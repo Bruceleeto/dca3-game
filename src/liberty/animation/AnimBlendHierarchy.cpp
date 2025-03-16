@@ -1,0 +1,57 @@
+#include "common.h"
+
+#include "AnimBlendSequence.h"
+#include "AnimBlendHierarchy.h"
+
+CAnimBlendHierarchy::CAnimBlendHierarchy(void)
+{
+	sequences = nil;
+	numSequences = 0;
+	totalLength = 0.0f;
+}
+
+void
+CAnimBlendHierarchy::Shutdown(void)
+{
+	RemoveAnimSequences();
+}
+
+void
+CAnimBlendHierarchy::SetName(char *name)
+{
+	strncpy(this->name, name, 24);
+}
+
+void
+CAnimBlendHierarchy::CalcTotalTime(void)
+{
+	int i, j;
+	totalLength = 0.0f;
+
+	for(i = 0; i < numSequences; i++){
+#ifdef FIX_BUGS
+		if(sequences[i].numFrames == 0)
+			continue;
+#endif
+		float seqTime = sequences[i].GetEndTime();
+		totalLength = Max(totalLength, seqTime);
+	}
+}
+
+void
+CAnimBlendHierarchy::RemoveAnimSequences(void)
+{
+	delete[] sequences;
+	numSequences = 0;
+}
+
+#ifdef USE_CUSTOM_ALLOCATOR
+void
+CAnimBlendHierarchy::MoveMemory(bool onlyone)
+{
+	int i;
+	for(i = 0; i < numSequences; i++)
+		if(sequences[i].MoveMemory() && onlyone)
+			return;
+}
+#endif

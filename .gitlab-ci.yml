@@ -5,7 +5,7 @@ image:
     name: ghcr.io/kos-builds/kos-dc:latest-14.1.0
     entrypoint: ["/bin/sh",  "-c", 'echo gitlab command: "$@" && /bin/bash -c "$@"'] 
 
-build-dreamcast:
+build-dreamcast-liberty:
   variables:
     CCACHE_BASEDIR: $CI_PROJECT_DIR
     CCACHE_DIR: $CI_PROJECT_DIR/ccache
@@ -23,13 +23,13 @@ build-dreamcast:
     - make -C /opt/toolchains/dc/kos/kernel/arch/dreamcast/sound/arm
     - make -C /opt/toolchains/dc/kos -j $(nproc)
   script:
-    - cd dreamcast
+    - cd liberty
     - make -j $(nproc)
   artifacts:
     paths:
-      - dreamcast/dca3.elf
+      - liberty/dca-liberty.elf
 
-build-dreamcast-ide-32mb:
+build-dreamcast-miami:
   variables:
     CCACHE_BASEDIR: $CI_PROJECT_DIR
     CCACHE_DIR: $CI_PROJECT_DIR/ccache
@@ -47,13 +47,13 @@ build-dreamcast-ide-32mb:
     - make -C /opt/toolchains/dc/kos/kernel/arch/dreamcast/sound/arm
     - make -C /opt/toolchains/dc/kos -j $(nproc)
   script:
-    - cd dreamcast
-    - make -j $(nproc) WITH_IDE=1 WITH_32MB=1 TARGET=dca3-ide-32mb.elf
+    - cd miami
+    - make -j $(nproc)
   artifacts:
     paths:
-      - dreamcast/dca3-ide-32mb.elf
+      - miami/dca-miami.elf
 
-build-texconv:
+build-texconv-liberty:
   variables:
     CCACHE_BASEDIR: $CI_PROJECT_DIR
     CCACHE_DIR: $CI_PROJECT_DIR/ccache
@@ -68,13 +68,13 @@ build-texconv:
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
-    - cd dreamcast
+    - cd liberty
     - make texconv -j $(nproc)
   artifacts:
     paths:
-      - dreamcast/texconv
+      - liberty/texconv
 
-build-texconv-clang:
+build-texconv-liberty-clang:
   variables:
     CCACHE_BASEDIR: $CI_PROJECT_DIR
     CCACHE_DIR: $CI_PROJECT_DIR/ccache
@@ -89,14 +89,14 @@ build-texconv-clang:
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
-    - cd dreamcast
+    - cd liberty
     - CC=clang CXX=clang++ make texconv -j $(nproc)
     - mv texconv texconv-clang
   artifacts:
     paths:
-      - dreamcast/texconv-clang
+      - liberty/texconv-clang
 
-build-sim:
+build-texconv-miami:
   variables:
     CCACHE_BASEDIR: $CI_PROJECT_DIR
     CCACHE_DIR: $CI_PROJECT_DIR/ccache
@@ -106,19 +106,61 @@ build-sim:
         - $CCACHE_DIR
   stage: build
   before_script:
-    - dpkg --add-architecture i386
     - apt update
-    - apt install -y build-essential gcc g++ gcc-multilib g++-multilib libx11-dev:i386 ccache
+    - apt install -y build-essential gcc g++ ccache
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
-    - cd dreamcast
+    - cd miami
+    - make texconv -j $(nproc)
+  artifacts:
+    paths:
+      - miami/texconv
+
+build-texconv-miami-clang:
+  variables:
+    CCACHE_BASEDIR: $CI_PROJECT_DIR
+    CCACHE_DIR: $CI_PROJECT_DIR/ccache
+  cache:
+    - key: ccache-$CI_JOB_NAME
+      paths:
+        - $CCACHE_DIR
+  stage: build
+  before_script:
+    - apt update
+    - apt install -y build-essential gcc g++ clang ccache
+    - update-ccache-symlinks
+  script:
+    - export PATH="/usr/lib/ccache:$PATH"
+    - cd miami
+    - CC=clang CXX=clang++ make texconv -j $(nproc)
+    - mv texconv texconv-clang
+  artifacts:
+    paths:
+      - miami/texconv-clang
+
+build-sim-liberty:
+  variables:
+    CCACHE_BASEDIR: $CI_PROJECT_DIR
+    CCACHE_DIR: $CI_PROJECT_DIR/ccache
+  cache:
+    - key: ccache-$CI_JOB_NAME
+      paths:
+        - $CCACHE_DIR
+  stage: build
+  before_script:
+    - apt update
+    - apt install -y build-essential gcc g++ libx11-dev ccache
+    - update-ccache-symlinks
+  script:
+    - export PATH="/usr/lib/ccache:$PATH"
+    - cd liberty
     - make -f sim.mk -j $(nproc)
   artifacts:
     paths:
-      - dreamcast/dca3-sim.elf
+      - liberty/dca-liberty-sim.elf
 
-build-sim-clang:
+build-sim-liberty-clang:
   variables:
     CCACHE_BASEDIR: $CI_PROJECT_DIR
     CCACHE_DIR: $CI_PROJECT_DIR/ccache
@@ -128,24 +170,55 @@ build-sim-clang:
         - $CCACHE_DIR
   stage: build
   before_script:
-    - dpkg --add-architecture i386
     - apt update
-    - apt install -y build-essential gcc g++ gcc-multilib g++-multilib libx11-dev:i386 clang ccache
+    - apt install -y build-essential gcc g++ libx11-dev clang ccache
     - update-ccache-symlinks
   script:
     - export PATH="/usr/lib/ccache:$PATH"
-    - cd dreamcast
-    - CC=clang CXX=clang++ make -f sim.mk -j $(nproc) TARGET=dca3-sim-clang.elf
+    - cd liberty
+    - CC=clang CXX=clang++ make -f sim.mk -j $(nproc) TARGET=dca-liberty-sim-clang.elf
   artifacts:
     paths:
-      - dreamcast/dca3-sim-clang.elf
+      - liberty/dca-liberty-sim-clang.elf
 
-pages:
-  stage: deploy
+build-sim-miami:
+  variables:
+    CCACHE_BASEDIR: $CI_PROJECT_DIR
+    CCACHE_DIR: $CI_PROJECT_DIR/ccache
+  cache:
+    - key: ccache-$CI_JOB_NAME
+      paths:
+        - $CCACHE_DIR
+  stage: build
+  before_script:
+    - apt update
+    - apt install -y build-essential gcc g++ libx11-dev ccache
+    - update-ccache-symlinks
   script:
-    - echo "The site will be deployed to $CI_PAGES_URL"
+    - export PATH="/usr/lib/ccache:$PATH"
+    - cd miami
+    - make -f sim.mk -j $(nproc)
   artifacts:
     paths:
-      - public
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      - miami/dca-liberty-sim.elf
+
+build-sim-miami-clang:
+  variables:
+    CCACHE_BASEDIR: $CI_PROJECT_DIR
+    CCACHE_DIR: $CI_PROJECT_DIR/ccache
+  cache:
+    - key: ccache-$CI_JOB_NAME
+      paths:
+        - $CCACHE_DIR
+  stage: build
+  before_script:
+    - apt update
+    - apt install -y build-essential gcc g++ libx11-dev clang ccache
+    - update-ccache-symlinks
+  script:
+    - export PATH="/usr/lib/ccache:$PATH"
+    - cd miami
+    - CC=clang CXX=clang++ make -f sim.mk -j $(nproc) TARGET=dca-miami-sim-clang.elf
+  artifacts:
+    paths:
+      - miami/dca-miami-sim-clang.elf
