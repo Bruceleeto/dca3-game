@@ -2298,7 +2298,7 @@ CMenuManager::DrawFrontEnd()
 
 	char strver[200];
 	wchar ustr[200];
-	snprintf(strver, sizeof(strver), "dca-miami: %s", getExecutableTag());
+	snprintf(strver, sizeof(strver), "%s", getExecutableTag());
 	AsciiToUnicode(strver, ustr);
 
 	CFont::SetScale(MENU_X(MENUACTION_SCALE_MULT*3/4), MENU_Y(MENUACTION_SCALE_MULT*3/4));

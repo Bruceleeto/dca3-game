@@ -2016,7 +2016,7 @@ CMenuManager::Draw()
 
 	char strver[200];
 	wchar ustr[200];
-	snprintf(strver, sizeof(strver), "dca-liberty: %s", getExecutableTag());
+	snprintf(strver, sizeof(strver), "%s", getExecutableTag());
 	AsciiToUnicode(strver, ustr);
 
 	CFont::SetScale(MENU_X(MENU_TEXT_SIZE_X*3/4), MENU_Y(MENU_TEXT_SIZE_Y*3/4));
