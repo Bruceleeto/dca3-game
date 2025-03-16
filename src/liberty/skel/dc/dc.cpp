@@ -1,4 +1,6 @@
 #if defined RW_DC
+#include <assert.h>
+#undef assert // only included for assert_set_handler
 
 #include "vmu/vmu.h"
 #include <dc/maple.h>
@@ -1982,13 +1984,13 @@ __attribute__((noinline)) void stacktrace() {
 		:
 		: );
 	dbglog(DBG_CRITICAL, "%s\n", getExecutableTag());
-	dbglog(DBG_CRITICAL, "Stack trace: %p ", (void*)pr);
+	dbglog(DBG_CRITICAL, "Stack trace: %08X ", (uintptr_t)pr);
 	int found = 0;
 	if(!(sp & 3) && sp > 0x8c000000 && sp < _arch_mem_top) {
 		char** sp_ptr = (char**)sp;
 		for (int so = 0; so < 16384; so++) {
 			if (uintptr_t(&sp_ptr[so]) >= _arch_mem_top) {
-				dbglog(DBG_CRITICAL, "(@@%p) ", &sp_ptr[so]);
+				dbglog(DBG_CRITICAL, "(@@%08X) ", (uintptr_t)&sp_ptr[so]);
 				break;
 			}
 			if (sp_ptr[so] > (char*)0x8c000000 && sp_ptr[so] < etext) {
@@ -2004,9 +2006,9 @@ __attribute__((noinline)) void stacktrace() {
 				uint16_t instr = instrp[-2];
 				// BSR or BSRF or JSR @Rn ?
 				if (((instr & 0xf000) == 0xB000) || ((instr & 0xf0ff) == 0x0003) || ((instr & 0xf0ff) == 0x400B)) {
-					dbglog(DBG_CRITICAL, "%p ", instrp);
+					dbglog(DBG_CRITICAL, "%08X ", (uintptr_t)instrp);
 					if (found++ > 24) {
-						dbglog(DBG_CRITICAL, "(@%p) ", &sp_ptr[so]);
+						dbglog(DBG_CRITICAL, "(@%08X) ", (uintptr_t)&sp_ptr[so]);
 						break;
 					}
 				} else {
@@ -2018,7 +2020,7 @@ __attribute__((noinline)) void stacktrace() {
 		}
 		dbglog(DBG_CRITICAL, "end\n");
 	} else {
-		dbglog(DBG_CRITICAL, "(@%p)\n", (void*)sp);
+		dbglog(DBG_CRITICAL, "(@%08X)\n", (uintptr_t)sp);
 	}
 }
 
@@ -2039,6 +2041,14 @@ int
 main(int argc, char *argv[])
 {
 	dbglog(DBG_CRITICAL, "%s\n", getExecutableTag());
+
+	#if defined(DC_SH4)
+	assert_set_handler([](const char * file, int line, const char * expr, const char * msg, const char * func) {
+		(void)msg;
+		re3_assert(expr, file, line, func);
+	});
+	#endif
+
 	#if !defined(DC_SIM)
 	std::set_terminate([]() {
 		fflush(stdout);
