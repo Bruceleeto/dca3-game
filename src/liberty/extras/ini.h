@@ -94,7 +94,7 @@
 #include <sys/stat.h>
 #include <cctype>
 
-#ifdef RW_DC
+#ifdef DC_SH4
 #include <dc/vmu_pkg.h>
 #endif
 
@@ -357,7 +357,7 @@ namespace mINI
 			}
 			std::string buffer;
 			buffer.reserve(50);
-#ifdef RW_DC
+#ifdef DC_SH4
 			{
 				vmu_pkg_t vmu_pkg;
 				if(vmu_pkg_parse(reinterpret_cast<uint8*>(const_cast<int8*>(fileContents.c_str())), &vmu_pkg) != 0) {
@@ -467,7 +467,7 @@ namespace mINI
 			const char *buf = str.c_str();
 			int buf_size = memStream.tellp();
 
-#ifdef RW_DC
+#ifdef DC_SH4
 			uint8_t *data;
 			uint8_t icon_buf[512 * 1];
 			vmu_pkg_t vmu_pkg = {
@@ -496,7 +496,7 @@ namespace mINI
 			fileWriteStream.write(buf, buf_size);
 			lastError_ = fileWriteStream.rdstate();
 
-#ifdef RW_DC
+#ifdef DC_SH4
 			// Must free the internal buffer allocated by vmu_pkg_build().
 			free(data);
 #endif
