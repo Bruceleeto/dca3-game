@@ -5209,7 +5209,7 @@ struct write_vector: std::vector<uint8_t> {
 		std::copy(p, p + sizeof(T), begin() + offset);
 	}
 
-	void packVertex(RwSphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
+	void packVertex(rw::Sphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
 		if (big_vertex) {
 			write<float>(vertex->x);
 			write<float>(vertex->y);
@@ -5329,8 +5329,8 @@ unsigned caluclateVertexSize(bool textured, bool normaled, bool colored, bool bi
 	return vertexBytes;
 }
 
-RwSphere calculateBoundingSphere(V3d* vertexData, size_t count) {
-	RwSphere sphere;
+rw::Sphere calculateBoundingSphere(V3d* vertexData, size_t count) {
+	rw::Sphere sphere;
 	sphere.center = {0, 0, 0};
 	sphere.radius = 0;
 
@@ -5379,8 +5379,8 @@ struct meshlet {
 		return false;
 	}
 
-	RwSphere calculateBoundingSphere(V3d* vertexData) {
-		RwSphere sphere;
+	rw::Sphere calculateBoundingSphere(V3d* vertexData) {
+		rw::Sphere sphere;
 		sphere.center = {0, 0, 0};
 		sphere.radius = 0;
 
