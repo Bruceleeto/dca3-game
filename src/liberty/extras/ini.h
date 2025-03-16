@@ -471,9 +471,9 @@ namespace mINI
 			uint8_t *data;
 			uint8_t icon_buf[512 * 1];
 			vmu_pkg_t vmu_pkg = {
-				.desc_short = "DCA3 Settings",
-				.desc_long = "DCA3 Settings",
-				.app_id = "DCA3",
+				.desc_short = "DCA LC Settings",
+				.desc_long = "DCA Liberty City Settings File",
+				.app_id = "The Gang",
 				.icon_cnt = 1,
 				.icon_anim_speed = 0,
 				.data_len = buf_size,
