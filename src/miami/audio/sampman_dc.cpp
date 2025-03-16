@@ -772,7 +772,7 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		}
 	}
 
-	assert(m_aSamples[nComment].nByteSize < PED_BLOCKSIZE_ADPCM);
+	assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 
 	debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
 	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
@@ -1340,11 +1340,17 @@ cSampleManager::InitialiseSampleBanks(void)
 		channels[i].nBank = -1;
 	}
 
+	// validate all ped comments are within bounds
+	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
+		assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
+	}
+
 #ifdef FIX_BUGS
+
 	// Find biggest player comment
 	uint32 nMaxPlayerSize = 0;
 	for (uint32 i = PLAYER_COMMENTS_START; i <= PLAYER_COMMENTS_END; i++)
-	nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
+		nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
 
 	debugf("Max player comment size: %d\n", nMaxPlayerSize);
 	gPlayerTalkData = snd_mem_malloc(nMaxPlayerSize);

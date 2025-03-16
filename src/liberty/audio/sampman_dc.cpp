@@ -722,7 +722,7 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		}
 	}
 
-	assert(m_aSamples[nComment].nByteSize < PED_BLOCKSIZE_ADPCM);
+	assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 
 	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
 		debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
@@ -1257,6 +1257,11 @@ cSampleManager::InitialiseSampleBanks(void)
 		channels[i].ch = -1;
 		channels[i].nSfx = -1;
 		channels[i].nBank = -1;
+	}
+
+	// validate all ped comments are within bounds
+	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
+		assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 	}
 
 	LoadSampleBank(SFX_BANK_0);
