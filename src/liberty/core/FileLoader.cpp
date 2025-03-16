@@ -903,7 +903,6 @@ char *TreeNames[] = {
     "lhouse_barrier1",
     "lhouse_barrier2",
     "lhouse_barrier3",
-    "luigiineerclub",
     "mak_billboard",
     "mak_billboardsrvc",
     "mscp_barrier",
