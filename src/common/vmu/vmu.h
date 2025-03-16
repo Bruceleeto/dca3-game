@@ -62,7 +62,7 @@ protected:
     VmuProfiler();
 
     // Main entry point and loop for the monitor thread
-    virtual void run();
+    void run();
 
 public:
 
