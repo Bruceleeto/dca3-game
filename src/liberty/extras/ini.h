@@ -357,12 +357,11 @@ namespace mINI
 			}
 			std::string buffer;
 			buffer.reserve(50);
-			std::cout << "PRE READ! "<< fileSize << fileContents << std::endl;
 #ifdef RW_DC
 			{
 				vmu_pkg_t vmu_pkg;
 				if(vmu_pkg_parse(reinterpret_cast<uint8*>(const_cast<int8*>(fileContents.c_str())), &vmu_pkg) != 0) {
-					std::cout << "FUCKIN REESTED!" << std::endl;
+					// If we failed to parse, we assume it's raw with no VMS header.
 					start_offt = 0;
 				} else {
 					start_offt = reinterpret_cast<unsigned int>(vmu_pkg.data)
@@ -370,7 +369,6 @@ namespace mINI
 				}
 			}
 #endif
-			std::cout << "POST READ!" << std::endl;
 			for (std::size_t i = start_offt; i < fileSize; ++i)
 			{
 				char& c = fileContents[i];
@@ -392,7 +390,6 @@ namespace mINI
 	public:
 		INIReader(std::string const& filename, bool keepLineData = false)
 		{
-			std::cout << "CREATING INI READER" << std::endl;
 			fileReadStream.open(filename, std::ios::in | std::ios::binary);
 			if (keepLineData)
 			{
@@ -453,26 +450,22 @@ namespace mINI
 	public:
 		bool prettyPrint = false;
 
-		INIGenerator(std::string const& filename)
-			: fileWriteStream(filename, std::ios::out | std::ios::binary)
+		INIGenerator(std::string const& filename,  bool prettyPrint_=false)
+			: fileWriteStream(filename, std::ios::out | std::ios::binary),
+			  prettyPrint(prettyPrint_)
 		{
 			lastError_ = fileWriteStream.rdstate();
-			std::cerr << "INIGenerator::INIGenerator(): " << fileWriteStream.rdstate() << std::endl;
 		}
 
 		~INIGenerator()
 		{
-			std::cerr << "INIGenerator::~INIGenerator()" << std::endl;
-			memStream << "FUCKINGBITCH!";
-			std::string str = memStream.str();
-			const char *buf = str.c_str();
-			int buf_size = str.length();
-			size_t stream_size = memStream.tellp();
-
 			if(!fileWriteStream.good()) {
-				std::cerr << "NO GOOD!" << std::endl;
 				return;
 			}
+
+			std::string str = memStream.str();
+			const char *buf = str.c_str();
+			int buf_size = memStream.tellp();
 
 #ifdef RW_DC
 			uint8_t *data;
@@ -488,34 +481,25 @@ namespace mINI
 				.data = reinterpret_cast<const uint8_t*>(buf),
 			};
 
-			//std::cout << "LOADING ICON" << std::endl;
 			if (vmu_pkg_load_icon(&vmu_pkg, "settings.ico") < 0) {
-				std::cerr << "FAILED TO LOAD ICON!" << std::endl;
 				vmu_pkg.icon_cnt = 0;
 			}
 
-			//std::cout << "BUILDING PACKAGE" << std::endl;
-			int pkg_size = 0;
-			if(vmu_pkg_build(&vmu_pkg, &data, &pkg_size) < 0) {
-				std::cerr << "FAILED TO BUILD PACKAGE!" << std::endl;
+			if(vmu_pkg_build(&vmu_pkg, &data, &buf_size) < 0) {
 				lastError_ = std::ios_base::badbit;
 				return;
 			}
 
 			buf = reinterpret_cast<char*>(data);
-			std::cout << "WRITING: " << std::string(buf, buf + pkg_size) << std::endl;
 #endif
 
-			fileWriteStream.write(buf, pkg_size);
+			fileWriteStream.write(buf, buf_size);
 			lastError_ = fileWriteStream.rdstate();
 
 #ifdef RW_DC
+			// Must free the internal buffer allocated by vmu_pkg_build().
 			free(data);
 #endif
-			std::cerr << "WROTE: " << lastError_ << std::endl;
-			std::cerr << "STREAM_SIZE: " << stream_size << std::endl;
-			std::cerr << "BUF_SIZE: " << buf_size << std::endl;
-			std::cerr << "PKG_SIZE: " << pkg_size << std::endl;
 		}
 
 		bool operator<<(const std::string& str)
@@ -575,10 +559,11 @@ namespace mINI
 
 		operator bool() const
 		{
-			return fileWriteStream.rdstate() & fileWriteStream.goodbit;
+			return fileWriteStream.rdstate() == fileWriteStream.goodbit;
 		}
 
 		static std::ios_base::iostate lastError() { return lastError_; }
+		static bool wasGood() { return lastError_ == std::ios_base::goodbit; }
 	};
 
 	class INIWriter
@@ -761,11 +746,10 @@ namespace mINI
 
 			if (!fileExists)
 			{
-				if(INIGenerator generator(filename); generator) {
-					generator.prettyPrint = prettyPrint;
+				if(INIGenerator generator(filename, prettyPrint); generator) {
 					generator << data;
 				}
-				return INIGenerator::lastError() & std::ios_base::goodbit;
+				return INIGenerator::wasGood();
 			}
 
 			INIStructure originalData;
@@ -784,9 +768,8 @@ namespace mINI
 			}
 			T_LineData output = getLazyOutput(lineData, data, originalData);
 			{
-				if (INIGenerator generator(filename); generator && output.size())
+				if (INIGenerator generator(filename, prettyPrint); generator && output.size())
 				{
-					generator.prettyPrint = prettyPrint;
 					auto line = output.begin();
 					for (;;)
 					{
@@ -798,7 +781,7 @@ namespace mINI
 						generator << INIStringUtil::endl;
 					}
 				}
-				return INIGenerator::lastError() & std::ios_base::goodbit;
+				return INIGenerator::wasGood();
 			}
 			return false;
 		}
@@ -835,11 +818,10 @@ namespace mINI
 			{
 				return false;
 			}
-			if(INIGenerator generator(filename); generator) {
-				generator.prettyPrint = pretty;
+			if(INIGenerator generator(filename, pretty); generator) {
 				generator << data;
 			}
-			return INIGenerator::lastError() & std::ios_base::goodbit; 
+			return INIGenerator::wasGood();
 		}
 		bool write(INIStructure& data, bool pretty = false) const
 		{
