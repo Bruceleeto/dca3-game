@@ -37,6 +37,8 @@ extern const char* currentFile;
 #include <functional>
 #include <fstream>
 
+#define ARRAY_SIZE(array)                (sizeof(array) / sizeof(array[0]))
+
 #define errorf(...) dbglog(DBG_CRITICAL, __VA_ARGS__)
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
@@ -1178,7 +1180,7 @@ void endUpdate(Camera* cam) {
 }
 
 void clearCamera(Camera* cam,RGBA* col,uint32 flags) {
-	if (flags & rwCAMERACLEARIMAGE) {
+	if (flags & rw::Camera::CLEARIMAGE) {
 		cam->clearColor = *col;
 	}
     UNIMPL_LOG();
@@ -1314,7 +1316,7 @@ setRenderState(int32 state, void *pvalue)
 	 case FOGCOLOR:
 #if !defined(DC_TEXCONV)		
         // Set fog color when state changes
-        if(fogColor != value || fogStart != RwCameraGetFogDistance(rwdcCam)) {
+        if(fogColor != value || fogStart != rwdcCam->fogPlane) {
             fogColor = value;
             RGBA c;
             c.red = value;
@@ -1323,8 +1325,8 @@ setRenderState(int32 state, void *pvalue)
             c.alpha = value>>24;
             pvr_fog_table_color(c.alpha / 255.0f, c.red / 255.0f, c.green  / 255.0f, c.blue  / 255.0f);
 
-			fogStart = RwCameraGetFogDistance(rwdcCam);
-			float fogEnd = RwCameraGetFarClipPlane(rwdcCam);
+			fogStart = rwdcCam->fogPlane;
+			float fogEnd = rwdcCam->farPlane;
 			float fogIntensity[129];
 			uint8_t idx = 0;
 			float startIntensity = (-fogStart) / (fogEnd - fogStart);  //interpolate between start and end to get initial intensity
@@ -1888,7 +1890,7 @@ struct MeshInfo {
 static_assert(sizeof(MeshInfo) == 4);
 
 struct MeshletInfo {
-	RwSphere boundingSphere;
+	rw::Sphere boundingSphere;
 	uint16_t flags;
 	int8_t pad;
 	int8_t vertexSize;
@@ -3543,11 +3545,11 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
     // Frustum Culling
     auto global_frustumTestResult = AtomicFrustumSphereNearCB(atomic, cam);
 
-	if (global_frustumTestResult == rwSPHEREOUTSIDE) {
+	if (global_frustumTestResult == rw::Camera::SPHEREOUTSIDE) {
 		return;
 	}
 
-	bool global_needsNoClip = global_frustumTestResult == rwSPHEREINSIDE;
+	bool global_needsNoClip = global_frustumTestResult == rw::Camera::SPHEREINSIDE;
 	
 	// Material *m;
 
@@ -3780,8 +3782,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 					if (!global_needsNoClip) {
 						if (!skin) {
-							RwSphere sphere = meshlet->boundingSphere;
-							RwV3dTransformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
+							rw::Sphere sphere = meshlet->boundingSphere;
+							rw::V3d::transformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
 							
 							auto local_frustumTestResult = cam->frustumTestSphereNear(&sphere);;
 							if ( local_frustumTestResult == Camera::SPHEREOUTSIDE) {
@@ -5207,7 +5209,7 @@ struct write_vector: std::vector<uint8_t> {
 		std::copy(p, p + sizeof(T), begin() + offset);
 	}
 
-	void packVertex(RwSphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
+	void packVertex(rw::Sphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
 		if (big_vertex) {
 			write<float>(vertex->x);
 			write<float>(vertex->y);
@@ -5327,8 +5329,8 @@ unsigned caluclateVertexSize(bool textured, bool normaled, bool colored, bool bi
 	return vertexBytes;
 }
 
-RwSphere calculateBoundingSphere(V3d* vertexData, size_t count) {
-	RwSphere sphere;
+rw::Sphere calculateBoundingSphere(V3d* vertexData, size_t count) {
+	rw::Sphere sphere;
 	sphere.center = {0, 0, 0};
 	sphere.radius = 0;
 
@@ -5377,8 +5379,8 @@ struct meshlet {
 		return false;
 	}
 
-	RwSphere calculateBoundingSphere(V3d* vertexData) {
-		RwSphere sphere;
+	rw::Sphere calculateBoundingSphere(V3d* vertexData) {
+		rw::Sphere sphere;
 		sphere.center = {0, 0, 0};
 		sphere.radius = 0;
 

@@ -359,16 +359,15 @@ typedef RwCamera *(*RwCameraCallBack)(RwCamera *camera, void *data);
 
 enum RwCameraClearMode
 {
-	rwCAMERACLEARIMAGE = 0x1,
-	rwCAMERACLEARZ = 0x2,
-	rwCAMERACLEARSTENCIL = 0x4
+	rwCAMERACLEARIMAGE = rw::Camera::CLEARIMAGE,
+	rwCAMERACLEARZ = rw::Camera::CLEARZ,
+	rwCAMERACLEARSTENCIL = rw::Camera::CLEARSTENCIL
 };
 
 enum RwCameraProjection
 {
-	rwNACAMERAPROJECTION = 0,
-	rwPERSPECTIVE = 1,
-	rwPARALLEL = 2
+	rwPERSPECTIVE = rw::Camera::PERSPECTIVE,
+	rwPARALLEL = rw::Camera::PARALLEL
 };
 
 enum RwFrustumTestResult

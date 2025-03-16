@@ -1,4 +1,5 @@
 #include "vmu.h"
+#include "sampman.h"
 
 #if !defined(DC_TEXCONV)
 
