@@ -1344,6 +1344,7 @@ cSampleManager::InitialiseSampleBanks(void)
 	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
 		assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 	}
+
 #ifdef FIX_BUGS
 
 	// Find biggest player comment
