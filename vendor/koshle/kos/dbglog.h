@@ -17,7 +17,7 @@
     \param  ...             Format arguments
     \see    dbglog_levels
 */
-#define dbglog(level, fmt, ...) printf(fmt, ## __VA_ARGS__)
+#define dbglog(level, fmt, ...) fprintf(stdout, fmt, ## __VA_ARGS__)
 
 /** \defgroup   dbglog_levels   Log Levels
     \brief                      dbglog severity levels
