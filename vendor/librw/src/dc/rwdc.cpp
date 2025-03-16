@@ -560,6 +560,26 @@ void DCE_InitMatrices() {
 
 namespace rw {
 namespace dc {
+
+size_t vertexBufferFree() {
+    size_t end   = PVR_GET(PVR_TA_VERTBUF_END);
+    size_t pos   = PVR_GET(PVR_TA_VERTBUF_POS);
+
+    size_t free  = end - pos;
+
+	return free;
+}
+
+bool vertexOverflown() {
+	return  PVR_GET(PVR_TA_VERTBUF_POS) >= PVR_GET(PVR_TA_VERTBUF_END) ||
+			PVR_GET(PVR_TA_OPB_POS)*4 >= PVR_GET(PVR_TA_OPB_END);
+}
+
+constexpr size_t freeVertexTarget_Step_Up = 32 * 1024;
+constexpr size_t freeVertexTarget_Step_Down = 4 * 1024;
+constexpr size_t freeVertexTarget_Min = 64 * 1024;
+size_t freeVertexTarget = freeVertexTarget_Min;
+
 struct DcRaster
 {
 	uint32_t pvr_flags;
@@ -1116,18 +1136,30 @@ void endUpdate(Camera* cam) {
 			}
 			pvr_list_finish();
 		}
+		pvr_list_begin(PVR_LIST_TR_POLY);
 		if (blendCallbacks.size()) {
 			pvr_dr_init(&drState);
-			pvr_list_begin(PVR_LIST_TR_POLY);
 			for (auto&& cb: blendCallbacks) {
 				cb();
 			}
-			pvr_list_finish();
 		}
 
+		if (vertexOverflown()) {
+			freeVertexTarget += freeVertexTarget_Step_Up;
+		} else {
+			freeVertexTarget -= freeVertexTarget_Step_Down;
+			if (freeVertexTarget < freeVertexTarget_Min) {
+				freeVertexTarget = freeVertexTarget_Min;
+			}
+		}
+		
 #if !defined(DC_TEXCONV)
 		VmuProfiler::getInstance()->updateVertexBufferUsage();
 #endif
+		pvr_list_finish();
+
+		// dbglog(DBG_CRITICAL, "Free vertex target: %d\n", freeVertexTarget);
+		
 		// XXX not by definition the best place to do this XXX
 		// We need to know that pvr isn't using textures before moving them
 		// XXX This is also very slow right now XXX
@@ -3506,18 +3538,6 @@ void pvr_poly_cxt_txr_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
 	pvr_poly_compile_fast(hdr, dst);
 }
 
-
-
-size_t vertexBufferFree() {
-    size_t end   = PVR_GET(PVR_TA_VERTBUF_END);
-    size_t pos   = PVR_GET(PVR_TA_VERTBUF_POS);
-
-    size_t free  = end - pos;
-
-	return free;
-}
-
-
 void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
     rw::Camera *cam = engine->currentCamera;
     // Frustum Culling
@@ -3700,7 +3720,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 		// clipping performed per meshlet
 		auto renderCB = [contextId, n] {
-			if (vertexBufferFree() < (128 * 1024)) {
+			if (vertexBufferFree() < freeVertexTarget) {
 				return;
 			}
 			const atomic_context_t* acp = &atomicContexts[contextId];
@@ -4627,8 +4647,8 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 		if (n == 1) {
 			VIDEO_MODE_SCALE_X = 1;
 			pvr_params.fsaa_enabled = 0;
-			pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
-			pvr_params.opb_overflow_count = 7; // 268800 bytes
+			pvr_params.vertex_buf_size = (1024) * 1024;
+			pvr_params.opb_overflow_count = 2; // 268800 bytes
 		} else {
 			VIDEO_MODE_SCALE_X = 2;
 			pvr_params.fsaa_enabled = 1;
