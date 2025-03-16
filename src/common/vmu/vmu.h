@@ -1,9 +1,6 @@
 #ifndef VMU_H_
 #define VMU_H_
 
-#include "common.h"
-#include "sampman.h"
-
 #include "thread/thread.h"
 
 #include <thread>

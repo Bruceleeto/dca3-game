@@ -1,5 +1,7 @@
 #ifndef DC_THREAD_H
 #define DC_THREAD_H
+#include <cstdint>
+#include <cstddef>
 
 namespace dc {
 
