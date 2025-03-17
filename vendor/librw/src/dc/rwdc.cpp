@@ -51,7 +51,7 @@ bool re3EmergencyRemoveModel();
 
 std::map<void*, void**> relocatableAllocs;
 
-uint8_t obj_heap[4 * 1024 * 1024 + 256 * 1024];
+uint8_t obj_heap[4 * 1024 * 1024];
 tlsf_t obj_pool;
 
 void obj_init() {
