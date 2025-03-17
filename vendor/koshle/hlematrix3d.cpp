@@ -9,10 +9,10 @@
 */
 
 
-#include "common.h"
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <dc/matrix.h>
 
 matrix_t XMTRX = {
     { 0.0f, 0.0f, 0.0f, 0.0f },

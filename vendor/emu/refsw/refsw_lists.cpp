@@ -430,7 +430,7 @@ void RenderCORE() {
             auto base = (interlace && field) ? FB_W_SOF2 : FB_W_SOF1;
 
             // very few configurations supported here
-            verify(SCALER_CTL.hscale == 0);
+            size_t xpixels = SCALER_CTL.hscale ? 16 : 32;
             verify(SCALER_CTL.interlace == 0); // write both SOFs
             auto vscale = SCALER_CTL.vscalefactor;
             verify(vscale == 0x401 || vscale == 0x400 || vscale == 0x800);
@@ -440,14 +440,14 @@ void RenderCORE() {
 
             auto src = copy;
             auto bpp = fb_packmode == 0x1 ? 2 : 4;
-            auto offset_bytes = entry.control.tilex * 32 * bpp + entry.control.tiley * 32 * FB_W_LINESTRIDE.stride * 8;
+            auto offset_bytes = entry.control.tilex * xpixels * bpp + entry.control.tiley * 32 * FB_W_LINESTRIDE.stride * 8;
 
             for (int y = 0; y < 32; y++)
             {
                 //auto base = (y&1) ? FB_W_SOF2 : FB_W_SOF1;
                 auto dst = base + offset_bytes + (y)*FB_W_LINESTRIDE.stride * 8;
 
-                for (int x = 0; x < 32; x++)
+                for (int x = 0; x < xpixels; x++)
                 {
                     if (fb_packmode == 0x1) {
                         auto pixel = (((src[0] >> 3) & 0x1F) << 0) | (((src[1] >> 2) & 0x3F) << 5) | (((src[2] >> 3) & 0x1F) << 11);
@@ -461,6 +461,11 @@ void RenderCORE() {
 
                     dst += bpp;
                     src += 4; // skip alpha
+                    
+                    // TODO: Actually do AA
+                    if (SCALER_CTL.hscale) {
+                        src += 4;
+                    }
                 }
             }
         }

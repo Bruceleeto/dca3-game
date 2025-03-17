@@ -16,7 +16,7 @@ extern const char* currentFile;
 #define texconvf(...) // printf(__VA_ARGS__)
 #endif
 
-#include "../../../src/vmu/vmu.h"
+#include "vmu/vmu.h"
 #include "../rwbase.h"
 #include "../rwerror.h"
 #include "../rwplg.h"
@@ -37,11 +37,19 @@ extern const char* currentFile;
 #include <functional>
 #include <fstream>
 
+#define ARRAY_SIZE(array)                (sizeof(array) / sizeof(array[0]))
+
+#define errorf(...) dbglog(DBG_CRITICAL, __VA_ARGS__)
+#define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
+bool re3EmergencyRemoveModel();
+
+using namespace dc;
 
 // #include "rwdcimpl.h"
 
 #include <dc/pvr.h>
+#include <dc/matrix.h>
 #include "alloc.h"
 
 // TODO: probably needs a better place to be
@@ -155,11 +163,11 @@ struct alignas(32) pvr_vertex32_ut {
 static_assert(sizeof(pvr_vertex16_t) == 32, "pvr_vertex16_t size mismatch");
 static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
-#define logf(...) // printf(__VA_ARGS__)
-
 static pvr_dr_state_t drState;
 
 #include <kos/dbglog.h>
+
+float VIDEO_MODE_SCALE_X;
 
 static pvr_ptr_t fake_tex;
 
@@ -366,7 +374,7 @@ void DCE_MatrixViewport(float x, float y, float width, float height) {
     DCE_MAT_SCREENVIEW[1][1] = height * 0.5f;
     DCE_MAT_SCREENVIEW[2][2] = 1;
     DCE_MAT_SCREENVIEW[3][0] = -DCE_MAT_SCREENVIEW[0][0] + x;
-    DCE_MAT_SCREENVIEW[3][1] = VIDEO_MODE_HEIGHT - (DCE_MAT_SCREENVIEW[1][1] + y); 
+    DCE_MAT_SCREENVIEW[3][1] = height - (DCE_MAT_SCREENVIEW[1][1] + y); 
 }
 
 void DCE_InitMatrices() {
@@ -374,8 +382,6 @@ void DCE_InitMatrices() {
 	mat_identity();
 	
 	mat_store(&DCE_MAT_SCREENVIEW);
-	
-	DCE_MatrixViewport(0, 0, VIDEO_MODE_WIDTH, VIDEO_MODE_HEIGHT);
 }
 
 }
@@ -385,6 +391,26 @@ void DCE_InitMatrices() {
 
 namespace rw {
 namespace dc {
+
+size_t vertexBufferFree() {
+    size_t end   = PVR_GET(PVR_TA_VERTBUF_END);
+    size_t pos   = PVR_GET(PVR_TA_VERTBUF_POS);
+
+    size_t free  = end - pos;
+
+	return free;
+}
+
+bool vertexOverflown() {
+	return  PVR_GET(PVR_TA_VERTBUF_POS) >= PVR_GET(PVR_TA_VERTBUF_END) ||
+			PVR_GET(PVR_TA_OPB_POS)*4 >= PVR_GET(PVR_TA_OPB_END);
+}
+
+constexpr size_t freeVertexTarget_Step_Up = 32 * 1024;
+constexpr size_t freeVertexTarget_Step_Down = 4 * 1024;
+constexpr size_t freeVertexTarget_Min = 64 * 1024;
+size_t freeVertexTarget = freeVertexTarget_Min;
+
 struct DcRaster
 {
 	uint32_t pvr_flags;
@@ -602,6 +628,8 @@ void beginUpdate(Camera* cam)  {
 	proj[14] = -cam->nearPlane*proj[10];
 	memcpy4(&cam->devProj, proj, sizeof(RawMatrix));
 	
+	DCE_MatrixViewport(0, 0, cam->frameBuffer->width * VIDEO_MODE_SCALE_X, cam->frameBuffer->height);
+	
 	mat_mult((matrix_t*)&cam->devProjScreen, 
 			 (matrix_t*)&DCE_MAT_SCREENVIEW, 
 			 (matrix_t*)&cam->devProj);
@@ -641,7 +669,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		auto doquad = [=](float x, float y, float w, float h, float tx, float ty, float tw, float th) {
 			auto vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = 1000000.0f;
 			vtx->u = tx/1024.f;
@@ -651,7 +679,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = 1000000.0f;
 			vtx->u = (tx+tw)/1024.f;
@@ -661,7 +689,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = 1000000.0f;
 			vtx->u = tx/1024.f;
@@ -671,7 +699,7 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX_EOL;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = 1000000.0f;
 			vtx->u = (tx+tw)/1024.f;
@@ -745,7 +773,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 				  float umin, float umax, float vmin, float vmax, uint32_t col) {
 			auto vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = z;
 			vtx->u = umin;
@@ -755,7 +783,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y;
 			vtx->z = z;
 			vtx->u = umax;
@@ -765,7 +793,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX;
-			vtx->x = x;
+			vtx->x = x * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = z;
 			vtx->u = umin;
@@ -775,7 +803,7 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 			vtx = reinterpret_cast<pvr_vertex_t *>(pvr_dr_target(drState));
 			vtx->flags = PVR_CMD_VERTEX_EOL;
-			vtx->x = x+w;
+			vtx->x = (x+w) * VIDEO_MODE_SCALE_X;
 			vtx->y = y+h;
 			vtx->z = z;
 			vtx->u = umax;
@@ -890,15 +918,29 @@ void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 
 void allocDefrag(int iterations);
 
-void endUpdate(Camera*) {
+void endUpdate(Camera* cam) {
 
+	// TODO: Fix KOS RTT instead
+	if (cam->frameBuffer->type != Raster::CAMERATEXTURE) {
 	#if !defined(DC_SIM) && defined(SKIP_FRAMES)
 	if (pvr_check_ready() >= 0)
 	#endif
 	{
 		pvr_set_zclip(0.0f);
 		pvr_wait_ready();
-		pvr_scene_begin();
+		pvr_set_bg_color(cam->clearColor.red / 255.0f, cam->clearColor.green / 255.0f, cam->clearColor.blue / 255.0f);
+
+		if (cam->frameBuffer->type == Raster::CAMERATEXTURE) {
+			auto natras = GETDCRASTEREXT(cam->frameBuffer);
+			uint32 rx = cam->frameBuffer->width;
+			uint32 ry = cam->frameBuffer->height;
+			pvr_scene_begin_txr(natras->raster->texaddr, &rx, &ry);
+		} else if (cam->frameBuffer->type == Raster::CAMERA) {
+			pvr_scene_begin();
+		} else {
+			assert(false && "invalid cam->frameBuffer type");
+		}
+		
 		pvr_dr_init(&drState);
 		pvr_list_begin(PVR_LIST_OP_POLY);
 		enter_oix();
@@ -909,7 +951,7 @@ void endUpdate(Camera*) {
 		}
 		pvr_list_finish();
 		if (ptCallbacks.size()) {
-			PVR_SET(0x11C, 128); // PT Alpha test value
+			PVR_SET(0x11C, 64); // PT Alpha test value
 			pvr_dr_init(&drState);
 			pvr_list_begin(PVR_LIST_PT_POLY);
 			for (auto&& cb: ptCallbacks) {
@@ -917,24 +959,37 @@ void endUpdate(Camera*) {
 			}
 			pvr_list_finish();
 		}
+		pvr_list_begin(PVR_LIST_TR_POLY);
 		if (blendCallbacks.size()) {
 			pvr_dr_init(&drState);
-			pvr_list_begin(PVR_LIST_TR_POLY);
 			for (auto&& cb: blendCallbacks) {
 				cb();
 			}
-			pvr_list_finish();
 		}
 
+		if (vertexOverflown()) {
+			freeVertexTarget += freeVertexTarget_Step_Up;
+		} else {
+			freeVertexTarget -= freeVertexTarget_Step_Down;
+			if (freeVertexTarget < freeVertexTarget_Min) {
+				freeVertexTarget = freeVertexTarget_Min;
+			}
+		}
+		
 #if !defined(DC_TEXCONV)
 		VmuProfiler::getInstance()->updateVertexBufferUsage();
 #endif
+		pvr_list_finish();
+
+		// dbglog(DBG_CRITICAL, "Free vertex target: %d\n", freeVertexTarget);
+
 		// XXX not by definition the best place to do this XXX
 		// We need to know that pvr isn't using textures before moving them
 		// XXX This is also very slow right now XXX
 		// allocDefrag(1);
 		pvr_scene_finish();
 		leave_oix();
+	}
 	}
 	opCallbacks.clear();
 	ptCallbacks.clear();
@@ -945,7 +1000,10 @@ void endUpdate(Camera*) {
 	matfxContexts.clear();
 }
 
-void clearCamera(Camera*,RGBA*,uint32) {
+void clearCamera(Camera* cam,RGBA* col,uint32 flags) {
+	if (flags & rw::Camera::CLEARIMAGE) {
+		cam->clearColor = *col;
+	}
     UNIMPL_LOG();
 }
 
@@ -1079,7 +1137,7 @@ setRenderState(int32 state, void *pvalue)
 	 case FOGCOLOR:
 #if !defined(DC_TEXCONV)		
         // Set fog color when state changes
-        if(fogColor != value || fogStart != RwCameraGetFogDistance(rwdcCam)) {
+        if(fogColor != value || fogStart != rwdcCam->fogPlane) {
             fogColor = value;
             RGBA c;
             c.red = value;
@@ -1088,8 +1146,8 @@ setRenderState(int32 state, void *pvalue)
             c.alpha = value>>24;
             pvr_fog_table_color(c.alpha / 255.0f, c.red / 255.0f, c.green  / 255.0f, c.blue  / 255.0f);
 
-			fogStart = RwCameraGetFogDistance(rwdcCam);
-			float fogEnd = RwCameraGetFarClipPlane(rwdcCam);
+			fogStart = rwdcCam->fogPlane;
+			float fogEnd = rwdcCam->farPlane;
 			float fogIntensity[129];
 			uint8_t idx = 0;
 			float startIntensity = (-fogStart) / (fogEnd - fogStart);  //interpolate between start and end to get initial intensity
@@ -1300,7 +1358,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		{
 			auto *pvrVert  = pvr_dr_target(drState); 
 			pvrVert->flags = flags;
-			pvrVert->x 	   = gtaVert.x;
+			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
 			pvrVert->y	   = gtaVert.y;
 			pvrVert->z 	   = Invert<true, false>(gtaVert.w); // Sketchy, not quite right
 			pvrVert->u 	   = gtaVert.u;
@@ -1672,7 +1730,7 @@ struct MeshInfo {
 static_assert(sizeof(MeshInfo) == 4);
 
 struct MeshletInfo {
-	RwSphere boundingSphere;
+	rw::Sphere boundingSphere;
 	uint16_t flags;
 	int8_t pad;
 	int8_t vertexSize;
@@ -2802,7 +2860,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				innerLoop.template operator()<false>();
 	
 			} else if (!(flags & 0x80)) {
-				int count = flags & 0x7FFF;
+				int count = (flags & 0x7F) + 1;
 				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
 
 				do {
@@ -2888,7 +2946,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					innerLoop.template operator()<matrix0Identity>();
 
 			} else if (!(flags & 0x80)) {
-				int count = flags & 0x7FFF;
+				int count = (flags & 0x7F) + 1;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
 
 				do {
@@ -2974,9 +3032,9 @@ void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertex
 }
 
 
-inline  __attribute__((always_inline))  RwFrustumTestResult AtomicFrustumSphereCB(Atomic *atomic, rw::Camera *cam)
+inline  __attribute__((always_inline))  int32 AtomicFrustumSphereNearCB(Atomic *atomic, rw::Camera *cam)
 {
-    return RwCameraFrustumTestSphere(cam, atomic->getWorldBoundingSphere());
+	return cam->frustumTestSphereNear(atomic->getWorldBoundingSphere());
 }
 
 static constexpr void (*tnlMeshletTransformSelector[6])(uint8_t* dst, const uint8_t* vertexData, uint32_t vertexCount, uint32_t vertexSize) {
@@ -3348,28 +3406,16 @@ void pvr_poly_cxt_txr_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
 	pvr_poly_compile_fast(hdr, dst);
 }
 
-
-
-size_t vertexBufferFree() {
-    size_t end   = PVR_GET(PVR_TA_VERTBUF_END);
-    size_t pos   = PVR_GET(PVR_TA_VERTBUF_POS);
-
-    size_t free  = end - pos;
-
-	return free;
-}
-
-
 void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
     rw::Camera *cam = engine->currentCamera;
     // Frustum Culling
-    auto global_frustumTestResult = AtomicFrustumSphereCB(atomic, cam);
+    auto global_frustumTestResult = AtomicFrustumSphereNearCB(atomic, cam);
 
-	if (global_frustumTestResult == rwSPHEREOUTSIDE) {
+	if (global_frustumTestResult == rw::Camera::SPHEREOUTSIDE) {
 		return;
 	}
 
-	bool global_needsNoClip = global_frustumTestResult == rwSPHEREINSIDE;
+	bool global_needsNoClip = global_frustumTestResult == rw::Camera::SPHEREINSIDE;
 	
 	// Material *m;
 
@@ -3536,7 +3582,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 		// clipping performed per meshlet
 		auto renderCB = [contextId, n] {
-			if (vertexBufferFree() < (128 * 1024)) {
+			if (vertexBufferFree() < freeVertexTarget) {
 				return;
 			}
 			const atomic_context_t* acp = &atomicContexts[contextId];
@@ -3595,25 +3641,21 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					unsigned clippingRequired = 0;
 
 					if (!global_needsNoClip) {
-						RwSphere sphere = meshlet->boundingSphere;
-						RwV3dTransformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
-						auto local_frustumTestResult = RwCameraFrustumTestSphere(cam, &sphere);
-						if ( local_frustumTestResult == rwSPHEREOUTSIDE) {
-							// printf("Outside frustum cull\n");
-							continue;
-						}
-
-						if (local_frustumTestResult == rwSPHEREBOUNDARY) {
-							// printf("meshlet %d, vertexOffset %d, indexOffset %d, vertexCount %d, indexCount %d\n", meshletNum, meshlet->vertexOffset, meshlet->indexOffset, meshlet->vertexCount, meshlet->indexCount);
-							mat_load(&worldView);  // Number of cycles: ~11.
+						if (!skin) {
+							rw::Sphere sphere = meshlet->boundingSphere;
+							rw::V3d::transformPoints(&sphere.center, &sphere.center, 1, atomic->getFrame()->getLTM());
 							
-							float x, y, z, w;
-							
-							mat_trans_nodiv_nomod(meshlet->boundingSphere.center.x, meshlet->boundingSphere.center.y, meshlet->boundingSphere.center.z, x, y, z, w);
-
-							if (z < meshlet->boundingSphere.radius) {
+							auto local_frustumTestResult = cam->frustumTestSphereNear(&sphere);;
+							if ( local_frustumTestResult == Camera::SPHEREOUTSIDE) {
+								// printf("Outside frustum cull\n");
+								continue;
+							}
+	
+							if (local_frustumTestResult == Camera::SPHEREBOUNDARY_NEAR) {
 								clippingRequired = 1 + textured;
 							}
+						} else {
+							clippingRequired = 1 + textured;
 						}
 					}
 
@@ -3772,63 +3814,66 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					}
 				}
 			} else if (geo->meshHeader->flags & rw::MeshHeader::TRISTRIP) {
-				auto numIndices = mesh->numIndices;
-				auto vertices = geo->morphTargets[0].vertices;
-				auto texcoords = geo->texCoords[0];
-				auto colors = geo->colors;
+				if (geo->numVertices <= 128) {
+					auto numIndices = mesh->numIndices;
+					auto vertices = geo->morphTargets[0].vertices;
+					auto texcoords = geo->texCoords[0];
+					auto colors = geo->colors;
 
-				assert(numIndices >= 3);
-				assert(geo->numVertices <= 128);
-				bool isPrelit = !!(geo->flags & Geometry::PRELIT);
-				assert(isPrelit);
-				assert(textured);
-				bool isNormaled = !!(geo->flags & Geometry::NORMALS);
-				assert(!isNormaled);
+					assert(numIndices >= 3);
+					bool isPrelit = !!(geo->flags & Geometry::PRELIT);
+					assert(isPrelit);
+					assert(textured);
+					bool isNormaled = !!(geo->flags & Geometry::NORMALS);
+					assert(!isNormaled);
 
-				static std::vector<int8_t> indices;
-				indices.resize(numIndices);
-				memcpy(indices.data(), mesh->indices, sizeof(int8_t) * numIndices);
-				indices.back() |= 0x80;
+					static std::vector<int8_t> indices;
+					indices.resize(numIndices);
+					memcpy(indices.data(), mesh->indices, sizeof(int8_t) * numIndices);
+					indices.back() |= 0x80;
 
-				pvr_vertex64_t *vd = (pvr_vertex64_t *)OCR_SPACE;
-				mat_load(&mtx);  // Number of cycles: ~11
+					pvr_vertex64_t *vd = (pvr_vertex64_t *)OCR_SPACE;
+					mat_load(&mtx);  // Number of cycles: ~11
 
-				auto fillVertex = [](int idx, pvr_vertex64_t *vd, auto vertices, 
-									 auto texcoords, auto colors) __attribute__((always_inline)) 
-				{
-					auto& vert = vertices[idx];
-					auto& c = colors[idx];
-					auto& t = texcoords[idx];
+					auto fillVertex = [](int idx, pvr_vertex64_t *vd, auto vertices, 
+										auto texcoords, auto colors) __attribute__((always_inline)) 
+					{
+						auto& vert = vertices[idx];
+						auto& c = colors[idx];
+						auto& t = texcoords[idx];
 
-					mat_trans_nodiv_nomod(vert.x, vert.y, vert.z,
-										  vd->o_a, vd->o_r, vd->tex_z, vd->o_g);
+						mat_trans_nodiv_nomod(vert.x, vert.y, vert.z,
+											vd->o_a, vd->o_r, vd->tex_z, vd->o_g);
 
-					vd->a = c.alpha * (1/255.0f);
-					vd->r = c.red * (1/255.0f);
-					vd->g = c.green * (1/255.0f);
-					vd->b = c.blue * (1/255.0f);
+						vd->a = c.alpha * (1/255.0f);
+						vd->r = c.red * (1/255.0f);
+						vd->g = c.green * (1/255.0f);
+						vd->b = c.blue * (1/255.0f);
 
-					vd->z = Invert<true, false>(vd->o_g);
-					
-					float16 u = texcoords[idx].u;
-					float16 v = texcoords[idx].v;
-					vd->u = u.raw;
-					vd->v = v.raw;
+						vd->z = Invert<true, false>(vd->o_g);
+						
+						float16 u = texcoords[idx].u;
+						float16 v = texcoords[idx].v;
+						vd->u = u.raw;
+						vd->v = v.raw;
 
-					vd->x = vd->o_a * vd->z;
-					vd->y = vd->o_r * vd->z;
-				};
+						vd->x = vd->o_a * vd->z;
+						vd->y = vd->o_r * vd->z;
+					};
 
-				int idx;
-				__builtin_prefetch(vertices);
-				for (int idx = 0; idx < geo->numVertices - 1; idx++) {
-					__builtin_prefetch(&vertices[idx + 1]);
+					int idx;
+					__builtin_prefetch(vertices);
+					for (int idx = 0; idx < geo->numVertices - 1; idx++) {
+						__builtin_prefetch(&vertices[idx + 1]);
+						fillVertex(idx, vd, vertices, texcoords, colors);
+						vd++;
+					}
 					fillVertex(idx, vd, vertices, texcoords, colors);
-					vd++;
-				}
-				fillVertex(idx, vd, vertices, texcoords, colors);
 
-				clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
+					clipAndsubmitMeshletSelector[textured](OCR_SPACE, indices.data(), indices.size());
+				} else {
+					// fixme
+				}
 			} else { // no trilist assets anymore
 				assert(false && "Unsupported geometry type");
 			}
@@ -3866,6 +3911,10 @@ pvr_ptr_t allocTexture(DcRaster* ctx, size_t size) {
 				break;
 			}
 			dbglog(DBG_CRITICAL, "failed to free or defrag vram, sz: %lu, cont: %lu, free: %lu\n", size, alloc_count_continuous(), alloc_count_free());
+			if (re3EmergencyRemoveModel()) {
+				dbglog(DBG_CRITICAL, "Managed to re3EmergencyRemoveModel, sz: %lu, cont: %lu, free: %lu\n", size, alloc_count_continuous(), alloc_count_free());
+				continue;
+			}
 			return 0;
 		}
 		rv = alloc_malloc(ctx, size);
@@ -3884,9 +3933,33 @@ rasterCreate(Raster* raster)
 {
 	auto natras = GETDCRASTEREXT(raster);
 
-    if (raster->type != Raster::TEXTURE) {
-        printf("rasterCreate: unsupported type %d\n", raster->type);
+    if (raster->type != Raster::TEXTURE && raster->type != Raster::CAMERATEXTURE && raster->type != Raster::ZBUFFER) {
+        logf("rasterCreate: unsupported type %d\n", raster->type);
     }
+
+	if (raster->width < 8) {
+		logf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
+		raster->width = 8;
+	}
+
+	if (raster->height < 8) {
+		logf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
+		raster->height = 8;
+	}
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		logf("CameraTexture: %d x %d\n", raster->width, raster->height);
+	} else if (raster->type == Raster::CAMERA) {
+		logf("Camera: %d x %d  (ignored)\n", raster->width, raster->height);
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;	
+	} else if (raster->type == Raster::ZBUFFER) {
+		logf("ZBuffer: %d x %d (ignored)\n", raster->width, raster->height);
+		raster->flags |= Raster::DONTALLOCATE;
+		raster->stride = 0;
+        return raster;	
+	}
 
 	if(raster->width == 0 || raster->height == 0){
 		raster->flags |= Raster::DONTALLOCATE;
@@ -3894,21 +3967,24 @@ rasterCreate(Raster* raster)
         return raster;
 	}
 
-	if (raster->width < 8) {
-		printf("rasterCreate: Increasing width to 8 from %d\n", raster->width);
-		raster->width = 8;
+
+	auto rasterFmt = raster->format & 0x0F00;
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		if (rasterFmt == Raster::DEFAULT && raster->depth == 0) {
+			logf("CameraTexture: Default means 565?\n");
+			raster->depth = 16;
+			raster->format |= Raster::C565;
+		}
 	}
 
-	if (raster->height < 8) {
-		printf("rasterCreate: Increasing height to 8 from %d\n", raster->height);
-		raster->height = 8;
-	}
-	auto rasterFmt = raster->format & 0x0F00;
+	rasterFmt = raster->format & 0x0F00;
+
 	// assert(raster->depth == 16);
 	if (raster->depth != 16) {
-		raster->depth = 16;
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth: this raster will be corrupted\n");
+		errorf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
+		raster->depth = 16;
 	}
 
 	natras->raster = (DcRaster*)malloc(sizeof(DcRaster));
@@ -3916,6 +3992,9 @@ rasterCreate(Raster* raster)
 	natras->raster->refs = 1;
 	natras->raster->u = __builtin_ctz(raster->width) - 3;
 	natras->raster->v = __builtin_ctz(raster->height) - 3;
+
+	assert(raster->width == 1 << (natras->raster->u + 3));
+	assert(raster->height = 1 << (natras->raster->v + 3));
 
 	if (rasterFmt == Raster::C565) {
 		natras->raster->pvr_flags |= PVR_TXRFMT_RGB565;
@@ -3925,11 +4004,17 @@ rasterCreate(Raster* raster)
 		natras->raster->pvr_flags |= PVR_TXRFMT_ARGB4444;
 	} else {
 		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster depth: this raster will be corrupted\n");
+		printf("rasterCreate: Usupported raster rasterFmt %X: this raster will be corrupted\n", rasterFmt);
 		// assert(false && "unsupported rasterFmt");
 	}
+	
 
 	raster->stride = raster->width * 2;
+
+	if (raster->type == Raster::CAMERATEXTURE) {
+		natras->raster->texaddr = allocTexture(natras->raster, raster->width * raster->height * 2);
+		natras->raster->pvr_flags |= PVR_TXRFMT_NONTWIDDLED;
+	}
 	return raster;
 }
 
@@ -4155,7 +4240,7 @@ rasterFromImage(Raster* raster, Image* image)
 
 	std::vector<Color> imageData;
 	if (image->depth == 32) {
-		assert(rasterFmt == Raster::C4444 || rasterFmt == Raster::C1555);
+		assert(rasterFmt == Raster::C4444 || rasterFmt == Raster::C1555 || rasterFmt == Raster::C565 /* DXT compression */);
 		imageData = createImageFromData_ARGB8888(image->pixels, image->width, image->height, image->stride);
     } else if (image->depth == 24) {
 		assert(rasterFmt == Raster::C565);
@@ -4199,7 +4284,7 @@ rasterFromImage(Raster* raster, Image* image)
 #if defined(_WIN32) || defined(_WIN64)
         case PVRTEX:
             snprintf(encodeCommand, sizeof(encodeCommand),
-                 "pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
+                 "..\\vendor\\pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
         break;
         case PVRTOOL:
             snprintf(encodeCommand, sizeof(encodeCommand),
@@ -4209,7 +4294,7 @@ rasterFromImage(Raster* raster, Image* image)
 #else
         case PVRTEX:
             snprintf(encodeCommand, sizeof(encodeCommand),
-                 "./pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
+                 "../vendor/pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
         break;
         case PVRTOOL:
             snprintf(encodeCommand, sizeof(encodeCommand),
@@ -4372,6 +4457,14 @@ rasterToImage(Raster*)
 	return nil;
 }
 
+static pvr_init_params_t pvr_params = {
+	.opb_sizes = {
+				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
+				PVR_BINSIZE_8
+	},
+	.autosort_disabled = true
+};
+
 int
 deviceSystem(DeviceReq req, void *arg0, int32 n)
 {
@@ -4407,15 +4500,22 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 		rwmode->flags = VIDEOMODEEXCLUSIVE;
 		return 1;
 	}
-		
-
 	case DEVICEGETMAXMULTISAMPLINGLEVELS:
-		{
-			return 1;
-		}
+		return 2;
 	case DEVICEGETMULTISAMPLINGLEVELS:
-		return 1;
+		return 1 << pvr_params.fsaa_enabled;
 	case DEVICESETMULTISAMPLINGLEVELS:
+		if (n == 1) {
+			VIDEO_MODE_SCALE_X = 1;
+			pvr_params.fsaa_enabled = 0;
+			pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
+			pvr_params.opb_overflow_count = 7; // 268800 bytes
+		} else {
+			VIDEO_MODE_SCALE_X = 2;
+			pvr_params.fsaa_enabled = 1;
+			pvr_params.vertex_buf_size = (1024 + 768) * 1024;
+			pvr_params.opb_overflow_count = 4; // 307200 bytes
+		}
 		return 1;
 	case DEVICESETSUBSYSTEM:
 		return 1;
@@ -4450,16 +4550,6 @@ Device renderdevice = {
 	im3DRenderIndexedPrimitive,
 	im3DEnd,
 	deviceSystem
-};
-
-static pvr_init_params_t pvr_params = {
-	.opb_sizes = {
-				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
-				PVR_BINSIZE_8
-	},
-	.vertex_buf_size = (1024 + 1024) * 1024,
-	.autosort_disabled = true,
-	.opb_overflow_count = 7 // 268800 bytes
 };
 
 void defaultInstance(ObjPipeline *pipe, Atomic *atomic) {
@@ -4549,6 +4639,8 @@ driverClose(void *o, int32, int32)
 {
 	pvr_mem_free(fake_tex);
 
+	pvr_shutdown();
+
 	return o;
 }
 
@@ -4608,7 +4700,7 @@ readNativeTexture(Stream *stream)
 		cached->second->refs++;
 		natras->raster = cached->second;
 		stream->seek(pvr_size);
-		printf("Raster reused for texture %s\n", tex->name);
+		logf("Raster reused for texture %s\n", tex->name);
 	} else {
 		natras->raster = (DcRaster*)malloc(sizeof(DcRaster));
 		memset(natras->raster, 0, sizeof(DcRaster));
@@ -4674,7 +4766,7 @@ readNativeTexture(Stream *stream)
 			}
 		} else {
 			stream->seek(pvr_size);
-			printf("Failed to allocate raster pixels for texture %s\n", tex->name);
+			errorf("Failed to allocate raster pixels for texture %s\n", tex->name);
 		}
 	}
 
@@ -4729,7 +4821,7 @@ writeNativeTexture(Texture *tex, Stream *stream)
 }
 #endif
 
-#define DC_MODEL_VERSION 5
+#define DC_MODEL_VERSION 6
 
 void*
 destroyNativeData(void *object, int32, int32)
@@ -4976,7 +5068,7 @@ struct write_vector: std::vector<uint8_t> {
 		std::copy(p, p + sizeof(T), begin() + offset);
 	}
 
-	void packVertex(RwSphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
+	void packVertex(rw::Sphere* volume, V3d* vertex, TexCoords* texcoord, V3d* normal, RGBA* color, bool big_vertex, bool pad_xyz, bool big_uv) {
 		if (big_vertex) {
 			write<float>(vertex->x);
 			write<float>(vertex->y);
@@ -5096,8 +5188,8 @@ unsigned caluclateVertexSize(bool textured, bool normaled, bool colored, bool bi
 	return vertexBytes;
 }
 
-RwSphere calculateBoundingSphere(V3d* vertexData, size_t count) {
-	RwSphere sphere;
+rw::Sphere calculateBoundingSphere(V3d* vertexData, size_t count) {
+	rw::Sphere sphere;
 	sphere.center = {0, 0, 0};
 	sphere.radius = 0;
 
@@ -5146,8 +5238,8 @@ struct meshlet {
 		return false;
 	}
 
-	RwSphere calculateBoundingSphere(V3d* vertexData) {
-		RwSphere sphere;
+	rw::Sphere calculateBoundingSphere(V3d* vertexData) {
+		rw::Sphere sphere;
 		sphere.center = {0, 0, 0};
 		sphere.radius = 0;
 
@@ -5520,8 +5612,9 @@ void processGeom(Geometry *geo) {
 					}
 
 					assert(spanCount);
+					assert(spanCount < 0x80);
 					
-					skinningIndexData.write<uint16_t>(0x8000 | spanCount);			// count + clear flag
+					skinningIndexData.write<uint16_t>(0x8000 | (spanCount-1));			// count + clear flag
 					skinningIndexData.write<uint16_t>(spanStartIdx * 64);			// dst offset
 					assert(spanStartIdx + spanCount <= meshlet.vertices.size());
 
@@ -5550,7 +5643,8 @@ void processGeom(Geometry *geo) {
 					spanCount++;
 				}
 				if (spanCount) {
-					skinningIndexData.write<uint16_t>(0x8000 | spanCount);			// count + clear flag
+					assert(spanCount <= 0x80);
+					skinningIndexData.write<uint16_t>(0x8000 | (spanCount - 1));			// count + clear flag
 					skinningIndexData.write<uint16_t>(spanStartIdx * 64);			// dst offset
 				}
 				
@@ -5576,7 +5670,7 @@ void processGeom(Geometry *geo) {
 							assert(skinMatrix0Only[currentMtx0Idx++] == (startVtx + k));
 						}
 					} else if (!(flags & 0x80)) {
-						int count = flags & 0x7FFF;
+						int count = (flags & 0x7F) + 1;
 						int dstVertex = skinningIndexData[skinningIndexDataStart] | (skinningIndexData[skinningIndexDataStart + 1] << 8);
 						skinningIndexDataStart += 2;
 						texconvf("%s: Clear: count %d, dst %d\n", currentFile, count, dstVertex/64);

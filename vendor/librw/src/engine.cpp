@@ -10,7 +10,7 @@
 #include "rwpipeline.h"
 #include "rwobjects.h"
 #include "rwengine.h"
-// #include "ps2/rwps2.h"
+#include "ps2-x/rwps2.h"
 // #include "d3d/rwxbox.h"
 // #include "d3d/rwd3d.h"
 #include "d3d-x/rwd3d8.h"
@@ -144,8 +144,7 @@ void *mustmalloc_h(size_t sz, uint32 hint)
 	ret = Engine::memfuncs.rwmalloc(sz, hint);
 	if(ret || sz == 0)
 		return ret;
-	fprintf(stderr, "Error: out of memory\n");
-	exit(1);
+	assert(ret != 0);
 	return nil;
 }
 void *mustrealloc_h(void *p, size_t sz, uint32 hint)
@@ -154,8 +153,7 @@ void *mustrealloc_h(void *p, size_t sz, uint32 hint)
 	ret = Engine::memfuncs.rwrealloc(p, sz, hint);
 	if(ret || sz == 0)
 		return ret;
-	fprintf(stderr, "Error: out of memory\n");
-	exit(1);
+	assert(ret != 0);
 	return nil;
 }
 
@@ -241,6 +239,7 @@ Engine::init(MemoryFunctions *memfuncs)
 	gl3::registerPlatformPlugins();
 	#else
 	#if defined(DC_TEXCONV)
+	ps2::registerPlatformPlugins();
 	d3d8::registerPlatformPlugins();
 	#endif
 	dc::registerPlatformPlugins();
