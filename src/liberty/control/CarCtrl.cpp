@@ -805,6 +805,7 @@ CCarCtrl::CountCarsOfType(int32 mi)
 void
 CCarCtrl::UpdateCarOnRails(CVehicle* pVehicle)
 {
+	// Bullshit inner lambda to prevent ICE due to interaction between register allocator and fast-math.
 	if (pVehicle->AutoPilot.m_nTempAction == TEMPACT_WAIT){
 		pVehicle->SetMoveSpeed(0.0f, 0.0f, 0.0f);
 		pVehicle->AutoPilot.ModifySpeed(0.0f);
@@ -833,24 +834,27 @@ CCarCtrl::UpdateCarOnRails(CVehicle* pVehicle)
 	CVector positionOnNextLinkIncludingLane(
 		pNextLink->GetX() + ((pVehicle->AutoPilot.m_nNextLane + pNextLink->OneWayLaneOffset()) * LANE_WIDTH) * nextPathLinkForwardY,
 		pNextLink->GetY() - ((pVehicle->AutoPilot.m_nNextLane + pNextLink->OneWayLaneOffset()) * LANE_WIDTH) * nextPathLinkForwardX,
-		0.0f);
+		0.0f);	
 	CVector directionCurrentLink(currentPathLinkForwardX, currentPathLinkForwardY, 0.0f);
 	CVector directionNextLink(nextPathLinkForwardX, nextPathLinkForwardY, 0.0f);
 	CVector positionIncludingCurve;
 	CVector directionIncludingCurve;
-	CCurves::CalcCurvePoint(
-		&positionOnCurrentLinkIncludingLane,
-		&positionOnNextLinkIncludingLane,
-		&directionCurrentLink,
-		&directionNextLink,
-		GetPositionAlongCurrentCurve(pVehicle),
-		pVehicle->AutoPilot.m_nTimeToSpendOnCurrentCurve,
-		&positionIncludingCurve,
-		&directionIncludingCurve
-	);
-	positionIncludingCurve.z = 15.0f;
-	DragCarToPoint(pVehicle, &positionIncludingCurve);
-	pVehicle->SetMoveSpeed(directionIncludingCurve / GAME_SPEED_TO_CARAI_SPEED);
+
+	[&](void) __attribute__((noinline)) { // Prevents an ICE on fast-math by breaking function into mutiple subfunctions for register allocator.
+		CCurves::CalcCurvePoint(
+			&positionOnCurrentLinkIncludingLane,
+			&positionOnNextLinkIncludingLane,
+			&directionCurrentLink,
+			&directionNextLink,
+			GetPositionAlongCurrentCurve(pVehicle),
+			pVehicle->AutoPilot.m_nTimeToSpendOnCurrentCurve,
+			&positionIncludingCurve,
+			&directionIncludingCurve
+		);
+		positionIncludingCurve.z = 15.0f;
+		DragCarToPoint(pVehicle, &positionIncludingCurve);
+		pVehicle->SetMoveSpeed(directionIncludingCurve * dc::Invert<false>(GAME_SPEED_TO_CARAI_SPEED));
+	}();
 }
 
 float
@@ -2036,10 +2040,10 @@ void CCarCtrl::DragCarToPoint(CVehicle* pVehicle, CVector* pPoint)
 	float angleZ = Atan2((actualAheadZ - actualBehindZ) / 3, 1.0f);
 	float cosZ = Cos(angleZ);
 	float sinZ = Sin(angleZ);
-	pVehicle->GetRight() = CVector(posTarget.y - midPos.y, -(posTarget.x - midPos.x), 0.0f) / 3;
+	pVehicle->GetRight() = CVector(posTarget.y - midPos.y, -(posTarget.x - midPos.x), 0.0f) * (1.0f / 3.0f);
 	pVehicle->GetForward() = CVector(-cosZ * pVehicle->GetRight().y, cosZ * pVehicle->GetRight().x, sinZ);
 	pVehicle->GetUp() = CrossProduct(pVehicle->GetRight(), pVehicle->GetForward());
-	pVehicle->SetPosition((CVector(midPos.x, midPos.y, actualBehindZ) + CVector(posTarget.x, posTarget.y, actualAheadZ)) / 2);
+	pVehicle->SetPosition((CVector(midPos.x, midPos.y, actualBehindZ) + CVector(posTarget.x, posTarget.y, actualAheadZ)) * 0.5f);
 	pVehicle->GetMatrix().GetPosition().z += pVehicle->GetHeightAboveRoad();
 }
 

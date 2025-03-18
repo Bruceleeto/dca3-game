@@ -28,17 +28,11 @@ CVector
 Multiply3x3(const CMatrix &mat, const CVector &vec)
 {
 #ifdef DC_SH4
-    register float __x __asm__("fr12") = vec.x;
-    register float __y __asm__("fr13") = vec.y;
-    register float __z __asm__("fr14") = vec.z;
-    register float __w __asm__("fr15") = 0.0f;
-	
+	CVector out;
 	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
-
-	asm volatile( "ftrv  xmtrx, fv12\n"
-                : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w)
-                : "0" (__x), "1" (__y), "2" (__z), "3" (__w) );
-    return { __x, __y, __z };
+	mat_trans_normal3_nomod(vec.x, vec.y, vec.z,
+							out.x, out.y, out.z);
+	return out;
 #else
 	// TODO: VU0 code
 	return CVector(mat.rx * vec.x + mat.fx * vec.y + mat.ux * vec.z,
@@ -50,9 +44,12 @@ Multiply3x3(const CMatrix &mat, const CVector &vec)
 CVector
 Multiply3x3(const CVector &vec, const CMatrix &mat)
 {
-	return CVector(mat.rx * vec.x + mat.ry * vec.y + mat.rz * vec.z,
-	               mat.fx * vec.x + mat.fy * vec.y + mat.fz * vec.z,
-	               mat.ux * vec.x + mat.uy * vec.y + mat.uz * vec.z);
+	CVector out;
+	mat_load(reinterpret_cast<const matrix_t*>(&mat));
+	mat_transpose();
+	mat_trans_vec3_nomod(vec.x, vec.y, vec.z,
+				         out.x, out.y, out.z);
+	return out;
 }
 
 CVector

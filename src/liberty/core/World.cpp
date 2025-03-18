@@ -1268,6 +1268,8 @@ CWorld::FindObjectsIntersectingAngledCollisionBoxSectorList(CPtrList &list, cons
                                                             int16 *nEntitiesFound, int16 maxEntitiesToFind,
                                                             CEntity **aEntities)
 {
+	mat_load(reinterpret_cast<const matrix_t*>(&matrix));
+	mat_transpose();
 	for(CPtrNode *pNode = list.first; pNode; pNode = pNode->next) {
 		CEntity *pEntity = (CEntity *)pNode->item;
 		if(pEntity->m_scanCode != GetCurrentScanCode()) {
@@ -1275,7 +1277,8 @@ CWorld::FindObjectsIntersectingAngledCollisionBoxSectorList(CPtrList &list, cons
 			CColSphere sphere;
 			CVector vecDistance = pEntity->GetPosition() - position;
 			sphere.radius = pEntity->GetBoundRadius();
-			sphere.center = Multiply3x3(vecDistance, matrix);
+			mat_trans_normal3_nomod(vecDistance.x, vecDistance.y, vecDistance.z,
+									sphere.center.x, sphere.center.y, sphere.center.z);
 			if(CCollision::TestSphereBox(sphere, boundingBox) && *nEntitiesFound < maxEntitiesToFind) {
 				if(aEntities) aEntities[*nEntitiesFound] = pEntity;
 				++*nEntitiesFound;
@@ -1906,6 +1909,9 @@ CWorld::Process(void)
 				movingEnt->UpdateRwFrame();
 			}
 		} else {
+
+			//ocram_enter();
+
 			bNoMoreCollisionTorque = false;
 			for(CPtrNode *node = ms_listMovingEntityPtrs.first; node; node = node->next) {
 				CEntity *movingEnt = (CEntity *)node->item;
@@ -1936,6 +1942,9 @@ CWorld::Process(void)
 					if(!movingEnt->bIsInSafePosition) { movingEnt->bIsStuck = true; }
 				}
 			}
+
+			//ocram_leave();
+
 			bSecondShift = false;
 			for(CPtrNode *node = ms_listMovingEntityPtrs.first; node; node = node->next) {
 				CEntity *movingEnt = (CEntity *)node->item;

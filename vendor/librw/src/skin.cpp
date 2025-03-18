@@ -224,6 +224,7 @@ writeSkin(Stream *stream, int32 len, void *object, int32 offset, int32)
 	for(int32 i = 0; i < skin->numBones; i++){
 		if(oldFormat)
 			stream->writeU32(0xdeaddead);
+
 		stream->write32(&skin->inverseMatrices[i*16], 64);
 	}
 

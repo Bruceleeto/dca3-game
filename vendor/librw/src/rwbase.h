@@ -10,6 +10,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#include "rwdc_common.h"
+
 // TODO: clean up the opengl defines
 //       and figure out what we even want here...
 #ifdef RW_GL3
@@ -305,21 +307,45 @@ inline Quat scale(const Quat &q, float32 r) { return makeQuat(q.w*r, q.x*r, q.y*
 inline float32 length(const Quat &q) { return sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z); }
 inline Quat normalize(const Quat &q) { return scale(q, 1.0f/length(q)); }
 inline Quat conj(const Quat &q) { return makeQuat(q.w, -q.x, -q.y, -q.z); }
-Quat mult(const Quat &q, const Quat &p);
+inline Quat mult(const Quat &q, const Quat &p) {
+	Quat r;
+	dc::quat_mult(reinterpret_cast<dc::quaternion_t *>(&r),
+	              reinterpret_cast<const dc::quaternion_t &>(q),
+		     	  reinterpret_cast<const dc::quaternion_t &>(p));
+	return r;
+}
 inline V3d rotate(const V3d &v, const Quat &q) { return mult(mult(q, makeQuat(0.0f, v)), conj(q)).vec(); }
 Quat lerp(const Quat &q, const Quat &p, float32 r);
 Quat slerp(const Quat &q, const Quat &p, float32 a);
 
-struct __attribute__((aligned(8))) RawMatrix 
+struct alignas(8) RawMatrixBase 
 {
 	V3d right;
-	float32 rightw;
+	float32 rightw = 0.0f;
 	V3d up;
-	float32 upw;
+	float32 upw = 0.0f;
 	V3d at;
-	float32 atw;
+	float32 atw = 0.0f;
 	V3d pos;
-	float32 posw;
+	float32 posw = 1.0f;
+};
+
+struct RawMatrix : public RawMatrixBase
+{
+	RawMatrix() = default;
+
+	RawMatrix(RawMatrixBase &&aggregate):
+		RawMatrixBase{aggregate}
+	{}
+
+	RawMatrix(const RawMatrix& rhs) {
+		*this = rhs;
+	}
+
+	RawMatrix &operator=(const RawMatrix& rhs) {
+		dc::mat_copy(reinterpret_cast<matrix_t*>(this), reinterpret_cast<const matrix_t*>(&rhs));
+		return *this;
+	}
 
 	// NB: this is dst = src2*src1, i.e. src1 is applied first, then src2
 	static void mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2);
@@ -327,7 +353,7 @@ struct __attribute__((aligned(8))) RawMatrix
 	static void setIdentity(RawMatrix *dst);
 };
 
-struct Matrix
+struct alignas(8) MatrixBase
 {
 	enum Type {
 		TYPENORMAL	= 1,
@@ -336,7 +362,8 @@ struct Matrix
 		TYPEMASK = 3
 	};
 	enum Flags {
-		IDENTITY = 0x20000
+		IDENTITY = 0x4,
+		IDENTITY_OLD = 0x20000
 	};
 	struct Tolerance {
 		float32 normal;
@@ -344,14 +371,47 @@ struct Matrix
 		float32 identity;
 	};
 
-	V3d right;
-	uint32 flags;
-	V3d up;
-	uint32 pad1;
-	V3d at;
-	uint32 pad2;
-	V3d pos;
-	uint32 pad3;
+	V3d right = { 1.0f, 0.0f, 0.0f };
+	union {
+		struct {
+			uint32 flags: 3 = TYPEORTHONORMAL|IDENTITY;
+			uint32_t pad0: 29 = 0;
+		};
+		float  rightw;
+	};
+	V3d up = { 0.0f, 1.0f, 0.0f };
+	union {
+		uint32 pad1;
+		float  upw = 0.0f;
+	};
+	V3d at = { 0.0f, 0.0f, 1.0f };
+	union {
+		uint32 pad2;
+		float  atw = 0.0f;
+	};
+	V3d pos = { 0.0f, 0.0f, 0.0f };
+	union {
+		uint32 pad3;
+		float  posw = 1.0f;
+	};
+};
+
+struct Matrix: public MatrixBase
+{
+	Matrix() = default;
+	
+	Matrix(MatrixBase &&aggregate):
+		MatrixBase{aggregate}
+	{}
+
+	Matrix(const Matrix& rhs) {
+		*this = rhs;
+	}
+
+	Matrix &operator=(const Matrix& rhs) {
+		dc::mat_copy(reinterpret_cast<matrix_t*>(this), reinterpret_cast<const matrix_t*>(&rhs));
+		return *this;
+	}
 
 	static Matrix *create(void);
 	void destroy(void);

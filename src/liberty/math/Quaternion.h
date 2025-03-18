@@ -1,11 +1,11 @@
 #pragma once
 
 // TODO: actually implement this
-class CQuaternion
+class alignas(8) CQuaternion
 {
 public:
 	float x, y, z, w;
-	CQuaternion(void) {}
+	CQuaternion(void) = default;
 	CQuaternion(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 
 	float Magnitude(void) const { return Sqrt(MagnitudeSqr()); }
@@ -49,10 +49,11 @@ public:
 	}
 
 	const CQuaternion &operator/=(float right) {
-		x /= right;
-		y /= right;
-		z /= right;
-		w /= right;
+		float inv = dc::Invert(right);
+		x *= inv;
+		y *= inv;
+		z *= inv;
+		w *= inv;
 		return *this;
 	}
 
@@ -72,7 +73,11 @@ public:
 inline float
 DotProduct(const CQuaternion &q1, const CQuaternion &q2)
 {
+#ifndef DC_SH4
 	return q1.x*q2.x + q1.y*q2.y + q1.z*q2.z + q1.w*q2.w;
+#else
+	return fipr(q1.x, q1.y, q1.z, q1.w, q2.x, q2.y, q2.z, q2.w);
+#endif
 }
 
 inline CQuaternion operator+(const CQuaternion &left, const CQuaternion &right)
@@ -97,5 +102,6 @@ inline CQuaternion operator*(float left, const CQuaternion &right)
 
 inline CQuaternion operator/(const CQuaternion &left, float right)
 {
-	return CQuaternion(left.x / right, left.y / right, left.z / right, left.w / right);
+	right = dc::Invert(right);
+	return CQuaternion(left.x * right, left.y * right, left.z * right, left.w * right);
 }

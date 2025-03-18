@@ -21,18 +21,18 @@ matrix_t XMTRX = {
     { 0.0f, 0.0f, 0.0f, 0.0f }
 };
 
-void mat_identity() {
+void (mat_identity)() {
     XMTRX[0][0] = 1.0f; XMTRX[1][0] = 0.0f; XMTRX[2][0] = 0.0f; XMTRX[3][0] = 0.0f;
     XMTRX[0][1] = 0.0f; XMTRX[1][1] = 1.0f; XMTRX[2][1] = 0.0f; XMTRX[3][1] = 0.0f;
     XMTRX[0][2] = 0.0f; XMTRX[1][2] = 0.0f; XMTRX[2][2] = 1.0f; XMTRX[3][2] = 0.0f;
     XMTRX[0][3] = 0.0f; XMTRX[1][3] = 0.0f; XMTRX[2][3] = 0.0f; XMTRX[3][3] = 1.0f;    
 }
 
-void mat_load(const matrix_t *mat) {
+void (mat_load)(const matrix_t *mat) {
     memcpy(XMTRX, mat, sizeof(matrix_t));
 }
 
-void mat_store(matrix_t *mat) {
+void (mat_store)(matrix_t *mat) {
     memcpy(mat, XMTRX, sizeof(matrix_t));
 }
 
@@ -47,13 +47,13 @@ static void mat_mult(matrix_t dst, const matrix_t &src1, const matrix_t &src2) {
     }
 }
 
-void mat_apply(const matrix_t* mat) {
+void (mat_apply)(const matrix_t* mat) {
     matrix_t result;
     mat_mult(result, *mat, XMTRX);
     mat_load(&result);
 }
 
-void mat_transform(vector_t *invecs, vector_t *outvecs, int veccnt, int vecskip) {
+void (mat_transform)(vector_t *invecs, vector_t *outvecs, int veccnt, int vecskip) {
     for(unsigned v = 0; v < veccnt; ++v) {
         auto offset = v * (sizeof(vector_t) + vecskip);
         auto *in    = reinterpret_cast<vector_t *>(reinterpret_cast<uint8_t *>(invecs) + offset);

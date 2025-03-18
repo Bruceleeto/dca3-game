@@ -482,12 +482,12 @@ CCoronas::RenderReflections(void)
 						float fadeDistance = drawDist / 2.0f;
 						float distanceFade = spriteCoors.z < fadeDistance ? 1.0f : 1.0f - (spriteCoors.z - fadeDistance)/fadeDistance;
 						distanceFade = Clamp(distanceFade, 0.0f, 1.0f);
-						float recipz = 1.0f/RwCameraGetNearClipPlane(Scene.camera);
+						float recipz = Invert<true, false>(RwCameraGetNearClipPlane(Scene.camera));
 						float heightFade = (20.0f - aCoronas[i].heightAboveRoad)/20.0f;
 						int intensity = distanceFade*heightFade * 230.0 * CWeather::WetRoads;
 
 						CSprite::RenderBufferedOneXLUSprite(
-#ifdef FIX_BUGS
+#if defined(FIX_BUGS) && 1
 							spriteCoors.x, spriteCoors.y, spriteCoors.z,
 #else
 							spriteCoors.x, spriteCoors.y, RwIm2DGetNearScreenZ(),
@@ -608,13 +608,16 @@ CEntity::ProcessLightsForEntity(void)
 	flashTimer3 = 0;
 
 	n = CModelInfo::GetModelInfo(GetModelIndex())->GetNum2dEffects();
+	mat_load(reinterpret_cast<const matrix_t*>(&GetMatrix()));
 	for(i = 0; i < n; i++, flashTimer1 += 0x80, flashTimer2 += 0x100, flashTimer3 += 0x200){
 		effect = CModelInfo::GetModelInfo(GetModelIndex())->Get2dEffect(i);
 
 		if(effect->type != EFFECT_LIGHT)
 			continue;
 
-		pos = GetMatrix() * effect->pos;
+		//pos = GetMatrix() * effect->pos;
+		mat_trans_single3_nodiv_nomod(effect->pos.x, effect->pos.y, effect->pos.z,
+									  pos.x, pos.y, pos.z);
 
 		lightOn = false;
 		lightFlickering = false;

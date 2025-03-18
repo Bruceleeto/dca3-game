@@ -23,6 +23,8 @@
 #include "rwengine.h"
 #include "fcaseopen.h"
 
+using namespace dc;
+
 namespace rw {
 
 #define PLUGIN_ID 0
@@ -45,12 +47,17 @@ int32 build = 0xFFFF;
 bool32 streamAppendFrames = 0;
 char *debugFile = nil;
 
-static Matrix identMat = {
-	{ 1.0f, 0.0f, 0.0f }, Matrix::IDENTITY|Matrix::TYPEORTHONORMAL,
-	{ 0.0f, 1.0f, 0.0f }, 0,
-	{ 0.0f, 0.0f, 1.0f }, 0,
-	{ 0.0f, 0.0f, 0.0f }, 0
-};
+static Matrix identMat = {{
+    .right 	= { 1.0f, 0.0f, 0.0f }, 
+    .flags 	= Matrix::IDENTITY|Matrix::TYPEORTHONORMAL,
+	.pad0   = 0,
+    .up 	= { 0.0f, 1.0f, 0.0f }, 
+    .upw 	= 0.0f,
+    .at 	= { 0.0f, 0.0f, 1.0f }, 
+    .atw 	= 0.0f,
+    .pos 	= { 0.0f, 0.0f, 0.0f }, 
+    .posw 	= 1.0f
+}};
 
 // lazy implementation
 int
@@ -85,16 +92,6 @@ strncmp_ci(const char *s1, const char *s2, int n)
 	}
 	return 0;
 }
-
-Quat
-mult(const Quat &q, const Quat &p)
-{
-	return makeQuat(q.w*p.w - q.x*p.x - q.y*p.y - q.z*p.z,
-	                q.w*p.x + q.x*p.w + q.y*p.z - q.z*p.y,
-	                q.w*p.y + q.y*p.w + q.z*p.x - q.x*p.z,
-	                q.w*p.z + q.z*p.w + q.x*p.y - q.y*p.x);
-}
-
 
 Quat*
 Quat::rotate(const V3d *axis, float32 angle, CombineOp op)
@@ -133,18 +130,21 @@ lerp(const Quat &q, const Quat &p, float32 r)
 Quat
 slerp(const Quat &q, const Quat &p, float32 a)
 {
-	float32 c;
 	Quat q1 = q;
-	c = dot(q1, p);
+	float c = dot(q1, p);
 	if(c < 0.0f){
 		c = -c;
 		q1 = negate(q1);
 	}
 	float32 phi = acosf(c);
 	if(phi > 0.00001f){
-		float32 s = sinf(phi);
-		return add(scale(q1, sinf((1.0f-a)*phi)/s),
-		           scale(p,  sinf(a*phi)/s));
+#ifndef DC_SH4 
+		float32 s = dc::Invert(sinf(phi));
+#else /* Can't use builtin here, ICEs! */
+		float32 s = dc::Invert(fsin(phi));
+#endif
+		return add(scale(q1, sinf((1.0f-a)*phi)*s),
+		           scale(p,  sinf(a*phi)*s));
 	}
 	return q1;
 }
@@ -165,6 +165,7 @@ void
 V3d::transformPoints(V3d *out, const V3d *in, int32 n, const Matrix *m)
 {
 	int32 i;
+#ifndef DC_SH4
 	V3d tmp;
 	for(i = 0; i < n; i++){
 		tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x + m->pos.x;
@@ -172,12 +173,21 @@ V3d::transformPoints(V3d *out, const V3d *in, int32 n, const Matrix *m)
 		tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z + m->pos.z;
 		out[i] = tmp;
 	}
+#else
+    mat_load(reinterpret_cast<const matrix_t*>(m));
+	//rw_mat_load_4x4(m);
+    for(i = 0; i < n; i++) {
+        mat_trans_single3_nodiv_nomod(in[i].x, in[i].y, in[i].z,
+                                      out[i].x, out[i].y, out[i].z);
+	}
+#endif
 }
 
 void
 V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 {
 	int32 i;
+#ifndef DC_SH4
 	V3d tmp;
 	for(i = 0; i < n; i++){
 		tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x;
@@ -185,6 +195,14 @@ V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 		tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z;
 		out[i] = tmp;
 	}
+#else
+    //mat_load_3x3(reinterpret_cast<const matrix_t *>(m));
+    mat_load(reinterpret_cast<const matrix_t*>(m));
+	for(i = 0; i < n; i++) {
+        mat_trans_vec3_nomod(in[i].x, in[i].y, in[i].z,
+                             out[i].x, out[i].y, out[i].z);
+	}
+#endif
 }
 
 //
@@ -194,27 +212,15 @@ V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 void
 RawMatrix::mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2)
 {
-	dst->right.x = src1->right.x*src2->right.x + src1->right.y*src2->up.x + src1->right.z*src2->at.x + src1->rightw*src2->pos.x;
-	dst->right.y = src1->right.x*src2->right.y + src1->right.y*src2->up.y + src1->right.z*src2->at.y + src1->rightw*src2->pos.y;
-	dst->right.z = src1->right.x*src2->right.z + src1->right.y*src2->up.z + src1->right.z*src2->at.z + src1->rightw*src2->pos.z;
-	dst->rightw  = src1->right.x*src2->rightw  + src1->right.y*src2->upw  + src1->right.z*src2->atw  + src1->rightw*src2->posw;
-	dst->up.x    = src1->up.x*src2->right.x    + src1->up.y*src2->up.x    + src1->up.z*src2->at.x + src1->upw*src2->pos.x;
-	dst->up.y    = src1->up.x*src2->right.y    + src1->up.y*src2->up.y    + src1->up.z*src2->at.y + src1->upw*src2->pos.y;
-	dst->up.z    = src1->up.x*src2->right.z    + src1->up.y*src2->up.z    + src1->up.z*src2->at.z + src1->upw*src2->pos.z;
-	dst->upw     = src1->up.x*src2->rightw     + src1->up.y*src2->upw     + src1->up.z*src2->atw  + src1->upw*src2->posw;
-	dst->at.x    = src1->at.x*src2->right.x    + src1->at.y*src2->up.x    + src1->at.z*src2->at.x + src1->atw*src2->pos.x;
-	dst->at.y    = src1->at.x*src2->right.y    + src1->at.y*src2->up.y    + src1->at.z*src2->at.y + src1->atw*src2->pos.y;
-	dst->at.z    = src1->at.x*src2->right.z    + src1->at.y*src2->up.z    + src1->at.z*src2->at.z + src1->atw*src2->pos.z;
-	dst->atw     = src1->at.x*src2->rightw     + src1->at.y*src2->upw     + src1->at.z*src2->atw  + src1->atw*src2->posw;
-	dst->pos.x   = src1->pos.x*src2->right.x   + src1->pos.y*src2->up.x   + src1->pos.z*src2->at.x + src1->posw*src2->pos.x;
-	dst->pos.y   = src1->pos.x*src2->right.y   + src1->pos.y*src2->up.y   + src1->pos.z*src2->at.y + src1->posw*src2->pos.y;
-	dst->pos.z   = src1->pos.x*src2->right.z   + src1->pos.y*src2->up.z   + src1->pos.z*src2->at.z + src1->posw*src2->pos.z;
-	dst->posw    = src1->pos.x*src2->rightw    + src1->pos.y*src2->upw    + src1->pos.z*src2->atw  + src1->posw*src2->posw;
+    mat_mult(reinterpret_cast<matrix_t *>(dst), 
+             reinterpret_cast<const matrix_t *>(src2), 
+             reinterpret_cast<const matrix_t *>(src1));
 }
 
 void
 RawMatrix::transpose(RawMatrix *dst, RawMatrix *src)
 {
+#ifndef DC_SH4
 	dst->right.x = src->right.x;
 	dst->up.x = src->right.y;
 	dst->at.x = src->right.z;
@@ -231,17 +237,22 @@ RawMatrix::transpose(RawMatrix *dst, RawMatrix *src)
 	dst->upw = src->pos.y;
 	dst->atw = src->pos.z;
 	dst->posw = src->posw;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(src));
+	mat_transpose();
+	mat_store(reinterpret_cast<matrix_t*>(dst));
+#endif
 }
 
 void
 RawMatrix::setIdentity(RawMatrix *dst)
 {
-	static RawMatrix identity = {
+	static RawMatrix identity = {{
 		{ 1.0f, 0.0f, 0.0f }, 0.0f,
 		{ 0.0f, 1.0f, 0.0f }, 0.0f,
 		{ 0.0f, 0.0f, 1.0f }, 0.0f,
 		{ 0.0f, 0.0f, 0.0f }, 1.0f
-	};
+	}};
 	*dst = identity;
 }
 
@@ -302,8 +313,9 @@ Matrix::mult(Matrix *dst, const Matrix *src1, const Matrix *src2)
 	else if(src2->flags & IDENTITY)
 		*dst = *src1;
 	else{
+		uint8_t flags = src1->flags & src2->flags;
 		mult_(dst, src1, src2);
-		dst->flags = src1->flags & src2->flags;
+		dst->flags = flags;
 	}
 	return dst;
 }
@@ -324,6 +336,7 @@ Matrix::invert(Matrix *dst, const Matrix *src)
 Matrix*
 Matrix::transpose(Matrix *dst, const Matrix *src)
 {
+#ifndef DC_SH4
 	if(src->flags & IDENTITY)
 		*dst = *src;
 	dst->right.x = src->right.x;
@@ -338,25 +351,29 @@ Matrix::transpose(Matrix *dst, const Matrix *src)
 	dst->pos.x = 0.0;
 	dst->pos.y = 0.0;
 	dst->pos.z = 0.0;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(src));
+	mat_transpose();
+	mat_store(reinterpret_cast<matrix_t*>(dst));
+#endif
 	return dst;
 }
 
 Matrix*
 Matrix::rotate(const V3d *axis, float32 angle, CombineOp op)
 {
-	Matrix tmp, rot;
-	makeRotation(&rot, axis, angle);
+	Matrix rot;
 	switch(op){
 	case COMBINEREPLACE:
-		*this = rot;
+		makeRotation(this, axis, angle);
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &rot, this);
-		*this = tmp;
+		makeRotation(&rot, axis, angle);
+		mult(this, &rot, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &rot);
-		*this = tmp;
+		makeRotation(&rot, axis, angle);
+		mult(this, this, &rot);
 		break;
 	}
 	return this;
@@ -365,19 +382,18 @@ Matrix::rotate(const V3d *axis, float32 angle, CombineOp op)
 Matrix*
 Matrix::rotate(const Quat &q, CombineOp op)
 {
-	Matrix tmp, rot;
-	makeRotation(&rot, q);
+	Matrix rot;
 	switch(op){
 	case COMBINEREPLACE:
-		*this = rot;
+		makeRotation(this, q);
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &rot, this);
-		*this = tmp;
+		makeRotation(&rot, q);
+		mult(this, &rot, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &rot);
-		*this = tmp;
+		makeRotation(&rot, q);
+		mult(this, this, &rot);
 		break;
 	}
 	return this;
@@ -385,21 +401,24 @@ Matrix::rotate(const Quat &q, CombineOp op)
 Matrix*
 Matrix::translate(const V3d *translation, CombineOp op)
 {
-	Matrix tmp;
-	Matrix trans = identMat;
-	trans.pos = *translation;
-	trans.flags &= ~IDENTITY;
+	Matrix trans;
 	switch(op){
 	case COMBINEREPLACE:
-		*this = trans;
+		*this = identMat;
+		this->pos = *translation;
+		this->flags &= ~IDENTITY;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &trans, this);
-		*this = tmp;
+		trans = identMat;
+		trans.pos = *translation;
+		trans.flags &= ~IDENTITY;
+		mult(this, &trans, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &trans);
-		*this = tmp;
+		trans = identMat;
+		trans.pos = *translation;
+		trans.flags &= ~IDENTITY;
+		mult(this, this, &trans);
 		break;
 	}
 	return this;
@@ -408,23 +427,30 @@ Matrix::translate(const V3d *translation, CombineOp op)
 Matrix*
 Matrix::scale(const V3d *scale, CombineOp op)
 {
-	Matrix tmp;
-	Matrix scl = identMat;
-	scl.right.x = scale->x;
-	scl.up.y = scale->y;
-	scl.at.z = scale->z;
-	scl.flags &= ~IDENTITY;
+	Matrix scl;
 	switch(op){
 	case COMBINEREPLACE:
-		*this = scl;
+		*this = identMat;
+		this->right.x = scale->x;
+		this->up.y = scale->y;
+		this->at.z = scale->z;
+		this->flags &= ~IDENTITY;	
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &scl, this);
-		*this = tmp;
+		scl = identMat;
+		scl.right.x = scale->x;
+		scl.up.y = scale->y;
+		scl.at.z = scale->z;
+		scl.flags &= ~IDENTITY;
+		mult(this, &scl, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &scl);
-		*this = tmp;
+		scl = identMat;
+		scl.right.x = scale->x;
+		scl.up.y = scale->y;
+		scl.at.z = scale->z;
+		scl.flags &= ~IDENTITY;
+		mult(this, this, &scl);
 		break;
 	}
 	return this;
@@ -433,18 +459,15 @@ Matrix::scale(const V3d *scale, CombineOp op)
 Matrix*
 Matrix::transform(const Matrix *mat, CombineOp op)
 {
-	Matrix tmp;
 	switch(op){
 	case COMBINEREPLACE:
 		*this = *mat;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, mat, this);
-		*this = tmp;
+		mult(this, mat, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, mat);
-		*this = tmp;
+		mult(this, this, mat);
 		break;
 	}
 	return this;
@@ -456,29 +479,34 @@ Matrix::getRotation(void)
 	Quat q = { 0.0f, 0.0f, 0.0f, 1.0f };
 	float32 tr = right.x + up.y + at.z;
 	float s;
+	float invs;
 	if(tr > 0.0f){
 		s = sqrtf(1.0f + tr) * 2.0f;
+		invs = Invert<true, false>(s);
 		q.w = s / 4.0f;
-		q.x = (up.z - at.y) / s;
-		q.y = (at.x - right.z) / s;
-		q.z = (right.y - up.x) / s;
+		q.x = (up.z - at.y) * invs;
+		q.y = (at.x - right.z) * invs;
+		q.z = (right.y - up.x) * invs;
 	}else if(right.x > up.y && right.x > at.z){
 		s = sqrtf(1.0f + right.x - up.y - at.z) * 2.0f;
-		q.w = (up.z - at.y) / s;
+		invs = Invert<true, false>(s);
+		q.w = (up.z - at.y) * invs;
 		q.x = s / 4.0f;
-		q.y = (up.x + right.y) / s;
-		q.z = (at.x + right.z) / s;
+		q.y = (up.x + right.y) * invs;
+		q.z = (at.x + right.z) * invs;
 	}else if(up.y > at.z){
 		s = sqrtf(1.0f + up.y - right.x - at.z) * 2.0f;
-		q.w = (at.x - right.z) / s;
-		q.x = (up.x + right.y) / s;
+		invs = Invert<true, false>(s);
+		q.w = (at.x - right.z) * invs;
+		q.x = (up.x + right.y) * invs;
 		q.y = s / 4.0f;
-		q.z = (at.y + up.z) / s;
+		q.z = (at.y + up.z) * invs;
 	}else{
 		s = sqrtf(1.0f + at.z - right.x - up.y) * 2.0f;
-		q.w = (right.y - up.x) / s;
-		q.x = (at.x + right.z) / s;
-		q.y = (at.y + up.z) / s;
+		invs = Invert<true, false>(s);
+		q.w = (right.y - up.x) * invs;
+		q.x = (at.x + right.z) * invs;
+		q.y = (at.y + up.z) * invs;
 		q.z = s / 4.0f;
 	}
 	return q;
@@ -499,35 +527,27 @@ Matrix::lookAt(const V3d &dir, const V3d &up)
  * i.e. a vector is first xformed by src1, then by src2
  */
 void
-Matrix::mult_(Matrix *__restrict__ dst, const Matrix *__restrict__ src1, const Matrix *__restrict__ src2)
+Matrix::mult_(Matrix *dst, const Matrix *src1, const Matrix *src2)
 {
-	#if !defined(DC_TEXCONV) && !defined(DC_SIM)
-	dst->right.x = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.x, src2->up.x, src2->at.x, 0);
-	dst->right.y = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.y, src2->up.y, src2->at.y, 0);
-	dst->right.z = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.z, src2->up.z, src2->at.z, 0);
-	dst->up.x    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.x, src2->up.x, src2->at.x, 0);
-	dst->up.y    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.y, src2->up.y, src2->at.y, 0);
-	dst->up.z    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.z, src2->up.z, src2->at.z, 0);
-	dst->at.x    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.x, src2->up.x, src2->at.x, 0);
-	dst->at.y    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.y, src2->up.y, src2->at.y, 0);
-	dst->at.z    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.z, src2->up.z, src2->at.z, 0);
-	dst->pos.x   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  		  src2->right.x, src2->up.x, src2->at.x, src2->pos.x);
-	dst->pos.y   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  	 	  src2->right.y, src2->up.y, src2->at.y, src2->pos.y);
-	dst->pos.z   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  		  src2->right.z, src2->up.z, src2->at.z, src2->pos.z);
-	#else
-	dst->right.x = src1->right.x*src2->right.x + src1->right.y*src2->up.x + src1->right.z*src2->at.x;
-	dst->right.y = src1->right.x*src2->right.y + src1->right.y*src2->up.y + src1->right.z*src2->at.y;
-	dst->right.z = src1->right.x*src2->right.z + src1->right.y*src2->up.z + src1->right.z*src2->at.z;
-	dst->up.x    = src1->up.x*src2->right.x    + src1->up.y*src2->up.x    + src1->up.z*src2->at.x;
-	dst->up.y    = src1->up.x*src2->right.y    + src1->up.y*src2->up.y    + src1->up.z*src2->at.y;
-	dst->up.z    = src1->up.x*src2->right.z    + src1->up.y*src2->up.z    + src1->up.z*src2->at.z;
-	dst->at.x    = src1->at.x*src2->right.x    + src1->at.y*src2->up.x    + src1->at.z*src2->at.x;
-	dst->at.y    = src1->at.x*src2->right.y    + src1->at.y*src2->up.y    + src1->at.z*src2->at.y;
-	dst->at.z    = src1->at.x*src2->right.z    + src1->at.y*src2->up.z    + src1->at.z*src2->at.z;
-	dst->pos.x   = src1->pos.x*src2->right.x   + src1->pos.y*src2->up.x   + src1->pos.z*src2->at.x + src2->pos.x;
-	dst->pos.y   = src1->pos.x*src2->right.y   + src1->pos.y*src2->up.y   + src1->pos.z*src2->at.y + src2->pos.y;
-	dst->pos.z   = src1->pos.x*src2->right.z   + src1->pos.y*src2->up.z   + src1->pos.z*src2->at.z + src2->pos.z;
-	#endif
+
+#ifdef RW_DC
+	mat_mult(reinterpret_cast<matrix_t *>(dst),
+			 reinterpret_cast<const matrix_t *>(src2),
+			 reinterpret_cast<const matrix_t *>(src1));
+#else
+    dst->right.x = src1->right.x*src2->right.x + src1->right.y*src2->up.x + src1->right.z*src2->at.x;
+    dst->right.y = src1->right.x*src2->right.y + src1->right.y*src2->up.y + src1->right.z*src2->at.y;
+    dst->right.z = src1->right.x*src2->right.z + src1->right.y*src2->up.z + src1->right.z*src2->at.z;
+    dst->up.x    = src1->up.x*src2->right.x    + src1->up.y*src2->up.x    + src1->up.z*src2->at.x;
+    dst->up.y    = src1->up.x*src2->right.y    + src1->up.y*src2->up.y    + src1->up.z*src2->at.y;
+    dst->up.z    = src1->up.x*src2->right.z    + src1->up.y*src2->up.z    + src1->up.z*src2->at.z;
+    dst->at.x    = src1->at.x*src2->right.x    + src1->at.y*src2->up.x    + src1->at.z*src2->at.x;
+    dst->at.y    = src1->at.x*src2->right.y    + src1->at.y*src2->up.y    + src1->at.z*src2->at.y;
+    dst->at.z    = src1->at.x*src2->right.z    + src1->at.y*src2->up.z    + src1->at.z*src2->at.z;
+    dst->pos.x   = src1->pos.x*src2->right.x   + src1->pos.y*src2->up.x   + src1->pos.z*src2->at.x + src2->pos.x;
+    dst->pos.y   = src1->pos.x*src2->right.y   + src1->pos.y*src2->up.y   + src1->pos.z*src2->at.y + src2->pos.y;
+    dst->pos.z   = src1->pos.x*src2->right.z   + src1->pos.y*src2->up.z   + src1->pos.z*src2->at.z + src2->pos.z;
+#endif
 }
 
 void
@@ -536,12 +556,16 @@ Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 	dst->right.x = src->right.x;
 	dst->right.y = src->up.x;
 	dst->right.z = src->at.x;
+	dst->flags = TYPEORTHONORMAL;
+	dst->pad0 = 0;
 	dst->up.x = src->right.y;
 	dst->up.y = src->up.y;
 	dst->up.z = src->at.y;
+	dst->upw = 0.0f;
 	dst->at.x = src->right.z;
 	dst->at.y = src->up.z;
 	dst->at.z = src->at.z;
+	dst->atw = 0.0f;
 	dst->pos.x = -(src->pos.x*src->right.x +
 	               src->pos.y*src->right.y +
 	               src->pos.z*src->right.z);
@@ -551,7 +575,7 @@ Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 	dst->pos.z = -(src->pos.x*src->at.x +
 	               src->pos.y*src->at.y +
 	               src->pos.z*src->at.z);
-	dst->flags = TYPEORTHONORMAL;
+	dst->posw = 1.0f;
 }
 
 Matrix*
@@ -566,7 +590,7 @@ Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 	det = src->up.x * dst->right.y + src->at.x * dst->right.z + dst->right.x * src->right.x;
 	invdet = 1.0;
 	if(det != 0.0f)
-		invdet = 1.0f/det;
+		invdet = Invert<false>(det);
 	dst->right.x *= invdet;
 	dst->right.y *= invdet;
 	dst->right.z *= invdet;
@@ -580,6 +604,10 @@ Matrix::invertGeneral(Matrix *dst, const Matrix *src)
 	dst->pos.y = -(src->pos.x*dst->right.y + src->pos.y*dst->up.y + src->pos.z*dst->at.y);
 	dst->pos.z = -(src->pos.x*dst->right.z + src->pos.y*dst->up.z + src->pos.z*dst->at.z);
 	dst->flags &= ~IDENTITY;
+	dst->pad0 = 0;
+	dst->upw = 0.0f;
+	dst->atw = 0.0f;
+	dst->posw = 1.0f;
 	return dst;
 }
 
@@ -1035,66 +1063,6 @@ StreamMemory::getLength(void)
 	return this->length;
 }
 
-#if defined(DC_SH4) && 0 // Disabled for now because it is broken
-
-#include <kos/fs.h>
-
-StreamFile*
-StreamFile::open(const char *path, const char *mode)
-{
-	assert(this->fd < 0);
-	this->fd = fs_open(path, mode[0] == 'r' ? O_RDONLY : O_WRONLY);
-	if(this->fd < 0){
-		RWERROR((ERR_FILE, path));
-		return nil;
-	}
-	return this;
-}
-
-void
-StreamFile::close(void)
-{
-	assert(this->fd < 0);
-	fs_close(this->fd);
-	this->fd = -1;
-}
-
-uint32
-StreamFile::write8(const void *data, uint32 length)
-{
-	auto rv = fs_write(this->fd, data, length);
-	assert(rv == length);
-	return (uint32)rv;
-}
-
-uint32
-StreamFile::read8(void *data, uint32 length)
-{
-	auto rv = fs_read(this->fd, data, length);
-	assert(rv == length);
-	return (uint32)rv;
-}
-
-void
-StreamFile::seek(int32 offset, int32 whence)
-{
-	fs_seek(this->fd, offset, whence);
-}
-
-uint32
-StreamFile::tell(void)
-{
-	return fs_tell(this->fd);
-}
-
-bool
-StreamFile::eof(void)
-{
-	return fs_total(this->fd) == fs_tell(this->fd);
-}
-
-#else
-
 StreamFile*
 StreamFile::open(const char *path, const char *mode)
 {
@@ -1148,7 +1116,6 @@ StreamFile::eof(void)
 {
 	return ( feof(this->file) != 0 );
 }
-#endif
 
 uint8 *
 StreamFile::mmap(uint32 len)

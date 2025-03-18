@@ -1,24 +1,25 @@
 #pragma once
 
-class CMatrix
+class alignas(8) CMatrix
 {
 public:
 	union
 	{
 		alignas(8) float f[4][4];
+		alignas(8) float m[16];
 		struct alignas(8)
 		{
-			float rx, ry, rz, rw;
-			float fx, fy, fz, fw;
-			float ux, uy, uz, uw;
-			float px, py, pz, pw;
+			float rx, ry, rz, rw=0.0f;
+			float fx, fy, fz, fw=0.0f;
+			float ux, uy, uz, uw=0.0f;
+			float px, py, pz, pw=1.0f;
 		};
 	};
 
-	RwMatrix *m_attachment;
-	bool m_hasRwMatrix;	// are we the owner?
+	RwMatrix *m_attachment = nil;
+	bool m_hasRwMatrix = false;	// are we the owner?
 
-	CMatrix(void);
+	CMatrix(void) = default;
 	CMatrix(CMatrix const &m);
 	CMatrix(RwMatrix *matrix, bool owner = false);
 	CMatrix(float scale){

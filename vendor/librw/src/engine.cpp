@@ -64,13 +64,14 @@ malloc_managed(size_t sz, uint32 hint)
 	MemoryBlock *mem;
 
 	if(sz == 0) return nil;
+	bool align64 = !!(hint & ID_MATRIX);
 	origPtr = malloc(sz + sizeof(MemoryBlock) + 15);
 	if(origPtr == nil)
 		return nil;
 	totalMemoryAllocated += sz;
 	data = (uint8*)origPtr;
 	data += sizeof(MemoryBlock);
-	data = (uint8*)ALIGN16((uintptr)data);
+	data = (uint8*) ALIGN16((uintptr)data);
 	mem = (MemoryBlock*)(data-sizeof(MemoryBlock));
 
 	mem->sz = sz;
