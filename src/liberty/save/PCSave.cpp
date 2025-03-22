@@ -17,6 +17,8 @@
 
 #include "vmu/vmu.h"
 
+void* re3StreamingAlloc(size_t size);
+
 const char* _psGetUserFilesFolder();
 
 C_PcSave PcSaveHelper;
@@ -93,16 +95,17 @@ uint32_t C_PcSave::PcClassLoadRoutine(int32 file, uint8 *data) {
 		return size;
 	} else {
 		size &= ~0x80000000;
-		uint8* compressed = (uint8*)malloc(size);
+		uint8* compressed = (uint8*)re3StreamingAlloc(size);
+		assert(compressed);
 		err = CFileMgr::Read(file, (const char*)compressed, size) != size;
 		if (err || CFileMgr::GetErrorReadWrite(file)) {
-			free(compressed);
+			RwFree(compressed);
 			return 0;
 		}
 
 		lzo_uint decompressed_size = 0;
 		auto crv = lzo1x_decompress(compressed, size, data, &decompressed_size, NULL);
-		free(compressed);
+		RwFree(compressed);
 		if (crv != LZO_E_OK) {
 			return 0;
 		}
@@ -117,31 +120,37 @@ uint32_t C_PcSave::PcClassLoadRoutine(int32 file, uint8 *data) {
 bool
 C_PcSave::PcClassSaveRoutine(int32 file, uint8 *data, uint32 size)
 {
-	void* wrkmem = malloc(LZO1X_1_MEM_COMPRESS);
-	uint8* compressed = (uint8*)malloc(size*2);
+	void* wrkmem = re3StreamingAlloc(LZO1X_1_MEM_COMPRESS);
+	assert(wrkmem);
+	uint8* compressed = (uint8*)re3StreamingAlloc(size*2);
+	assert(compressed);
 	lzo_uint compressed_size;
 	int crv = lzo1x_1_compress(data, size, compressed, &compressed_size, wrkmem);
-	free(wrkmem);
+	RwFree(wrkmem);
+
+	if (crv == LZO_E_OK && compressed_size >= size) {
+		crv = LZO_E_NOT_COMPRESSIBLE;
+	}
 
 	if (crv == LZO_E_OK) {
 		uint32_t compressed_size32 = compressed_size | 0x80000000;
 		bool err = CFileMgr::Write(file, (const char*)&compressed_size32, sizeof(compressed_size32)) != sizeof(compressed_size32);
 		if (err || CFileMgr::GetErrorReadWrite(file)) {
-			free(compressed);
+			RwFree(compressed);
 			nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
 			strncpy(SaveFileNameJustSaved, ValidSaveName, sizeof(ValidSaveName) - 1);
 			return false;
 		}
 
 		err = CFileMgr::Write(file, (const char*)compressed, compressed_size) != compressed_size;
-		free(compressed);
+		RwFree(compressed);
 		if (err || CFileMgr::GetErrorReadWrite(file)) {
 			nErrorCode = SAVESTATUS_ERR_SAVE_WRITE;
 			strncpy(SaveFileNameJustSaved, ValidSaveName, sizeof(ValidSaveName) - 1);
 			return false;
 		}
 	} else if (crv == LZO_E_NOT_COMPRESSIBLE) {
-		free(compressed);
+		RwFree(compressed);
 		uint32_t compressed_size32 = size;
 		bool err = CFileMgr::Write(file, (const char*)&compressed_size32, sizeof(compressed_size32)) != sizeof(compressed_size32);
 		if (err || CFileMgr::GetErrorReadWrite(file)) {
@@ -156,7 +165,7 @@ C_PcSave::PcClassSaveRoutine(int32 file, uint8 *data, uint32 size)
 			return false;
 		}
 	} else {
-		free(compressed);
+		RwFree(compressed);
 		return false;
 	}
 
