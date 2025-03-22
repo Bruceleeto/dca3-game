@@ -3,6 +3,8 @@
 #include "Game.h"
 #include "MemoryHeap.h"
 
+void* re3StreamingAlloc(size_t size);
+
 CColModel::CColModel(void)
 {
 	numSpheres = 0;
@@ -163,7 +165,7 @@ CColModel::operator=(const CColModel &other)
 		if(vertices)
 			RwFree(vertices);
 		if(numVerts){
-			vertices = (CompressedVector*)RwMalloc(numVerts*sizeof(CompressedVector));
+			vertices = (CompressedVector*)re3StreamingAlloc(numVerts*sizeof(CompressedVector));
 			for(i = 0; i < numVerts; i++)
 				vertices[i] = other.vertices[i];
 		}
@@ -173,7 +175,7 @@ CColModel::operator=(const CColModel &other)
 			numTriangles = other.numTriangles;
 			if(triangles)
 				RwFree(triangles);
-			triangles = (CColTriangle*)RwMalloc(numTriangles*sizeof(CColTriangle));
+			triangles = (CColTriangle*)re3StreamingAlloc(numTriangles*sizeof(CColTriangle));
 		}
 		for(i = 0; i < numTriangles; i++)
 			triangles[i] = other.triangles[i];

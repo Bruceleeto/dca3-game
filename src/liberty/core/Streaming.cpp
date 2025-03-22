@@ -1170,6 +1170,24 @@ bool re3EmergencyRemoveModel() {
 	return usedmem != CStreaming::ms_memoryUsed;
 }
 
+void* re3StreamingAlloc(size_t size) {
+	auto rv = RwMalloc(size);
+
+	while (rv == nil) {
+		if (re3RemoveLeastUsedModel()) {
+			rv = RwMalloc(size);
+			continue;
+		}
+		if (re3EmergencyRemoveModel()) {
+			rv = RwMalloc(size);
+			continue;
+		}
+		return nil;
+	}
+
+	return rv;
+}
+
 bool
 CStreaming::RemoveLeastUsedModel(void)
 {

@@ -182,6 +182,12 @@ uintptr_t gPlayerTalkData = 0;
 uint32 gPlayerTalkReqId = 0;
 #endif
 
+// this is very wasteful and temporary
+#define BANK_STAGE_SIZE 16 * 2048
+static  uint8_t stagingBufferBank[BANK_STAGE_SIZE] __attribute__((aligned(32)));
+std::mutex stagingBufferMtx;
+
+
 static int32 DCStreamedLength[TOTAL_STREAMED_SOUNDS];
 
 struct WavHeader {
@@ -581,26 +587,29 @@ cSampleManager::LoadSampleBank(uint8 nBank)
 		// TODO: Split per-bank sfx file
 		int fd = fs_open(SampleBankDataFilename, O_RDONLY);
 		assert(fd >= 0);
-		// this is very wasteful and temporary
-		void* stagingBuffer = memalign(32, 8 * 2048);
-		assert(stagingBuffer != 0);
-
-		// Ideally, we'd suspend the CdStream thingy here or read via that instead
-		uintptr_t loadOffset = bank.base;
+		
 		fs_seek(fd, fileStart, SEEK_SET);
+		{ 
+			std::lock_guard lk(stagingBufferMtx); // for stagingBufferBank
+		
+			void* stagingBuffer = stagingBufferBank;
+			assert(stagingBuffer != 0);
 
-		while (fileSize > 0) {
-			size_t readSize = fileSize > 8 * 2048 ? 8 * 2048 : fileSize;
-			int rs = fs_read(fd, stagingBuffer, readSize);
-			debugf("Read %d bytes, expected %d\n", rs, readSize);
-			assert(rs == readSize);
-			spu_memload(loadOffset, stagingBuffer, readSize);
-			loadOffset += readSize;
-			fileSize -= readSize;
-			debugf("Loaded %d bytes, %d remaining\n", readSize, fileSize);
+			// Ideally, we'd suspend the CdStream thingy here or read via that instead
+			uintptr_t loadOffset = bank.base;
+
+			while (fileSize > 0) {
+				size_t readSize = fileSize > sizeof(stagingBufferBank) ? sizeof(stagingBufferBank) : fileSize;
+				int rs = fs_read(fd, stagingBuffer, readSize);
+				debugf("Read %d bytes, expected %d\n", rs, readSize);
+				assert(rs == readSize);
+				spu_memload(loadOffset, stagingBuffer, readSize);
+				loadOffset += readSize;
+				fileSize -= readSize;
+				debugf("Loaded %d bytes, %d remaining\n", readSize, fileSize);
+			}
 		}
 		fs_close(fd);
-		free(stagingBuffer);
 		
 
 		for (int nSfx = BankStartOffset[nBank]; nSfx < BankStartOffset[nBank+1]; nSfx++) {
@@ -693,15 +702,19 @@ cSampleManager::LoadMissionAudio(uint8 nSlot, uint32 nSample)
 		// TODO: When we can dma directly to AICA, we can use this instead
 		// fs_read(fdPedSfx, SPU_BASE_U8 + (uintptr_t)cmd->dest, cmd->size);
 
-		void* stagingBuffer = memalign(32, cmd->size);
-		assert(stagingBuffer != 0);
-		debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
-		int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
-		debugf("Read %d bytes, expected %d\n", rs, cmd->size);
-		assert(rs == cmd->size);
-
-		spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
-		free(stagingBuffer);
+		assert(cmd->size < sizeof(stagingBufferBank));
+		{
+			std::lock_guard lk(stagingBufferMtx); // for stagingBufferBank
+			void* stagingBuffer = stagingBufferBank;
+			assert(stagingBuffer != 0);
+			debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
+			int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
+			debugf("Read %d bytes, expected %d\n", rs, cmd->size);
+			assert(rs == cmd->size);
+	
+			spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
+		}
+		
 		nPedSfxReqReadId = nPedSfxReqReadId + 1;
 	});
 	
@@ -787,15 +800,19 @@ cSampleManager::LoadPedComment(uint32 nComment)
 		// TODO: When we can dma directly to AICA, we can use this instead
 		// fs_read(fdPedSfx, SPU_BASE_U8 + (uintptr_t)cmd->dest, cmd->size);
 
-		void* stagingBuffer = memalign(32, cmd->size);
-		assert(stagingBuffer != 0);
-		debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
-		int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
-		debugf("Read %d bytes, expected %d\n", rs, cmd->size);
-		assert(rs == cmd->size);
+		assert(cmd->size < sizeof(stagingBufferBank));
+		{
+			std::lock_guard lk(stagingBufferMtx); // for stagingBufferBank
+			void* stagingBuffer = stagingBufferBank;
+			assert(stagingBuffer != 0);
+			debugf("Allocated %d bytes at %p\n", cmd->size, stagingBuffer);
+			int rs = fs_read(fdPedSfx, stagingBuffer, cmd->size);
+			debugf("Read %d bytes, expected %d\n", rs, cmd->size);
+			assert(rs == cmd->size);
 
-		spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
-		free(stagingBuffer);
+			spu_memload((uintptr_t)cmd->dest, stagingBuffer, cmd->size);
+		}
+
 		nPedSfxReqReadId = nPedSfxReqReadId + 1;
 	});
 
@@ -1349,16 +1366,21 @@ cSampleManager::InitialiseSampleBanks(void)
 	for (uint32 nComment = SAMPLEBANK_PED_START; nComment <= SAMPLEBANK_PED_END; nComment++) {
 		pedBlocksizeMax = Max(pedBlocksizeMax, m_aSamples[nComment].nByteSize);
 	}
+	assert(pedBlocksizeMax <= BANK_STAGE_SIZE);
 	debugf("Max ped comment size: %d\n", pedBlocksizeMax);
 
 #ifdef FIX_BUGS
 
 	// Find biggest player comment
 	uint32 nMaxPlayerSize = 0;
-	for (uint32 i = PLAYER_COMMENTS_START; i <= PLAYER_COMMENTS_END; i++)
+	for (uint32 i = PLAYER_COMMENTS_START; i <= PLAYER_COMMENTS_END; i++) {
 		nMaxPlayerSize = Max(nMaxPlayerSize, m_aSamples[i].nByteSize);
+	}
 
 	debugf("Max player comment size: %d\n", nMaxPlayerSize);
+
+	assert(nMaxPlayerSize < sizeof(stagingBufferBank));
+
 	gPlayerTalkData = snd_mem_malloc(nMaxPlayerSize);
 	ASSERT(gPlayerTalkData != 0);
 
