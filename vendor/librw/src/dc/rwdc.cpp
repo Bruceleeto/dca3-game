@@ -816,13 +816,188 @@ void beginUpdate(Camera* cam)  {
 }
 
 
-std::vector<atomic_context_t> atomicContexts;
-std::vector<mesh_context_t> meshContexts;
-std::vector<skin_context_t> skinContexts;
-std::vector<matfx_context_t> matfxContexts;
-std::vector<std::function<void()>> opCallbacks;
-std::vector<std::function<void()>> blendCallbacks;
-std::vector<std::function<void()>> ptCallbacks;
+template<typename T>
+struct chunked_vector {
+    static constexpr size_t chunk_size = 8192;
+
+    struct chunk;
+    struct chunk_header {
+        chunk* prev;
+        chunk* next;
+        size_t used;
+        size_t free;
+    };
+
+    struct chunk {
+        static constexpr size_t item_count = (chunk_size - sizeof(chunk_header)) / sizeof(T);
+        union {
+            struct {
+                chunk_header header;
+                T items[item_count];
+            };
+            uint8_t data[chunk_size];
+        };
+    };
+
+    // In-object first chunk storage.
+    chunk first_chunk;
+    chunk* first;
+    chunk* last;
+
+    // Constructor: initialize first_chunk’s header and set pointers.
+    chunked_vector()
+      : first_chunk{ { nullptr, nullptr, 0, chunk::item_count } },
+        first(&first_chunk), last(&first_chunk)
+    {
+        static_assert(sizeof(chunk) == chunk_size, "chunk size mismatch");
+    }
+
+    // Destructor: free extra chunks and call clear() to destruct contained objects.
+    ~chunked_vector() {
+        clear();
+        // Free all dynamically allocated chunks (except first_chunk).
+        chunk* curr = first_chunk.header.next;
+        while (curr) {
+            chunk* next = curr->header.next;
+            free(curr);
+            curr = next;
+        }
+    }
+
+    // Return a reference to the last element. (Precondition: not empty.)
+    T& back() {
+        assert(last->header.used > 0 && "back() called on empty vector");
+        return last->items[last->header.used - 1];
+    }
+
+    // Random-access: iterate through chunks until the correct index is found.
+    T& operator[](size_t idx) {
+        chunk* curr = first;
+        while (curr) {
+            if (idx < curr->header.used)
+                return curr->items[idx];
+            idx -= curr->header.used;
+            curr = curr->header.next;
+        }
+        assert(0 && "Index out of range");
+        // Should never reach here.
+        return first->items[0];
+    }
+
+    // Emplace amt default-constructed elements in a contiguous block (within one chunk)
+    // and return a pointer to the first new element.
+    T* emplace_many(size_t amt) {
+        // Assert that amt is not greater than one chunk's capacity.
+        assert(amt <= chunk::item_count && "emplace_many: amt exceeds a single chunk's capacity");
+
+        // Ensure the current chunk has enough free space.
+        if (last->header.free < amt) {
+            if (last->header.next && last->header.next->header.free >= amt) {
+                last = last->header.next;
+            } else {
+                // Allocate a new chunk.
+                chunk* new_chunk = static_cast<chunk*>(malloc(sizeof(chunk)));
+                assert(new_chunk && "malloc failed in emplace_many");
+                new_chunk->header.prev = last;
+                new_chunk->header.next = nullptr;
+                new_chunk->header.used = 0;
+                new_chunk->header.free = chunk::item_count;
+                last->header.next = new_chunk;
+                last = new_chunk;
+            }
+        }
+        T* start_ptr = &last->items[last->header.used];
+        for (size_t i = 0; i < amt; ++i) {
+            new (&last->items[last->header.used]) T();
+            last->header.used++;
+            last->header.free--;
+        }
+        return start_ptr;
+    }
+
+    // Return total number of elements across all chunks.
+    size_t size() const {
+        size_t total = 0;
+        for (chunk* curr = first; curr; curr = curr->header.next) {
+            total += curr->header.used;
+        }
+        return total;
+    }
+
+    // Clear all elements: call destructors and reset used/free counters.
+    // Note: extra chunks are NOT freed.
+    void clear() {
+        for (chunk* curr = first; curr; curr = curr->header.next) {
+            for (size_t i = 0; i < curr->header.used; ++i) {
+                curr->items[i].~T();
+            }
+            curr->header.used = 0;
+            curr->header.free = chunk::item_count;
+        }
+        // Optionally, reset last pointer to first for reuse.
+        last = first;
+    }
+
+    // Emplace a default-constructed element at the end.
+    void emplace_back() {
+        if (last->header.free == 0) {
+            if (last->header.next) {
+                last = last->header.next;
+            } else {
+                chunk* new_chunk = static_cast<chunk*>(malloc(sizeof(chunk)));
+                assert(new_chunk && "malloc failed in emplace_back");
+                new_chunk->header.prev = last;
+                new_chunk->header.next = nullptr;
+                new_chunk->header.used = 0;
+                new_chunk->header.free = chunk::item_count;
+                last->header.next = new_chunk;
+                last = new_chunk;
+            }
+        }
+        new (&last->items[last->header.used]) T();
+        last->header.used++;
+        last->header.free--;
+    }
+
+    // Emplace an element by moving it into the container.
+    void emplace_back(T&& v) {
+        if (last->header.free == 0) {
+            if (last->header.next) {
+                last = last->header.next;
+            } else {
+                chunk* new_chunk = static_cast<chunk*>(malloc(sizeof(chunk)));
+                assert(new_chunk && "malloc failed in emplace_back(T&&)");
+                new_chunk->header.prev = last;
+                new_chunk->header.next = nullptr;
+                new_chunk->header.used = 0;
+                new_chunk->header.free = chunk::item_count;
+                last->header.next = new_chunk;
+                last = new_chunk;
+            }
+        }
+        new (&last->items[last->header.used]) T(std::forward<T>(v));
+        last->header.used++;
+        last->header.free--;
+    }
+
+    // Iterate over each element and invoke the callback.
+    void forEach(void(*cb)(T&)) {
+        for (chunk* curr = first; curr; curr = curr->header.next) {
+            for (size_t i = 0; i < curr->header.used; ++i) {
+                cb(curr->items[i]);
+            }
+        }
+    }
+};
+
+chunked_vector<atomic_context_t> atomicContexts;
+chunked_vector<mesh_context_t> meshContexts;
+chunked_vector<skin_context_t> skinContexts;
+static_assert(chunked_vector<skin_context_t>::chunk::item_count >= 64);
+chunked_vector<matfx_context_t> matfxContexts;
+chunked_vector<std::function<void()>> opCallbacks;
+chunked_vector<std::function<void()>> blendCallbacks;
+chunked_vector<std::function<void()>> ptCallbacks;
 
 void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 	
@@ -1125,26 +1300,26 @@ void endUpdate(Camera* cam) {
 		pvr_list_begin(PVR_LIST_OP_POLY);
 		enter_oix();
 		if (opCallbacks.size()) {
-			for (auto&& cb: opCallbacks) {
+			opCallbacks.forEach([](auto &cb) {
 				cb();
-			}
+			});
 		}
 		pvr_list_finish();
 		if (ptCallbacks.size()) {
 			PVR_SET(0x11C, 64); // PT Alpha test value
 			pvr_dr_init(&drState);
 			pvr_list_begin(PVR_LIST_PT_POLY);
-			for (auto&& cb: ptCallbacks) {
+			ptCallbacks.forEach([](auto &cb) {
 				cb();
-			}
+			});
 			pvr_list_finish();
 		}
 		pvr_list_begin(PVR_LIST_TR_POLY);
 		if (blendCallbacks.size()) {
 			pvr_dr_init(&drState);
-			for (auto&& cb: blendCallbacks) {
+			blendCallbacks.forEach([](auto &cb) {
 				cb();
-			}
+			});
 		}
 
 		if (vertexOverflown()) {
@@ -3567,8 +3742,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	size_t skinContextOffset = skinContexts.size();
 	bool skinMatrix0Identity = false;
 	if (skin) {
-		skinContexts.resize(skinContextOffset + skin->numBones);
-		skinMatrix0Identity = uploadSkinMatrices(atomic, &(skinContexts.data() + skinContextOffset)->mtx);
+		auto allocation = skinContexts.emplace_many(skin->numBones);
+		skinMatrix0Identity = uploadSkinMatrices(atomic, &allocation->mtx);
 	}
 
 	atomicContexts.emplace_back();
@@ -3621,7 +3796,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		if (doEnvironmentMaps && matfx && matfx->type == MatFX::ENVMAP && matfx->fx[0].env.tex != nil && matfx->fx[0].env.coefficient != 0.0f) {
 			isMatFX = true;
 			matfxCoefficient = matfx->fx[0].env.coefficient;
-			matfxContexts.resize(matfxContexts.size() + 1);
+			matfxContexts.emplace_back();
 			// N.B. world here gets converted to a 3x3 matrix
 			// 		this is fine, as we only use it for env mapping from now on
 			uploadEnvMatrix(matfx->fx[0].env.frame, &world, &matfxContexts.back().mtx);
@@ -3841,7 +4016,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						
 						bool small_xyz = selector & 8;
 						unsigned skinSelector = small_xyz + acp->skinMatrix0Identity*2;
-						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &(skinContexts.data() + acp->skinContextOffset)->mtx);
+						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &skinContexts[acp->skinContextOffset].mtx);
 						
 						mat_load(&mtx);
 						tnlMeshletTransformSelector[clippingRequired * 2](OCR_SPACE, OCR_SPACE + 4, meshlet->vertexCount, 64);
@@ -4744,6 +4919,13 @@ driverOpen(void *o, int32, int32)
 		}
 	}
 	#endif
+
+	dbglog(DBG_CRITICAL, "atomicContexts: %d per %d allocation\n", decltype(atomicContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "skinContexts: %d per %d allocation\n", decltype(skinContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "matfxContexts: %d per %d allocation\n", decltype(matfxContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "opCallbacks: %d per %d allocation\n", decltype(opCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "blendCallbacks: %d per %d allocation\n", decltype(blendCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "ptCallbacks: %d per %d allocation\n", decltype(ptCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	
 
     pvr_init(&pvr_params);
