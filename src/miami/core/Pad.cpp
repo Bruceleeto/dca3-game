@@ -3489,16 +3489,15 @@ bool CPad::CycleCameraModeJustDown(void)
 	bool result;
 	switch (CURMODE)
 	{
-		case 0:
-		case 2:
-		case 3:
+		case 0: //audible feedback when changing camera ?
+
 		{
-			result = !!(NewState.Select && !OldState.Select);
+			return	!!(NewState.DPadUp && !OldState.DPadUp);
 
 			break;
 		}
 
-		case 1:
+		case 1: //audible feedback when changing camera ?
 		{
 			result = !!(NewState.DPadUp && !OldState.DPadUp);
 
@@ -3517,7 +3516,7 @@ bool CPad::CycleCameraModeJustDown(void)
 		{
 			case 1:
 			{
-				result = !!(NewState.DPadDown && !OldState.DPadDown);
+				result = !!(NewState.DPadUp && !OldState.DPadUp);
 				break;
 			}
 			default:
