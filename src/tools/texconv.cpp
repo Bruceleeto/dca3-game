@@ -53,6 +53,9 @@ uint32_t pvr_map32(uint32_t offset32) {return 0;}
 void Hackpresent() { }
 void re3RemoveLeastUsedModel() { assert(false); }
 void re3EmergencyRemoveModel() { assert(false); }
+void* re3StreamingAlloc(size_t sz) {
+	return RwMalloc(sz);
+}
 void RwTexDictionaryGtaStreamRead1(rw::Stream*){ assert(false); }
 void RwTexDictionaryGtaStreamRead2(rw::Stream*, rw::TexDictionary*) { assert(false);  }
 void pvr_ta_data(void* data, int size) {

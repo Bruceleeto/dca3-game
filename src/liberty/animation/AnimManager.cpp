@@ -11,6 +11,8 @@
 #include "AnimBlendAssocGroup.h"
 #include "AnimManager.h"
 
+void* re3StreamingAlloc(size_t size);
+
 CAnimBlock CAnimManager::ms_aAnimBlocks[NUMANIMBLOCKS];
 CAnimBlendHierarchy CAnimManager::ms_aAnimations[NUMANIMATIONS];
 int32 CAnimManager::ms_numAnimBlocks;
@@ -837,7 +839,7 @@ CAnimManager::LoadAnimFile(int fd, bool compress)
 			uint16_t flags;
 			CFileMgr::Read(fd, (char*)&flags, sizeof(flags));
 
-			seq->keyFrames = RwMalloc(dataSize);
+			seq->keyFrames = re3StreamingAlloc(dataSize);
 			assert(seq->keyFrames);
 			CFileMgr::Read(fd, (char*)seq->keyFrames, dataSize - sizeof(flags));
 			seq->type = flags;

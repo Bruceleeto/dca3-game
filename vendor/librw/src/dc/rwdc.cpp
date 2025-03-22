@@ -43,6 +43,7 @@ extern const char* currentFile;
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
 bool re3EmergencyRemoveModel();
+void* re3StreamingAlloc(size_t size);
 
 // #include "rwdcimpl.h"
 
@@ -4985,7 +4986,7 @@ readNativeData(Stream *stream, int32 length, void *object, int32, int32)
 		return nil;
 	}
 
-	DCModelDataHeader *header = (DCModelDataHeader *)rwNew(sizeof(DCModelDataHeader) + chunkLen - 8, MEMDUR_EVENT | ID_GEOMETRY);
+	DCModelDataHeader *header = (DCModelDataHeader *)re3StreamingAlloc(sizeof(DCModelDataHeader) + chunkLen - 8 /*, MEMDUR_EVENT | ID_GEOMETRY*/);
 	geo->instData = header;
 	stream->read32(&header->platform, 4);
 	uint32_t version;

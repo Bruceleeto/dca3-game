@@ -28,6 +28,8 @@
 
 #include <kos/dbglog.h>
 
+void* re3StreamingAlloc(size_t size);
+
 char CFileLoader::ms_line[256];
 
 const char*
@@ -292,7 +294,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	int32 numVertices = *(int16*)buf;
 	buf += 4;
 	if(numVertices > 0){
-		model.vertices = (CompressedVector*)RwMalloc(numVertices*sizeof(CompressedVector));
+		model.vertices = (CompressedVector*)re3StreamingAlloc(numVertices*sizeof(CompressedVector));
 		REGISTER_MEMPTR(&model.vertices);
 		for(i = 0; i < numVertices; i++){
 			model.vertices[i].SetFixed(*(int16*)buf, *(int16*)(buf+2), *(int16*)(buf+4));
@@ -304,7 +306,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.numTriangles = *(int16*)buf;
 	buf += 4;
 	if(model.numTriangles > 0){
-		model.triangles = (CColTriangle*)RwMalloc(model.numTriangles*sizeof(CColTriangle));
+		model.triangles = (CColTriangle*)re3StreamingAlloc(model.numTriangles*sizeof(CColTriangle));
 		REGISTER_MEMPTR(&model.triangles);
 		for(i = 0; i < model.numTriangles; i++){
 			model.triangles[i].Set(model.vertices, *(uint16*)buf, *(uint16*)(buf+2), *(uint16*)(buf+4), buf[6], buf[7]);
