@@ -820,7 +820,8 @@ template<typename T>
 struct chunked_vector {
     static constexpr size_t chunk_size = 8192;
 
-    struct chunk;
+	struct chunk;
+
     struct chunk_header {
         chunk* prev;
         chunk* next;
@@ -840,15 +841,19 @@ struct chunked_vector {
     };
 
     // In-object first chunk storage.
-    chunk first_chunk;
     chunk* first;
     chunk* last;
 
     // Constructor: initialize first_chunk’s header and set pointers.
     chunked_vector()
-      : first_chunk{ { nullptr, nullptr, 0, chunk::item_count } },
-        first(&first_chunk), last(&first_chunk)
     {
+		first = last = static_cast<chunk*>(malloc(sizeof(chunk)));
+		
+		first->header.prev = nullptr;
+		first->header.next = nullptr;
+		first->header.used = 0;
+		first->header.free = chunk::item_count;
+
         static_assert(sizeof(chunk) == chunk_size, "chunk size mismatch");
     }
 
@@ -856,7 +861,7 @@ struct chunked_vector {
     ~chunked_vector() {
         clear();
         // Free all dynamically allocated chunks (except first_chunk).
-        chunk* curr = first_chunk.header.next;
+        chunk* curr = first;
         while (curr) {
             chunk* next = curr->header.next;
             free(curr);
@@ -935,13 +940,13 @@ struct chunked_vector {
             curr->header.free = chunk::item_count;
         }
 		// Free all chunks except first_chunk.
-		chunk* curr = first_chunk.header.next;
+		chunk* curr = first->header.next;
 		while (curr) {
 			chunk* next = curr->header.next;
 			free(curr);
 			curr = next;
 		}
-		first_chunk.header.next = nullptr;
+		first->header.next = nullptr;
         // Optionally, reset last pointer to first for reuse.
         last = first;
     }
@@ -998,14 +1003,93 @@ struct chunked_vector {
     }
 };
 
+template<typename T>
+struct free_pointer_t {
+	T* ptr;
+	free_pointer_t(T* p) : ptr(p) { }
+	free_pointer_t(free_pointer_t&& other) : ptr(other.ptr) { other.ptr = nullptr; }
+	free_pointer_t(const free_pointer_t&) = delete;
+	~free_pointer_t() {
+		if (ptr) {
+			free(ptr);
+		}
+	}
+};
+
 chunked_vector<atomic_context_t> atomicContexts;
 chunked_vector<mesh_context_t> meshContexts;
 chunked_vector<skin_context_t> skinContexts;
 static_assert(chunked_vector<skin_context_t>::chunk::item_count >= 64);
 chunked_vector<matfx_context_t> matfxContexts;
-chunked_vector<std::function<void()>> opCallbacks;
-chunked_vector<std::function<void()>> blendCallbacks;
-chunked_vector<std::function<void()>> ptCallbacks;
+
+// A basic move-only function wrapper for callables with signature R(Args...)
+template <typename>
+class move_only_function; // primary template not defined
+
+template <typename R, typename... Args>
+class move_only_function<R(Args...)> {
+public:
+    // Default constructor creates an empty callable.
+    move_only_function() noexcept : callable_(nullptr) {}
+
+    // Templated constructor to accept any callable object.
+    template <typename F>
+    move_only_function(F f)
+        : callable_(new model<F>(std::move(f))) {}
+
+    // Move constructor.
+    move_only_function(move_only_function&& other) noexcept
+        : callable_(other.callable_) {
+        other.callable_ = nullptr;
+    }
+
+    // Move assignment operator.
+    move_only_function& operator=(move_only_function&& other) noexcept {
+        if (this != &other) {
+            delete callable_;
+            callable_ = other.callable_;
+            other.callable_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Delete copy constructor and copy assignment operator.
+    move_only_function(const move_only_function&) = delete;
+    move_only_function& operator=(const move_only_function&) = delete;
+
+    // Destructor.
+    ~move_only_function() {
+        delete callable_;
+    }
+
+    // Invoke the stored callable.
+    R operator()(Args... args) {
+        return callable_->invoke(std::forward<Args>(args)...);
+    }
+
+private:
+    // Base class for type erasure.
+    struct concept_t {
+        virtual ~concept_t() = default;
+        virtual R invoke(Args&&... args) = 0;
+    };
+
+    // Derived template class that stores the actual callable.
+    template <typename F>
+    struct model : concept_t {
+        F f;
+        explicit model(F f) : f(std::move(f)) {}
+        R invoke(Args&&... args) override {
+            return f(std::forward<Args>(args)...);
+        }
+    };
+
+    concept_t* callable_;
+};
+
+chunked_vector<move_only_function<void()>> opCallbacks;
+chunked_vector<move_only_function<void()>> blendCallbacks;
+chunked_vector<move_only_function<void()>> ptCallbacks;
 
 void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 	
@@ -1776,9 +1860,8 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 	Im2DVertex* vertData = (Im2DVertex*)malloc(numVertices * sizeof(Im2DVertex));
 	assert(vertData);
 	memcpy(vertData, verts, numVertices * sizeof(Im2DVertex));
-	blendCallbacks.emplace_back([renderCB, vertData]() {
-		renderCB(vertData);
-		free(vertData);
+	blendCallbacks.emplace_back([renderCB, vertData=free_pointer_t{vertData}]() {
+		renderCB(vertData.ptr);
 	});
 }
 
@@ -1884,10 +1967,8 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 	uint16_t* idxData = (uint16_t*)malloc(numIndices * sizeof(uint16_t));
 	assert(idxData);
 	memcpy(idxData, idx, numIndices * sizeof(uint16_t));
-	blendCallbacks.emplace_back([renderCB, vertData, idxData]() {
-		renderCB(vertData, idxData);
-		free(vertData);
-		free(idxData);
+	blendCallbacks.emplace_back([renderCB, vertData=free_pointer_t(vertData), idxData=free_pointer_t(idxData)]() {
+		renderCB(vertData.ptr, idxData.ptr);
 	});
 
     // std::vector<Im2DVertex> vertData(numIndices);
@@ -2131,16 +2212,12 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 	memcpy(idxData, indices, numIndices * sizeof(uint16_t));
 
 	if (blendEnabled) {
-		blendCallbacks.emplace_back([renderCB, idxData = idxData, vtxData = vtxData](){
-				renderCB(idxData, vtxData);
-				free(idxData);
-				free(vtxData);
+		blendCallbacks.emplace_back([renderCB, idxData = free_pointer_t(idxData), vtxData = free_pointer_t(vtxData)](){
+				renderCB(idxData.ptr, vtxData.ptr);
 		});
 	} else {
-		opCallbacks.emplace_back([renderCB, idxData = idxData, vtxData = vtxData](){
-			renderCB(idxData, vtxData);
-			free(idxData);
-			free(vtxData);
+		opCallbacks.emplace_back([renderCB, idxData = free_pointer_t(idxData), vtxData = free_pointer_t(vtxData)](){
+			renderCB(idxData.ptr, vtxData.ptr);
 		});
 	}
 
@@ -5097,6 +5174,8 @@ driverClose(void *o, int32, int32)
 
 	pvr_shutdown();
 
+	engine->driver[PLATFORM_DC]->defaultPipeline->destroy();
+	engine->driver[PLATFORM_DC]->defaultPipeline = nil;
 	return o;
 }
 
@@ -5151,6 +5230,11 @@ readNativeTexture(Stream *stream)
 	auto natras = GETDCRASTEREXT(raster);
 	
 	auto cached = cachedRasters.find(pvr_id);
+
+	assert(natras->raster != nil);
+	assert(natras->raster->texaddr == nil);
+	assert(natras->raster->refs == 1);
+	free(natras->raster);
 
 	if (pvr_id != 0 && cached != cachedRasters.end()) {
 		cached->second->refs++;

@@ -52,8 +52,7 @@ public:
 	bool IsClump(void) { return m_type == MITYPE_CLUMP || m_type == MITYPE_PED || m_type == MITYPE_VEHICLE;	}
 	char *GetModelName(void) { return m_name; }
 	void SetModelName(const char *name) { strncpy(m_name, name, MAX_MODEL_NAME); }
-	void SetColModel(CColModel *col, bool owns = false){
-		m_colModel = col; m_bOwnsColModel = owns; }
+	void SetColModel(CColModel *col, bool owns = false);
 	CColModel *GetColModel(void) { return m_colModel; }
 	bool DoesOwnColModel(void) { return m_bOwnsColModel; }
 	void DeleteCollisionModel(void);
