@@ -45,13 +45,13 @@ CColModel::operator delete(void *p, size_t) throw()
 void
 CColModel::RemoveCollisionVolumes(void)
 {
+	CCollision::RemoveTrianglePlanes(this);
 	if(ownsCollisionVolumes){
 		RwFree(spheres);
 		RwFree(lines);
 		RwFree(boxes);
 		RwFree(vertices);
 		RwFree(triangles);
-		CCollision::RemoveTrianglePlanes(this);
 	}
 	numSpheres = 0;
 	numLines = 0;
@@ -110,6 +110,8 @@ CColModel::operator=(const CColModel &other)
 {
 	int i;
 	int numVerts;
+
+	CCollision::RemoveTrianglePlanes(this);
 
 	boundingSphere = other.boundingSphere;
 	boundingBox = other.boundingBox;
