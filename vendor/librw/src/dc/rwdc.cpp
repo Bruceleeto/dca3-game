@@ -665,6 +665,9 @@ static_assert(sizeof(skin_context_t) == sizeof(Matrix));
 struct atomic_context_t {
 	atomic_context_t() { }
 
+	matrix_t mtx;
+	UniformObject uniform;
+	
 	skin_context_t* skinContextPointer;
 	Atomic* atomic;
 	Geometry* geo;
@@ -672,9 +675,6 @@ struct atomic_context_t {
 
 	bool global_needsNoClip;
 	bool skinMatrix0Identity;
-
-	matrix_t mtx;
-	UniformObject uniform;
 };
 /* END Ligting Structs and Defines */
 
