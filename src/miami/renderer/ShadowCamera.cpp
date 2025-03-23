@@ -271,13 +271,13 @@ CShadowCamera::InvertRaster()
 	RwIm2DVertexSetIntRGBA     (&vx[1], 255, 255, 255, 255);
 
 	RwIm2DVertexSetScreenX     (&vx[2], crw);
-	RwIm2DVertexSetScreenY     (&vx[2], 0.0f);
+	RwIm2DVertexSetScreenY     (&vx[2], crh);
 	RwIm2DVertexSetScreenZ     (&vx[2], RwIm2DGetNearScreenZ());
 	RwIm2DVertexSetRecipCameraZ(&vx[2], recipZ);
 	RwIm2DVertexSetIntRGBA     (&vx[2], 255, 255, 255, 255);
 
 	RwIm2DVertexSetScreenX     (&vx[3], crw);
-	RwIm2DVertexSetScreenY     (&vx[3], crh);
+	RwIm2DVertexSetScreenY     (&vx[3], 0.0f);
 	RwIm2DVertexSetScreenZ     (&vx[3], RwIm2DGetNearScreenZ());
 	RwIm2DVertexSetRecipCameraZ(&vx[3], recipZ);
 	RwIm2DVertexSetIntRGBA     (&vx[3], 255, 255, 255, 255);
@@ -289,7 +289,7 @@ CShadowCamera::InvertRaster()
 	RwRenderStateSet(rwRENDERSTATESRCBLEND,          (void *)rwBLENDINVDESTCOLOR);
 	RwRenderStateSet(rwRENDERSTATEDESTBLEND,         (void *)rwBLENDZERO);
 
-	RwIm2DRenderPrimitive(rwPRIMTYPETRISTRIP, vx, 4);
+	RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, vx, 4);
 
 	RwRenderStateSet(rwRENDERSTATEZTESTENABLE,       (void *)TRUE);
 	RwRenderStateSet(rwRENDERSTATESRCBLEND,          (void *)rwBLENDSRCALPHA);
