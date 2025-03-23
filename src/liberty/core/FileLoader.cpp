@@ -223,7 +223,7 @@ CFileLoader::LoadCollisionFile(const char *filename)
 
 		mi = CModelInfo::GetModelInfo(modelname, nil);
 		if(mi){
-			if(mi->GetColModel()){
+			if(mi->GetColModel() && mi->DoesOwnColModel()){
 				LoadCollisionModel(work_buff+24, *mi->GetColModel(), modelname);
 			}else{
 				CColModel *model = new CColModel;

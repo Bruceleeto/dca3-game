@@ -2,6 +2,7 @@
 #include "ColModel.h"
 #include "Game.h"
 #include "MemoryHeap.h"
+#include "Collision.h"
 
 void* re3StreamingAlloc(size_t size);
 
@@ -24,12 +25,12 @@ CColModel::CColModel(void)
 CColModel::~CColModel(void)
 {
 	RemoveCollisionVolumes();
-	RemoveTrianglePlanes();
 }
 
 void
 CColModel::RemoveCollisionVolumes(void)
 {
+	CCollision::RemoveTrianglePlanes(this);
 	if(ownsCollisionVolumes){
 		RwFree(spheres);
 		RwFree(lines);
@@ -94,6 +95,8 @@ CColModel::operator=(const CColModel &other)
 {
 	int i;
 	int numVerts;
+
+	CCollision::RemoveTrianglePlanes(this);
 
 	boundingSphere = other.boundingSphere;
 	boundingBox = other.boundingBox;
