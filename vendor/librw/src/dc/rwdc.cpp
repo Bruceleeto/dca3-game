@@ -674,7 +674,7 @@ struct atomic_context_t {
 	bool global_needsNoClip;
 	bool skinMatrix0Identity;
 
-	matrix_t worldView, mtx;
+	matrix_t mtx;
 	UniformObject uniform;
 };
 /* END Ligting Structs and Defines */
@@ -934,6 +934,14 @@ struct chunked_vector {
             curr->header.used = 0;
             curr->header.free = chunk::item_count;
         }
+		// Free all chunks except first_chunk.
+		chunk* curr = first_chunk.header.next;
+		while (curr) {
+			chunk* next = curr->header.next;
+			free(curr);
+			curr = next;
+		}
+		first_chunk.header.next = nullptr;
         // Optionally, reset last pointer to first for reuse.
         last = first;
     }
@@ -1656,55 +1664,60 @@ pvr_ptr_t pvrTexturePointer(Raster *r) {
 void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVertices) {
 	auto *verts = reinterpret_cast<Im2DVertex *>(vertices);
 
+	pvr_poly_cxt_t cxt;
+
+	if (current_raster) [[likely]] {
+		pvr_poly_cxt_txr(&cxt, 
+						PVR_LIST_TR_POLY, 
+						pvrFormatForRaster(current_raster), 
+						current_raster->width, 
+						current_raster->height,
+						pvrTexturePointer(current_raster), 
+						PVR_FILTER_BILINEAR);
+		pvrTexAddress(&cxt, addressingU, addressingV);
+	} else { 
+		pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
+	}
+
+	if (blendEnabled) [[likely]] {
+		cxt.blend.src = srcBlend;
+		cxt.blend.dst = dstBlend;
+	} else {
+		// non blended sprites are also submitted in TR lists
+		// so we need to reset the blend mode
+		cxt.blend.src = PVR_BLEND_ONE;
+		cxt.blend.dst = PVR_BLEND_ZERO;
+	}
+
+	cxt.gen.culling      = cullModePvr;
+	cxt.depth.comparison = zFunction;
+	cxt.depth.write      = zWrite;
+
+	cxt.gen.fog_type = fogFuncPvr;
+
+	pvr_poly_hdr_t hdr;
+	pvr_poly_compile(&hdr, &cxt);
+
+	assert(primType == PRIMTYPETRILIST || primType == PRIMTYPETRIFAN);
+	
 	auto renderCB = 
-		[=,
-			current_raster = dc::current_raster,
-			blend_enabled  = dc::blendEnabled,
-			src_blend      = dc::srcBlend,
-			dst_blend      = dc::dstBlend,
-			z_function     = dc::zFunction,
-			z_write        = dc::zWrite,
-			cull_mode_pvr  = dc::cullModePvr,
-			addressingU    = dc::addressingU,
-			addressingV    = dc::addressingV,
-            fog_func_pvr   = dc::fogFuncPvr]
+		[
+			primType,
+			numVertices,
+			cmd = hdr.cmd,
+			mode1 = hdr.mode1,
+			mode2 = hdr.mode2,
+			mode3 = hdr.mode3
+		]
 		(const Im2DVertex* vtx) __attribute__((always_inline)) 
 	{
 
 		auto pvrHeaderSubmit = [=]() __attribute__((always_inline)) {
-			pvr_poly_cxt_t cxt;
-
-			if (current_raster) [[likely]] {
-				pvr_poly_cxt_txr(&cxt, 
-								PVR_LIST_TR_POLY, 
-								pvrFormatForRaster(current_raster), 
-								current_raster->width, 
-								current_raster->height,
-								pvrTexturePointer(current_raster), 
-								PVR_FILTER_BILINEAR);
-				pvrTexAddress(&cxt, addressingU, addressingV);
-			} else { 
-				pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
-			}
-
-			if (blend_enabled) [[likely]] {
-				cxt.blend.src = src_blend;
-				cxt.blend.dst = dst_blend;
-			} else {
-				// non blended sprites are also submitted in TR lists
-				// so we need to reset the blend mode
-				cxt.blend.src = PVR_BLEND_ONE;
-				cxt.blend.dst = PVR_BLEND_ZERO;
-			}
-
-			cxt.gen.culling      = cull_mode_pvr;
-			cxt.depth.comparison = z_function;
-			cxt.depth.write      = z_write;
-
-			cxt.gen.fog_type = fog_func_pvr;
-
 			auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
-			pvr_poly_compile(hdr, &cxt);
+			hdr->cmd = cmd;
+			hdr->mode1 = mode1;
+			hdr->mode2 = mode2;
+			hdr->mode3 = mode3;
 			pvr_dr_commit(hdr);
 		};
 
@@ -1760,26 +1773,133 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		}
 	};
 
-	std::vector<Im2DVertex> vertData(verts, verts + numVertices);
-	blendCallbacks.emplace_back([=, data = std::move(vertData)]() {
-		renderCB(&data[0]);
+	Im2DVertex* vertData = (Im2DVertex*)malloc(numVertices * sizeof(Im2DVertex));
+	assert(vertData);
+	memcpy(vertData, verts, numVertices * sizeof(Im2DVertex));
+	blendCallbacks.emplace_back([renderCB, vertData]() {
+		renderCB(vertData);
+		free(vertData);
 	});
 }
 
 void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 numVertices, void *indices, int32 numIndices) {
 	auto idx = (unsigned short*)indices;
-	auto vtx = (Im2DVertex*)vertices;
+	auto verts = (Im2DVertex*)vertices;
 
-    std::vector<Im2DVertex> vertData(numIndices);
+	pvr_poly_cxt_t cxt;
 
-	for (int32 i = 0; i < numIndices; i++) {
-		vertData[i] = vtx[idx[i]];
+	if (current_raster) [[likely]] {
+		pvr_poly_cxt_txr(&cxt, 
+						PVR_LIST_TR_POLY, 
+						pvrFormatForRaster(current_raster), 
+						current_raster->width, 
+						current_raster->height,
+						pvrTexturePointer(current_raster), 
+						PVR_FILTER_BILINEAR);
+		pvrTexAddress(&cxt, addressingU, addressingV);
+	} else { 
+		pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
 	}
 
-	im2DRenderPrimitive(primType, &vertData[0], vertData.size());
+	if (blendEnabled) [[likely]] {
+		cxt.blend.src = srcBlend;
+		cxt.blend.dst = dstBlend;
+	} else {
+		// non blended sprites are also submitted in TR lists
+		// so we need to reset the blend mode
+		cxt.blend.src = PVR_BLEND_ONE;
+		cxt.blend.dst = PVR_BLEND_ZERO;
+	}
+
+	cxt.gen.culling      = cullModePvr;
+	cxt.depth.comparison = zFunction;
+	cxt.depth.write      = zWrite;
+
+	cxt.gen.fog_type = fogFuncPvr;
+
+	pvr_poly_hdr_t hdr;
+	pvr_poly_compile(&hdr, &cxt);
+
+	assert(primType == PRIMTYPETRILIST);
+	
+	auto renderCB = 
+		[
+			primType,
+			numIndices,
+			cmd = hdr.cmd,
+			mode1 = hdr.mode1,
+			mode2 = hdr.mode2,
+			mode3 = hdr.mode3
+		]
+		(const Im2DVertex* vtx, const uint16_t* idx) __attribute__((always_inline)) 
+	{
+
+		auto pvrHeaderSubmit = [=]() __attribute__((always_inline)) {
+			auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
+			hdr->cmd = cmd;
+			hdr->mode1 = mode1;
+			hdr->mode2 = mode2;
+			hdr->mode3 = mode3;
+			pvr_dr_commit(hdr);
+		};
+
+		auto pvrVertexSubmit = [](const Im2DVertex &gtaVert, unsigned flags) 
+		__attribute__((always_inline)) 
+		{
+			auto *pvrVert  = pvr_dr_target(drState); 
+			pvrVert->flags = flags;
+			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
+			pvrVert->y	   = gtaVert.y;
+			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->u 	   = gtaVert.u;
+			pvrVert->v 	   = gtaVert.v;
+			pvrVert->argb  = (gtaVert.a << 24) |
+							 (gtaVert.r << 16) |
+							 (gtaVert.g <<  8) |
+							 (gtaVert.b <<  0);
+			pvr_dr_commit(pvrVert);
+		};
+
+		switch(primType) {
+			case PRIMTYPETRILIST:
+				pvrHeaderSubmit();
+				dcache_pref_block(vtx);
+				for(int i = 0; i < numIndices; i += 3) [[likely]] {
+					dcache_pref_block(&vtx[idx[i + 1]]);
+					pvrVertexSubmit(vtx[idx[i + 0]], PVR_CMD_VERTEX);
+					dcache_pref_block(&vtx[idx[i + 2]]);
+					pvrVertexSubmit(vtx[idx[i + 1]], PVR_CMD_VERTEX);
+					dcache_pref_block(&vtx[idx[i + 3]]);
+					pvrVertexSubmit(vtx[idx[i + 2]], PVR_CMD_VERTEX_EOL);
+				}
+			break;
+		default:
+			UNIMPL_LOGV("primType: %d, vertices: %p, numVertices: %d", primType, vertices, numVertices);
+		}
+	};
+
+	Im2DVertex* vertData = (Im2DVertex*)malloc(numVertices * sizeof(Im2DVertex));
+	assert(vertData);
+	memcpy(vertData, verts, numVertices * sizeof(Im2DVertex));
+	uint16_t* idxData = (uint16_t*)malloc(numIndices * sizeof(uint16_t));
+	assert(idxData);
+	memcpy(idxData, idx, numIndices * sizeof(uint16_t));
+	blendCallbacks.emplace_back([renderCB, vertData, idxData]() {
+		renderCB(vertData, idxData);
+		free(vertData);
+		free(idxData);
+	});
+
+    // std::vector<Im2DVertex> vertData(numIndices);
+
+	// for (int32 i = 0; i < numIndices; i++) {
+	// 	vertData[i] = vtx[idx[i]];
+	// }
+
+	// im2DRenderPrimitive(primType, &vertData[0], vertData.size());
 }
 
-static std::vector<Im3DVertex> im3dVertices; 
+static Im3DVertex* im3dVertices; 
 void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 flags) {
     // UNIMPL_LOGV("start %d", numVertices);
     if(worldMat == nil){
@@ -1797,7 +1917,12 @@ void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 f
 	rw::RawMatrix::mult(&mtx, &proj, (RawMatrix*)&DCE_MAT_SCREENVIEW);
 	// mat_load(&DCE_MAT_SCREENVIEW);     // ~11 cycles.
 	mat_load(( matrix_t*)&mtx.right);  // Number of cycles: ~32.
-    im3dVertices.resize(numVertices);
+    if (im3dVertices) {
+		free(im3dVertices);
+	}
+
+	im3dVertices = (Im3DVertex*)malloc(numVertices * sizeof(Im3DVertex));
+	assert(im3dVertices);
 
     auto vtx = (Im3DVertex*)vertices;
 
@@ -1825,49 +1950,56 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 								void         *indices, 
 								int32_t       numIndices) 
 {
+	if (primType == PRIMTYPELINELIST || primType == PRIMTYPEPOLYLINE) {
+		return;
+	}
+	pvr_poly_cxt_t cxt;
+
+	if (current_raster) [[likely]] {
+		pvr_poly_cxt_txr(&cxt, 
+						blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, 
+						pvrFormatForRaster(current_raster), 
+						current_raster->width, 
+						current_raster->height,
+						pvrTexturePointer(current_raster), 
+						PVR_FILTER_BILINEAR);
+		pvrTexAddress(&cxt, addressingU, addressingV);
+	} else pvr_poly_cxt_col(&cxt, blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY);		
+
+	if (blendEnabled) [[likely]] {
+		cxt.blend.src = srcBlend;
+		cxt.blend.dst = dstBlend;
+	}
+
+	cxt.gen.culling      = cullModePvr;
+	cxt.depth.comparison = zFunction;
+	cxt.depth.write      = zWrite;
+
+
+	cxt.gen.fog_type = fogFuncPvr;
+
+	pvr_poly_hdr_t hdr;
+	pvr_poly_compile(&hdr, &cxt);
+
+	assert(primType == PRIMTYPETRILIST);
+
 	auto renderCB = 
-		[=,
-		 current_raster = dc::current_raster,
-		 cull_mode_pvr  = dc::cullModePvr,
-		 src_blend      = dc::srcBlend,
-		 dst_blend      = dc::dstBlend,
-		 blend_enabled  = dc::blendEnabled,
-		 z_function     = dc::zFunction,
-		 z_write        = dc::zWrite,
-		 addressingU    = dc::addressingU,
-		 addressingV    = dc::addressingV,
-		 fog_func_pvr   = dc::fogFuncPvr]
+		[
+			numIndices,
+			cmd = hdr.cmd,
+			mode1 = hdr.mode1,
+			mode2 = hdr.mode2,
+			mode3 = hdr.mode3
+		]
 		 (const void* indices, const Im3DVertex *im3dVertices) __attribute__((always_inline)) 
 		
 	{
 		auto pvrHeaderSubmit = [=]() __attribute__((always_inline)) {
-			pvr_poly_cxt_t cxt;
-
-			if (current_raster) [[likely]] {
-				pvr_poly_cxt_txr(&cxt, 
-								blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, 
-								pvrFormatForRaster(current_raster), 
-								current_raster->width, 
-								current_raster->height,
-								pvrTexturePointer(current_raster), 
-								PVR_FILTER_BILINEAR);
-				pvrTexAddress(&cxt, addressingU, addressingV);
-			} else pvr_poly_cxt_col(&cxt, blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY);		
-
-			if (blend_enabled) [[likely]] {
-				cxt.blend.src = src_blend;
-				cxt.blend.dst = dst_blend;
-			}
-
-			cxt.gen.culling      = cull_mode_pvr;
-			cxt.depth.comparison = z_function;
-			cxt.depth.write      = z_write;
-
-
-			cxt.gen.fog_type = fog_func_pvr;
-
 			auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
-			pvr_poly_compile(hdr, &cxt);
+			hdr->cmd = cmd;
+			hdr->mode1 = mode1;
+			hdr->mode2 = mode2;
+			hdr->mode3 = mode3;
 			pvr_dr_commit(hdr);
 		};
 
@@ -1916,98 +2048,99 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 			DCE_RenderSubmitVertex(&pvrVert, flags);
 		};
 
-		if(primType == PRIMTYPETRILIST) [[likely]] {
-			const auto *idx = reinterpret_cast<const uint16 *>(indices);
-			
-			pvrHeaderSubmit();
+		const auto *idx = reinterpret_cast<const uint16 *>(indices);
+		
+		pvrHeaderSubmit();
 
-			dcache_pref_block(idx);
-			for (int32_t i = 0; i < numIndices; i += 3) [[likely]]{
-				uint16_t idx0 = idx[i + 0];
-				auto     vtx0 = im3dVertices[idx0];
-				uint16_t idx1 = idx[i + 1];
-				auto     vtx1 = im3dVertices[idx1];
-				uint16_t idx2 = idx[i + 2];
-				auto     vtx2 = im3dVertices[idx2];
+		dcache_pref_block(idx);
+		for (int32_t i = 0; i < numIndices; i += 3) [[likely]]{
+			uint16_t idx0 = idx[i + 0];
+			auto     vtx0 = im3dVertices[idx0];
+			uint16_t idx1 = idx[i + 1];
+			auto     vtx1 = im3dVertices[idx1];
+			uint16_t idx2 = idx[i + 2];
+			auto     vtx2 = im3dVertices[idx2];
 
-				uint32_t vismask = 0;
-				if(vtx0.position.z > 1.0f) vismask |= 0b100;
-				vismask >>= 1;
-				if(vtx1.position.z > 1.0f) vismask |= 0b100;
-				vismask >>= 1;
-				if(vtx2.position.z > 1.0f) vismask |= 0b100;
+			uint32_t vismask = 0;
+			if(vtx0.position.z > 1.0f) vismask |= 0b100;
+			vismask >>= 1;
+			if(vtx1.position.z > 1.0f) vismask |= 0b100;
+			vismask >>= 1;
+			if(vtx2.position.z > 1.0f) vismask |= 0b100;
 
-				if (vismask == 0) continue;
+			if (vismask == 0) continue;
 
-				if (vismask == 7) {
+			if (vismask == 7) {
+				VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+				VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+				VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX_EOL);
+			}
+
+			switch (vismask) {
+				case 1: // 0 visible, 1 and 2 hidden
+					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
+					break;
+				case 2: // 0 hidden, 1 visible, 2 hidden
+					pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
+					VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
+					break;
+				case 3: // 0 and 1 visible, 2 hidden
 					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
 					VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
+					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
+					break;
+				case 4: // 0 and 1 hidden, 2 visible
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
+					break;
+				case 5: // 0 visible, 1 hidden, 2 visible
+					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
 					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX_EOL);
-				}
-
-				switch (vismask) {
-					case 1: // 0 visible, 1 and 2 hidden
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
-						break;
-					case 2: // 0 hidden, 1 visible, 2 hidden
-						pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
-						break;
-					case 3: // 0 and 1 visible, 2 hidden
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
-						break;
-					case 4: // 0 and 1 hidden, 2 visible
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
-						break;
-					case 5: // 0 visible, 1 hidden, 2 visible
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX_EOL);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
-						break;
-					case 6: // 0 hidden, 1 and 2 visible
-						VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX_EOL);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX_EOL);
-						break;
-					default:
-						break;
-				}
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
+					break;
+				case 6: // 0 hidden, 1 and 2 visible
+					VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX_EOL);
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX_EOL);
+					break;
+				default:
+					break;
 			}
-		} 
-		else UNIMPL_LOGV("primType: %d", primType);
+		}
 	};
 
+	assert(im3dVertices);
+	auto vtxData = im3dVertices;
+	im3dVertices = nullptr;
+
+	auto *idxData = (uint16_t*)malloc(numIndices * sizeof(uint16_t));
+	assert(idxData);
+	memcpy(idxData, indices, numIndices * sizeof(uint16_t));
+
 	if (blendEnabled) {
-		auto *idx = reinterpret_cast<uint16_t *>(indices);
-		std::vector<uint16_t> indexBuffer(idx, idx + numIndices);
-		blendCallbacks.emplace_back([=, 
-								 data = std::move(indexBuffer), 
-								 vtxData = im3dVertices](){
-				renderCB(&data[0], &vtxData[0]);
+		blendCallbacks.emplace_back([renderCB, idxData = idxData, vtxData = vtxData](){
+				renderCB(idxData, vtxData);
+				free(idxData);
+				free(vtxData);
 		});
 	} else {
-		auto *idx = reinterpret_cast<uint16_t *>(indices);
-		std::vector<uint16_t> indexBuffer(idx, idx + numIndices);
-		opCallbacks.emplace_back([=, 
-								 data = std::move(indexBuffer), 
-								 vtxData = im3dVertices](){
-				renderCB(&data[0], &vtxData[0]);
+		opCallbacks.emplace_back([renderCB, idxData = idxData, vtxData = vtxData](){
+			renderCB(idxData, vtxData);
+			free(idxData);
+			free(vtxData);
 		});
 	}
 
@@ -2015,7 +2148,10 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 
 void im3DEnd(void) {
     // UNIMPL_LOG();
-    im3dVertices.resize(0);
+    if (im3dVertices) {
+		free(im3dVertices);
+	}
+	im3dVertices = nullptr;
 }
 
 template<typename Vin, typename Vout>
@@ -3765,12 +3901,9 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	rw::convMatrix(&world, atomic->getFrame()->getLTM());
 	
 
-	mat_load((matrix_t*)&cam->devView);
-	mat_apply((matrix_t*)&world);
-	mat_store((matrix_t*)&atomicContexts.back().worldView);
-
 	mat_load((matrix_t*)&cam->devProjScreen);
-	mat_apply((matrix_t*)&atomicContexts.back().worldView);
+	mat_apply((matrix_t*)&cam->devView);
+	mat_apply((matrix_t*)&world);
 	mat_store((matrix_t*)&atomicContexts.back().mtx);
 
 	int16_t contextId = atomicContexts.size() - 1;
@@ -3907,7 +4040,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			const auto& global_needsNoClip = acp->global_needsNoClip;
 			const auto& uniformObject = acp->uniform;
 			const auto& mtx = acp->mtx;
-			const auto& worldView = acp->worldView;
 			const auto& atomic = acp->atomic;
 			const auto& cam = acp->cam;
 			const auto meshContext = &meshContexts[acp->meshContextOffset + n];

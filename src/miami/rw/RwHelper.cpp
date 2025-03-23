@@ -384,23 +384,23 @@ RwBool Im2DRenderQuad(RwReal x1, RwReal y1, RwReal x2, RwReal y2, RwReal z, RwRe
     RwIm2DVertexSetU(&vx[1], uvOffset, recipCamZ);
     RwIm2DVertexSetV(&vx[1], 1.0f + uvOffset, recipCamZ);
 
-    RwIm2DVertexSetScreenX(&vx[2], x2);
-    RwIm2DVertexSetScreenY(&vx[2], y1);
+	RwIm2DVertexSetScreenX(&vx[2], x2);
+    RwIm2DVertexSetScreenY(&vx[2], y2);
     RwIm2DVertexSetScreenZ(&vx[2], z);
     RwIm2DVertexSetIntRGBA(&vx[2], 255, 255, 255, 255);
     RwIm2DVertexSetRecipCameraZ(&vx[2], recipCamZ);
     RwIm2DVertexSetU(&vx[2], 1.0f + uvOffset, recipCamZ);
-    RwIm2DVertexSetV(&vx[2], uvOffset, recipCamZ);
-
+    RwIm2DVertexSetV(&vx[2], 1.0f + uvOffset, recipCamZ);
+	
     RwIm2DVertexSetScreenX(&vx[3], x2);
-    RwIm2DVertexSetScreenY(&vx[3], y2);
+    RwIm2DVertexSetScreenY(&vx[3], y1);
     RwIm2DVertexSetScreenZ(&vx[3], z);
     RwIm2DVertexSetIntRGBA(&vx[3], 255, 255, 255, 255);
     RwIm2DVertexSetRecipCameraZ(&vx[3], recipCamZ);
     RwIm2DVertexSetU(&vx[3], 1.0f + uvOffset, recipCamZ);
-    RwIm2DVertexSetV(&vx[3], 1.0f + uvOffset, recipCamZ);
+    RwIm2DVertexSetV(&vx[3], uvOffset, recipCamZ);
 
-    RwIm2DRenderPrimitive(rwPRIMTYPETRISTRIP, vx, 4);
+    RwIm2DRenderPrimitive(rwPRIMTYPETRIFAN, vx, 4);
 
     return TRUE;
 }
