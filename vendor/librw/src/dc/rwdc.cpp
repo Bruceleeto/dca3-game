@@ -628,13 +628,11 @@ struct alignas(8) UniformObject
 // So we provide default ctors. We lose the POD status but win
 // in perf for std::vector.
 
-struct mesh_context_t {
-	mesh_context_t() { }
+struct matfx_context_t {
+	matfx_context_t() { }
 
-	RGBA color;
-	float32 ambient;
-	float32 diffuse;
-	size_t matfxContextOffset;
+	matrix_t mtx;
+	float32 coefficient;
 
 	uint32_t hdr_cmd;
 	uint32_t hdr_mode1;
@@ -642,11 +640,13 @@ struct mesh_context_t {
 	uint32_t hdr_mode3;
 };
 
-struct matfx_context_t {
-	matfx_context_t() { }
+struct mesh_context_t {
+	mesh_context_t() { }
 
-	matrix_t mtx;
-	float32 coefficient;
+	RGBA color;
+	float32 ambient;
+	float32 diffuse;
+	matfx_context_t* matfxContextPointer;
 
 	uint32_t hdr_cmd;
 	uint32_t hdr_mode1;
@@ -665,8 +665,7 @@ static_assert(sizeof(skin_context_t) == sizeof(Matrix));
 struct atomic_context_t {
 	atomic_context_t() { }
 
-	size_t meshContextOffset;
-	size_t skinContextOffset;
+	skin_context_t* skinContextPointer;
 	Atomic* atomic;
 	Geometry* geo;
 	Camera* cam;
@@ -844,7 +843,7 @@ struct chunked_vector {
     chunk* first;
     chunk* last;
 
-    // Constructor: initialize first_chunk’s header and set pointers.
+    // Constructor: initialize first chunk’s header and set pointers.
     chunked_vector()
     {
 		first = last = static_cast<chunk*>(malloc(sizeof(chunk)));
@@ -860,7 +859,7 @@ struct chunked_vector {
     // Destructor: free extra chunks and call clear() to destruct contained objects.
     ~chunked_vector() {
         clear();
-        // Free all dynamically allocated chunks (except first_chunk).
+        // Free all dynamically allocated chunks
         chunk* curr = first;
         while (curr) {
             chunk* next = curr->header.next;
@@ -875,19 +874,19 @@ struct chunked_vector {
         return last->items[last->header.used - 1];
     }
 
-    // Random-access: iterate through chunks until the correct index is found.
-    T& operator[](size_t idx) {
-        chunk* curr = first;
-        while (curr) {
-            if (idx < curr->header.used)
-                return curr->items[idx];
-            idx -= curr->header.used;
-            curr = curr->header.next;
-        }
-        assert(0 && "Index out of range");
-        // Should never reach here.
-        return first->items[0];
-    }
+    // // Random-access: iterate through chunks until the correct index is found.
+    // T& operator[](size_t idx) {
+    //     chunk* curr = first;
+    //     while (curr) {
+    //         if (idx < curr->header.used)
+    //             return curr->items[idx];
+    //         idx -= curr->header.used;
+    //         curr = curr->header.next;
+    //     }
+    //     assert(0 && "Index out of range");
+    //     // Should never reach here.
+    //     return first->items[0];
+    // }
 
     // Emplace amt default-constructed elements in a contiguous block (within one chunk)
     // and return a pointer to the first new element.
@@ -920,14 +919,17 @@ struct chunked_vector {
         return start_ptr;
     }
 
-    // Return total number of elements across all chunks.
-    size_t size() const {
-        size_t total = 0;
-        for (chunk* curr = first; curr; curr = curr->header.next) {
-            total += curr->header.used;
-        }
-        return total;
-    }
+    // // Return total number of elements across all chunks.
+    // size_t size() const {
+    //     size_t total = 0;
+    //     for (chunk* curr = first; curr; curr = curr->header.next) {
+    //         total += curr->header.used;
+    //     }
+    //     return total;
+    // }
+	bool empty() const {
+		return first->header.used == 0;
+	}
 
     // Clear all elements: call destructors and reset used/free counters.
     // Note: extra chunks are NOT freed.
@@ -939,7 +941,7 @@ struct chunked_vector {
             curr->header.used = 0;
             curr->header.free = chunk::item_count;
         }
-		// Free all chunks except first_chunk.
+		// Free all chunks except first chunk.
 		chunk* curr = first->header.next;
 		while (curr) {
 			chunk* next = curr->header.next;
@@ -947,7 +949,7 @@ struct chunked_vector {
 			curr = next;
 		}
 		first->header.next = nullptr;
-        // Optionally, reset last pointer to first for reuse.
+        // Reset last pointer to first
         last = first;
     }
 
@@ -1391,13 +1393,13 @@ void endUpdate(Camera* cam) {
 		pvr_dr_init(&drState);
 		pvr_list_begin(PVR_LIST_OP_POLY);
 		enter_oix();
-		if (opCallbacks.size()) {
+		if (!opCallbacks.empty()) {
 			opCallbacks.forEach([](auto &cb) {
 				cb();
 			});
 		}
 		pvr_list_finish();
-		if (ptCallbacks.size()) {
+		if (!ptCallbacks.empty()) {
 			PVR_SET(0x11C, 64); // PT Alpha test value
 			pvr_dr_init(&drState);
 			pvr_list_begin(PVR_LIST_PT_POLY);
@@ -1407,7 +1409,7 @@ void endUpdate(Camera* cam) {
 			pvr_list_finish();
 		}
 		pvr_list_begin(PVR_LIST_TR_POLY);
-		if (blendCallbacks.size()) {
+		if (!blendCallbacks.empty()) {
 			pvr_dr_init(&drState);
 			blendCallbacks.forEach([](auto &cb) {
 				cb();
@@ -3952,18 +3954,17 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 	int32 numMeshes = geo->meshHeader->numMeshes;
 
-	size_t skinContextOffset = skinContexts.size();
+	skin_context_t* skinContextPointer = nullptr;
 	bool skinMatrix0Identity = false;
 	if (skin) {
-		auto allocation = skinContexts.emplace_many(skin->numBones);
-		skinMatrix0Identity = uploadSkinMatrices(atomic, &allocation->mtx);
+		skinContextPointer = skinContexts.emplace_many(skin->numBones);
+		skinMatrix0Identity = uploadSkinMatrices(atomic, &skinContextPointer->mtx);
 	}
 
 	atomicContexts.emplace_back();
 	auto ac = &atomicContexts.back();
 
-	ac->meshContextOffset = meshContexts.size();
-	ac->skinContextOffset = skinContextOffset;
+	ac->skinContextPointer = skinContextPointer;
 	ac->atomic = atomic;
 	ac->geo = geo;
 	ac->cam = cam;
@@ -3983,10 +3984,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	mat_apply((matrix_t*)&world);
 	mat_store((matrix_t*)&atomicContexts.back().mtx);
 
-	int16_t contextId = atomicContexts.size() - 1;
-
-	assert(numMeshes <= 32767);
-	assert(atomicContexts.size() <= 32767);
 	auto meshes = geo->meshHeader->getMeshes();
 
 	for (int16_t n = 0; n < numMeshes; n++) {
@@ -4000,17 +3997,16 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 		MatFX *matfx = MatFX::get(meshes[n].material);
 
-		bool isMatFX = false;
-		float matfxCoefficient = 0.0f;
-		size_t matfxContextOffset = matfxContexts.size();
+		matfx_context_t* matfxContextPointer = nullptr;
+
 		if (doEnvironmentMaps && matfx && matfx->type == MatFX::ENVMAP && matfx->fx[0].env.tex != nil && matfx->fx[0].env.coefficient != 0.0f) {
-			isMatFX = true;
-			matfxCoefficient = matfx->fx[0].env.coefficient;
+			float matfxCoefficient = matfx->fx[0].env.coefficient;
 			matfxContexts.emplace_back();
+			matfxContextPointer = &matfxContexts.back();
 			// N.B. world here gets converted to a 3x3 matrix
 			// 		this is fine, as we only use it for env mapping from now on
 			uploadEnvMatrix(matfx->fx[0].env.frame, &world, &matfxContexts.back().mtx);
-			matfxContexts.back().coefficient = matfxCoefficient;
+			matfxContextPointer->coefficient = matfxCoefficient;
 			
 			pvr_poly_cxt_t cxt;
 
@@ -4033,15 +4029,15 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 			pvr_poly_hdr_t hdr;
 			pvr_poly_compile(&hdr, &cxt);
-			matfxContexts.back().hdr_cmd = hdr.cmd;
-			matfxContexts.back().hdr_mode1 = hdr.mode1;
-			matfxContexts.back().hdr_mode2 = hdr.mode2;
-			matfxContexts.back().hdr_mode3 = hdr.mode3;
+			matfxContextPointer->hdr_cmd = hdr.cmd;
+			matfxContextPointer->hdr_mode1 = hdr.mode1;
+			matfxContextPointer->hdr_mode2 = hdr.mode2;
+			matfxContextPointer->hdr_mode3 = hdr.mode3;
 		}
 
 		pvr_poly_cxt_t cxt;
 		int pvrList;
-		if (doBlend || isMatFX) {
+		if (doBlend || matfxContextPointer) {
 			if (doAlphaTest && !doBlendMaterial) {
 				pvrList = PVR_LIST_PT_POLY;
 			} else {
@@ -4071,8 +4067,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				PVR_UVFMT_16BIT,
 
 				PVR_CLRFMT_4FLOATS,
-				isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
-				isMatFX ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
+				matfxContextPointer ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
+				matfxContextPointer ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
 				zFunction,
 				zWrite,
 				cullModePvr,
@@ -4084,8 +4080,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				pvrList,
 
 				PVR_CLRFMT_4FLOATS,
-				isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
-				isMatFX ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
+				matfxContextPointer ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
+				matfxContextPointer ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
 				zFunction,
 				zWrite,
 				cullModePvr,
@@ -4099,7 +4095,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		mc->color = meshes[n].material->color;
 		mc->ambient = meshes[n].material->surfaceProps.ambient;
 		mc->diffuse = meshes[n].material->surfaceProps.diffuse;
-		mc->matfxContextOffset = isMatFX ? matfxContextOffset : SIZE_MAX;
+		mc->matfxContextPointer = matfxContextPointer;
 
 		mc->hdr_cmd = hdr.cmd;
 		mc->hdr_mode1 = hdr.mode1;
@@ -4107,11 +4103,10 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		mc->hdr_mode3 = hdr.mode3;
 
 		// clipping performed per meshlet
-		auto renderCB = [contextId, n] {
+		auto renderCB = [acp = (const atomic_context_t*) ac , meshContext = (const mesh_context_t*) mc, n] () {
 			if (vertexBufferFree() < freeVertexTarget) {
 				return;
 			}
-			const atomic_context_t* acp = &atomicContexts[contextId];
 			auto geo = acp->geo;
 			auto mesh = geo->meshHeader->getMeshes() + n;
 			const auto& global_needsNoClip = acp->global_needsNoClip;
@@ -4119,7 +4114,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			const auto& mtx = acp->mtx;
 			const auto& atomic = acp->atomic;
 			const auto& cam = acp->cam;
-			const auto meshContext = &meshContexts[acp->meshContextOffset + n];
 			Skin* skin = Skin::get(geo);
 
 			bool textured = geo->numTexCoordSets && mesh->material->texture;
@@ -4184,7 +4178,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						}
 					}
 
-					if (meshContext->matfxContextOffset != SIZE_MAX) {
+					if (meshContext->matfxContextPointer) {
 						auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
 						hdr->cmd = meshContext->hdr_cmd;
 						hdr->mode1 = meshContext->hdr_mode1;
@@ -4225,7 +4219,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						
 						bool small_xyz = selector & 8;
 						unsigned skinSelector = small_xyz + acp->skinMatrix0Identity*2;
-						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &skinContexts[acp->skinContextOffset].mtx);
+						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &acp->skinContextPointer->mtx);
 						
 						mat_load(&mtx);
 						tnlMeshletTransformSelector[clippingRequired * 2](OCR_SPACE, OCR_SPACE + 4, meshlet->vertexCount, 64);
@@ -4312,9 +4306,9 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						clipAndsubmitMeshletSelector[textured](OCR_SPACE, indexData, meshlet->indexCount);
 					}
 
-					if (meshContext->matfxContextOffset != SIZE_MAX) {
+					if (meshContext->matfxContextPointer) {
 						assert(!skin);
-						auto matfxContext = &matfxContexts[meshContext->matfxContextOffset];
+						auto matfxContext = meshContext->matfxContextPointer;
 
 						auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
 						hdr->cmd = matfxContext->hdr_cmd;
@@ -4405,7 +4399,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			}
 		};
 
-		if (doBlend || isMatFX) {
+		if (doBlend || matfxContextPointer) {
 			if (doAlphaTest && !doBlendMaterial) {
 				ptCallbacks.emplace_back(std::move(renderCB));
 			} else {
