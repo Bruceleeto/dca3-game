@@ -197,6 +197,10 @@ CCutsceneHead::PlayAnimation(const char *animName)
 		RwStreamSkip(stream, offset*2048);
 		if(RwStreamFindChunk(stream, rwID_HANIMANIMATION, nil, nil)){
 			anim = RpHAnimAnimationStreamRead(stream);
+			if (hier->interpolator->currentAnim) {
+				RpHAnimAnimationDestroy(hier->interpolator->currentAnim);
+				hier->interpolator->currentAnim = nil;
+			}
 			RpHAnimHierarchySetCurrentAnim(hier, anim);
 		}
 
