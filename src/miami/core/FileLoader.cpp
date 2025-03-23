@@ -321,7 +321,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 		RwFree(model.triangles);
 	}
 	if (model.trianglePlanes) {
-		RwFree(model.trianglePlanes);
+		CCollision::RemoveTrianglePlanes(&model);
 	}
 	if(model.numSpheres > 0){
 		model.spheres = (CColSphere*)RwMalloc(model.numSpheres*sizeof(CColSphere));
