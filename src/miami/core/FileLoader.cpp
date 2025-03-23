@@ -305,6 +305,24 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.boundingBox.max.z = *(float*)(buf+36);
 	model.numSpheres = *(int16*)(buf+40);
 	buf += 44;
+	if (model.spheres) {
+		RwFree(model.spheres);
+	}
+	if (model.lines) {
+		RwFree(model.lines);
+	}
+	if (model.boxes) {
+		RwFree(model.boxes);
+	}
+	if (model.vertices) {
+		RwFree(model.vertices);
+	}
+	if (model.triangles) {
+		RwFree(model.triangles);
+	}
+	if (model.trianglePlanes) {
+		RwFree(model.trianglePlanes);
+	}
 	if(model.numSpheres > 0){
 		model.spheres = (CColSphere*)RwMalloc(model.numSpheres*sizeof(CColSphere));
 		REGISTER_MEMPTR(&model.spheres);
