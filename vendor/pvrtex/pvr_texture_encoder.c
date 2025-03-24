@@ -85,10 +85,10 @@ void pteLoadFromFiles(PvrTexEncoder *pte, const char **fnames, unsigned filecnt)
 				"When using custom mipmaps, the size of all levels must be a power of two"
 				" (resize is not supported). %s has a size of %ux%u\n", fnames[i], 
 				img->w, img->h);
-			ErrorExitOn(img->w != img->h, 
-				"When using custom mipmaps, all levels must be square"
-				" (resize is not supported). %s has a size of %ux%u\n", fnames[i], 
-				img->w, img->h);
+			// ErrorExitOn(img->w != img->h, 
+			// 	"When using custom mipmaps, all levels must be square"
+			// 	" (resize is not supported). %s has a size of %ux%u\n", fnames[i], 
+			// 	img->w, img->h);
 		}
 		
 		maxw = MAX(maxw, img->w);
@@ -288,7 +288,38 @@ void pteDitherRaws(PvrTexEncoder *pte, float dither_amt) {
 }
 
 
+void pteGenerateGlobalPalette(PvrTexEncoder *pte) {
+	assert(pte);
+	assert(pte->palette == NULL);
+	assert(pte->palette_size > 0);
+	assert(pte->palette_size <= 256);
+	
+	VQCompressor vqc;
+	vqcInit(&vqc, VQC_UINT8, 4, 1, pte->palette_size, pte->auto_small_vq);
+	vqcSetRGBAGamma(&vqc, pte->rgb_gamma, pte->alpha_gamma);
+	
+	//Add mipmaps to compressor input
+	for (int i = 0; i < pte->src_img_cnt; i++) {
+		uint32_t pixelcnt = pte->src_imgs[i].w * pte->src_imgs[i].h;
+		vqcAddPoints(&vqc, pte->src_imgs[i].pixels, pixelcnt);
+	}
+	
+	//Do compression and save resulting palette
+	vqcResults result = vqcCompress(&vqc, 8);
+	assert(result.codebook);
+	pte->palette = result.codebook;
+	free(result.indices);
+	
+	//~ for(unsigned i = 0; i < 256; i++) {
+		//~ printf("(%i, %i, %i) ", pte->palette[i].r, pte->palette[i].g, pte->palette[i].b, pte->palette[i].a);
+	//~ }
+}
+
 void pteGeneratePalette(PvrTexEncoder *pte) {
+	if (pte->palette) {
+		// already has palette preloaded
+		return;
+	}
 	assert(pte);
 	assert(pte->mip_cnt > 0);
 	assert(pte->mip_cnt <= PVR_MAX_MIPMAPS);

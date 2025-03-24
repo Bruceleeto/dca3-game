@@ -146,6 +146,9 @@
     "coroutine": "cpp",
     "future": "cpp",
     "latch": "cpp",
-    "syncstream": "cpp"
+    "syncstream": "cpp",
+    "mycommon.h": "c",
+    "file_tex.h": "c",
+    "optparse.h": "c"
   }
 }

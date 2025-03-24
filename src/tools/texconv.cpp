@@ -67,6 +67,7 @@ namespace rw::dc {
 	extern int32 maxRasterHeight;
 	extern int32 downsampleMode;
 	extern int32 pvrEncoder;
+	extern const char* dstFile;
 }
 
 RwTexDictionary *LoadTxd(RwStream *stream);
@@ -307,6 +308,8 @@ int main(int argc, const char** argv) {
                         rw::dc::pvrEncoder = PVRTOOL;
                     } else if (strcmp(param, "pvrtex") == 0 || strcmp(param, "PVRTEX") == 0) {
                         rw::dc::pvrEncoder = PVRTEX;
+                    } else if (strcmp(param, "extract") == 0 || strcmp(param, "EXTRACT") == 0) {
+                        rw::dc::pvrEncoder = EXTRACT;
                     }
                 }
             }
@@ -344,6 +347,8 @@ int main(int argc, const char** argv) {
 	assert(RwEngineStart());
 	currentFile = argv[1];
 
+	rw::dc::dstFile = argv[2];
+
 	if (strstr(argv[1], ".txd") || strstr(argv[1], ".TXD")) {
 		auto stream = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMREAD, argv[1]);
 		assert(stream && "failed to open input");
@@ -378,12 +383,14 @@ int main(int argc, const char** argv) {
 			}
 		}
 
-		auto streamOut = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMWRITE, argv[2]);
-		assert(streamOut && "failed to open output");
-
-		StoreTxd(texDict, streamOut);
-
-		RwStreamClose(streamOut, nil);
+		if (rw::dc::pvrEncoder != EXTRACT) {
+			auto streamOut = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMWRITE, argv[2]);
+			assert(streamOut && "failed to open output");
+	
+			StoreTxd(texDict, streamOut);
+	
+			RwStreamClose(streamOut, nil);
+		}
 	} else if (strstr(argv[1], ".dff") || strstr(argv[1], ".DFF")) {
 		rw::Texture::setLoadTextures(false);
 		rw::Texture::setCreateDummies(true);

@@ -1,6 +1,46 @@
 # models/coll/peds.col # not actually used
+MISC_TXD = \
+  models/fonts.txd \
+  models/frontend.txd \
+  models/generic.txd \
+  models/hud.txd \
+  models/menu.txd \
+  models/MISC.TXD \
+  models/particle.txd \
+  txd/LOADSC0.TXD \
+  txd/LOADSC1.TXD \
+  txd/LOADSC10.TXD \
+  txd/LOADSC11.TXD \
+  txd/LOADSC12.TXD \
+  txd/LOADSC13.TXD \
+  txd/LOADSC14.TXD \
+  txd/LOADSC15.TXD \
+  txd/LOADSC16.TXD \
+  txd/LOADSC17.TXD \
+  txd/LOADSC18.TXD \
+  txd/LOADSC19.TXD \
+  txd/LOADSC2.TXD \
+  txd/LOADSC20.TXD \
+  txd/LOADSC21.TXD \
+  txd/LOADSC22.TXD \
+  txd/LOADSC23.TXD \
+  txd/LOADSC24.TXD \
+  txd/LOADSC25.TXD \
+  txd/LOADSC3.TXD \
+  txd/LOADSC4.TXD \
+  txd/LOADSC5.TXD \
+  txd/LOADSC6.TXD \
+  txd/LOADSC7.TXD \
+  txd/LOADSC8.TXD \
+  txd/LOADSC9.TXD \
+  txd/mainsc1.txd  \
+  txd/mainsc2.txd  \
+  txd/NEWS.TXD \
+  txd/SPLASH1.TXD \
+  txd/SPLASH2.TXD \
+  txd/SPLASH3.TXD
 
-MISC_FILES = \
+MISC_FILES = $(MISC_TXD) \
   anim/cuts.dir \
   anim/cuts.img \
   anim/gta3.ini \
@@ -135,45 +175,5 @@ MISC_FILES = \
   TEXT/german.gxt \
   TEXT/italian.gxt \
   TEXT/spanish.gxt \
-  \
-  models/fonts.txd \
-  models/frontend.txd \
-  models/generic.txd \
-  models/hud.txd \
-  models/menu.txd \
-  models/MISC.TXD \
-  models/particle.txd \
-  txd/LOADSC0.TXD \
-  txd/LOADSC1.TXD \
-  txd/LOADSC10.TXD \
-  txd/LOADSC11.TXD \
-  txd/LOADSC12.TXD \
-  txd/LOADSC13.TXD \
-  txd/LOADSC14.TXD \
-  txd/LOADSC15.TXD \
-  txd/LOADSC16.TXD \
-  txd/LOADSC17.TXD \
-  txd/LOADSC18.TXD \
-  txd/LOADSC19.TXD \
-  txd/LOADSC2.TXD \
-  txd/LOADSC20.TXD \
-  txd/LOADSC21.TXD \
-  txd/LOADSC22.TXD \
-  txd/LOADSC23.TXD \
-  txd/LOADSC24.TXD \
-  txd/LOADSC25.TXD \
-  txd/LOADSC3.TXD \
-  txd/LOADSC4.TXD \
-  txd/LOADSC5.TXD \
-  txd/LOADSC6.TXD \
-  txd/LOADSC7.TXD \
-  txd/LOADSC8.TXD \
-  txd/LOADSC9.TXD \
-  txd/mainsc1.txd  \
-  txd/mainsc2.txd  \
-  txd/NEWS.TXD \
-  txd/SPLASH1.TXD \
-  txd/SPLASH2.TXD \
-  txd/SPLASH3.TXD \
   \
   audio/sfx.SDT

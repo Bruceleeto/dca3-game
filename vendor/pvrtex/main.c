@@ -12,7 +12,7 @@
 #include "file_pvr.h"
 #include "file_tex.h"
 
-int log_level = LOG_PROGRESS;
+int log_level = LOG_DEBUG;
 void pteLogLocV(unsigned level, const char *file, unsigned line, const char *fmt, va_list args) {
 	static const char * logtypes[] = {
 		[LOG_ALL] = "ALL",
@@ -163,10 +163,11 @@ int main(int argc, char **argv) {
 		{"mip-resize", 'R', OPTPARSE_OPTIONAL},
 		{"stride", 's', OPTPARSE_NONE},
 		{"edge", 'e', OPTPARSE_REQUIRED},
+		{"pallette", 'q', OPTPARSE_REQUIRED},
 		{0}
 	};
 	
-	#define MAX_FNAMES	11
+	#define MAX_FNAMES	1024
 	const char *fnames[MAX_FNAMES];
 	unsigned fname_cnt = 0;
 	const char *outname = "";
@@ -298,6 +299,23 @@ int main(int argc, char **argv) {
 					ErrorExit("invalid max palette size parameter (should be [1, 16] for 4bpp, or [1, 256] for 8bpp)\n");
 				}
 			break;
+		case 'q': {
+				pxlARGB8888 pal[16];
+				FILE* f = fopen(options.optarg, "rb");
+				assert(f);
+				assert(fseek(f, 8, SEEK_SET) == 0);
+				assert(fread(pal, 1, 4 * 16, f) == 4 * 16);
+				fclose(f);
+
+				pte.palette = malloc(16 * 4);
+				pte.palette_size = 16;
+				assert(pte.palette);
+
+				for (int i = 0; i < 16; i++) {
+					pte.palette[i] = pxlConvertARGB8888toABGR8888(pal[i]);
+				}
+			}
+			break;
 		default:
 			ErrorExit("%s\n", options.errmsg);
 		}
@@ -390,6 +408,34 @@ int main(int argc, char **argv) {
 			pte.edge_method = STBIR_EDGE_CLAMP;
 	}
 	
+	if (strcasecmp(extension, ".pal") == 0) {
+		//Generate palette
+		if (pte.pixel_format == PTE_PALETTE_4B || pte.pixel_format == PTE_PALETTE_8B) {
+			if (pte.pixel_format == PTE_PALETTE_8B) {
+				if (pte.palette_size == 0) {
+					pte.palette_size = 256;
+				} else if (pte.palette_size > 256) {
+					ErrorExit("palette size must be 256 or less for 8bpp textures\n");
+				}
+			} else if (pte.pixel_format == PTE_PALETTE_4B) {
+				if (pte.palette_size == 0) {
+					pte.palette_size = 16;
+				} else if (pte.palette_size > 16) {
+					ErrorExit("palette size must be 16 or less for 4bpp textures\n");
+				}
+			}
+			pteLog(LOG_PROGRESS, "Generating palette...\n");
+		} else {
+			assert(0 && ".pal file but no pal format");
+		}
+
+		pteGenerateGlobalPalette(&pte);
+		
+		fTexWritePalette(&pte, outname);
+		// pteFree(&pte); // its okay, this will leak a bit
+		return 0;
+	}
+
 	pteEncodeTexture(&pte);
 	
 	//Make preview

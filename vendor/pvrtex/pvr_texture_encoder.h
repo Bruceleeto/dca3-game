@@ -202,6 +202,7 @@ int pteSetSize(PvrTexEncoder *pte);
 void pteSetCompressed(PvrTexEncoder *pte, int codebook_size);
 void pteGeneratePreviews(PvrTexEncoder *pte);
 void pteAutoSelectPixelFormat(PvrTexEncoder *pte);
+void pteGenerateGlobalPalette(PvrTexEncoder *pte);
 
 ///////////
 void ErrorExitOn(int cond, const char *fmt, ...);

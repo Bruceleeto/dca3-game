@@ -446,6 +446,15 @@ static inline pxlRGBA32 pxlConvertABGR8888toRGBA32(pxlABGR8888 color) {
 	ret.a = color.a;
 	return ret;
 }
+
+static inline pxlABGR8888 pxlConvertARGB8888toABGR8888(pxlARGB8888 color) {
+	pxlABGR8888 ret;
+	ret.r = color.r;
+	ret.g = color.g;
+	ret.b = color.b;
+	ret.a = color.a;
+	return ret;
+}
 static inline pxlARGB8888 pxlConvertABGR8888toARGB8888(pxlABGR8888 color) {
 	pxlARGB8888 ret;
 	ret.r = color.r;

@@ -10,6 +10,7 @@
 #endif
 
 #if defined(DC_TEXCONV)
+#include <fcntl.h>
 #include "tri_stripper.h"
 #include <sha256.h>
 extern const char* currentFile;
@@ -4600,6 +4601,7 @@ int32 maxRasterWidth = 64;
 int32 maxRasterHeight = 64;
 int32 downsampleMode = NONE;
 int32 pvrEncoder = PVRTEX;
+const char* dstFile;
 #endif
 
 bool32
@@ -4772,6 +4774,11 @@ rasterFromImage(Raster* raster, Image* image)
 		assert(false && "Unhandled texture format");
     }
 
+	hash_sha256 img_hash;
+	img_hash.sha256_init();
+	img_hash.sha256_update((const uint8_t*)imageData.data(), imageData.size() * sizeof(imageData[0]));
+	sha256_type img_hash_result = img_hash.sha256_final();
+
 	if (raster->width != image->width || raster->height != image->height) {
 	    printf("Downsample: %ix%i -> %ix%i\n", image->width, image->height, raster->width, raster->height);
 		imageData = downscaleImage(imageData, image->width, image->height, raster->width, raster->height);
@@ -4796,50 +4803,99 @@ rasterFromImage(Raster* raster, Image* image)
         fprintf(stderr, "Failed to write TGA file: %s\n", filename_tga);
         return false;
     }
+	
+	if (pvrEncoder != EXTRACT) {
+		char encodeCommand[512];
 
-    char encodeCommand[512];
+		std::stringstream clusterfile;
+		clusterfile << "repack-data/textures/" << std::hex;
+	
+		for (int i = 0; i < 32; i++) {
+			clusterfile << std::setfill('0') << std::setw(2) << (int)img_hash_result[i];
+		}
+		clusterfile << ".tga.cluster";
 
-    // Now call PVR Compression
-    switch(pvrEncoder) {
-#if defined(_WIN32) || defined(_WIN64)
-        case PVRTEX:
-            snprintf(encodeCommand, sizeof(encodeCommand),
-                 "..\\vendor\\pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
-        break;
-        case PVRTOOL:
-            snprintf(encodeCommand, sizeof(encodeCommand),
-                     "pvrtool.exe %s -OF pvr -TW -CF SMART -VQ -VQDITHER 1 -o %s",
-                     filename_tga, filename_pvr);
-            break;
-#else
-        case PVRTEX:
-            snprintf(encodeCommand, sizeof(encodeCommand),
-                 "../vendor/pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
-        break;
-        case PVRTOOL:
-            snprintf(encodeCommand, sizeof(encodeCommand),
-                     "./pvrtool %s -OF pvr -TW -CF SMART -VQ -VQDITHER 1 -o %s",
-                     filename_tga, filename_pvr);
-            break;
-#endif
-    }
+		int cluster = -1;
+		FILE* fclust = fopen(clusterfile.str().c_str(), "r");
+		if (!fclust) {
+			fprintf(stderr, "cluster: %s\n", clusterfile.str().c_str());
+		}
+		assert(fclust);
 
-    int retCode = system(encodeCommand);
+		fscanf(fclust, "%d", &cluster);
+		fclose(fclust);
 
-    // Read PVR File
-    assert(raster->width && raster->height && !natras->raster->texaddr);
-    loadPVR(filename_pvr, raster, natras->raster, PVR_TXRFMT_TWIDDLED | PVR_TXRFMT_VQ_ENABLE);
+		assert(cluster >= 0 && cluster <= 64);
 
 
-    remove(filename_tga);
-    remove(filename_pvr);
+		// Now call PVR Compression
+		switch(pvrEncoder) {
+	#if defined(_WIN32) || defined(_WIN64)
+			case PVRTEX:
+				snprintf(encodeCommand, sizeof(encodeCommand),
+					"..\\vendor\\pvrtex\\pvrtex.exe -i %s -o %s -c small -d", filename_tga, filename_pvr);
+			break;
+			case PVRTOOL:
+				snprintf(encodeCommand, sizeof(encodeCommand),
+						"pvrtool.exe %s -OF pvr -TW -CF SMART -VQ -VQDITHER 1 -o %s",
+						filename_tga, filename_pvr);
+				break;
+	#else
+			case PVRTEX:
+				if (cluster == 64)
+					snprintf(encodeCommand, sizeof(encodeCommand),"../vendor/pvrtex/pvrtex -i %s -o %s -c small -d", filename_tga, filename_pvr);
+				else
+					snprintf(encodeCommand, sizeof(encodeCommand),"../vendor/pvrtex/pvrtex -i %s -o %s -c small -d -f PAL4BPP -q repack-data/texture-clusters/%d.pal", filename_tga, filename_pvr, cluster);
+			break;
+			case PVRTOOL:
+				snprintf(encodeCommand, sizeof(encodeCommand),
+						"./pvrtool %s -OF pvr -TW -CF SMART -VQ -VQDITHER 1 -o %s",
+						filename_tga, filename_pvr);
+				break;
+	#endif
+			case EXTRACT:
+				break;
+		}
 
-	hash_sha256 hash;
-	hash.sha256_init();
-	hash.sha256_update((const uint8_t*)natras->raster->texaddr, natras->raster->texsize);
-	sha256_type hash_result = hash.sha256_final();
 
-	natras->raster->pvr_id = hash_result[0] | (hash_result[1] << 8) | (hash_result[2] << 16) | (hash_result[3] << 24);
+		int retCode = system(encodeCommand);
+
+		// Read PVR File
+		assert(raster->width && raster->height && !natras->raster->texaddr);
+		loadPVR(filename_pvr, raster, natras->raster, PVR_TXRFMT_TWIDDLED | PVR_TXRFMT_VQ_ENABLE);
+	
+	
+		remove(filename_tga);
+		remove(filename_pvr);
+
+		if (cluster != 64) {
+			natras->raster->pvr_flags |= PVR_TXRFMT_4BPP_PAL(cluster);
+		}
+	
+		hash_sha256 hash;
+		hash.sha256_init();
+		hash.sha256_update((const uint8_t*)natras->raster->texaddr, natras->raster->texsize);
+		sha256_type hash_result = hash.sha256_final();
+	
+		natras->raster->pvr_id = hash_result[0] | (hash_result[1] << 8) | (hash_result[2] << 16) | (hash_result[3] << 24);
+	} else {
+		std::stringstream touchfile;
+		touchfile << dstFile << ".contents/" << std::hex;
+
+		std::stringstream texture;
+		texture << "repack-data/textures/" << std::hex;
+
+		for (int i = 0; i < 32; i++) {
+			touchfile << std::setfill('0') << std::setw(2) << (int)img_hash_result[i];
+			texture << std::setfill('0') << std::setw(2) << (int)img_hash_result[i];
+		}
+		texture << ".tga";
+
+		int fd = open(touchfile.str().c_str(), O_CREAT | O_TRUNC, 0666);
+		assert(fd != -1);
+		close(fd);
+		assert(rename(filename_tga, texture.str().c_str()) == 0);
+	}
 
 
     if(truecolimg)
@@ -5123,15 +5179,33 @@ driverOpen(void *o, int32, int32)
 	}
 	#endif
 
+	#if !defined(DC_TEXCONV)
+
 	dbglog(DBG_CRITICAL, "atomicContexts: %d per %d allocation\n", decltype(atomicContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "skinContexts: %d per %d allocation\n", decltype(skinContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "matfxContexts: %d per %d allocation\n", decltype(matfxContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "opCallbacks: %d per %d allocation\n", decltype(opCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "blendCallbacks: %d per %d allocation\n", decltype(blendCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "ptCallbacks: %d per %d allocation\n", decltype(ptCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+
+	#endif
 	
 
     pvr_init(&pvr_params);
+
+	#if !defined(DC_TEXCONV)
+	uint32_t palette[1024];
+	FILE* fpal = fopen("dc-palette.pal", "rb");
+	assert(fpal);
+	fread(palette, 1, 1024 * 4, fpal);
+	fclose(fpal);
+
+	// write to pal regs
+	PVR_SET(0x108, 0x3); // ARGB8888 pals
+	for (int i = 0; i < 1024; i++) {
+		PVR_SET(0x1000 + i*4, palette[i]);
+	}
+	#endif
 
 	fake_tex = pvr_mem_malloc(sizeof(fake_tex_data));
 
@@ -5256,9 +5330,9 @@ readNativeTexture(Stream *stream)
 
 	#ifdef DC_SH4
 			uint8 *src = stream->mmap(pvr_size);
-			assert((pvr_size & 31) == 0);
+			// assert((pvr_size & 31) == 0);
 			if (src) {
-				if (((uintptr_t)src & 31)) {
+				if (((uintptr_t)src & 31) || pvr_size & 31) {
 					dcache_pref_block(src);
 
 					if ((uintptr_t)src & 3) {

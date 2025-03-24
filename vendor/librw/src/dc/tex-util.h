@@ -21,7 +21,8 @@ enum downsampleModes {
 
 enum pvrEncoders {
     PVRTOOL,
-    PVRTEX
+    PVRTEX,
+    EXTRACT
 };
 
 // TGA Header Struct
@@ -141,6 +142,10 @@ void loadPVR(char *fname, rw::Raster* raster, auto* natras, auto flags) {
             natras->pvr_flags |= PVR_TXRFMT_YUV422;
             rasterFmt = rw::Raster::C565;  // this is a bit of a hack
             break;
+        case 0x5: // PAL4
+            natras->pvr_flags |= PVR_TXRFMT_PAL4BPP;
+            rasterFmt = raster->format & 0x0F00; // perserve for blending reasons
+            break;
         default:
             assert(false && "Invalid texture format");
             break;
@@ -153,11 +158,11 @@ void loadPVR(char *fname, rw::Raster* raster, auto* natras, auto flags) {
     natras->texaddr = alloc_malloc(natras, natras->texsize);
     fread(natras->texaddr, 1, natras->texsize, tex); /* Read in the PVR texture data */
     texconvf("PVR TEXTURE READ: %ix%i, %i, %i\n", HDR.nWidth, HDR.nHeight, natras->texoffs, natras->texsize);
-    if (natras->texsize >= 256) {
-        assert((natras->texsize & 255) == 0);
-    } else {
-        assert((natras->texsize & 31) == 0);
-    }
+    // if (natras->texsize >= 256) {
+    //     assert((natras->texsize & 31) == 0);
+    // } else {
+    //     assert((natras->texsize & 31) == 0);
+    // }
 
     fclose(tex);
 }

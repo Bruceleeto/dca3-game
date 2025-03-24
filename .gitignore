@@ -379,6 +379,7 @@ liberty/texconv*
 liberty/imgtool*
 liberty/coltool*
 liberty/streamheaderpack*
+liberty/merge-palettes*
 liberty/extract-sfx*
 liberty/pack-sfx*
 liberty/analyze-profile*

@@ -53,7 +53,8 @@ void fPvrWrite(const PvrTexEncoder *pte, const char *outfname) {
 		}
 		
 		if (pteIsPalettized(pte))
-			ErrorExit(".PVR format does not support compressed palettized textures\n");
+			idxcnt/= 4;
+			// ErrorExit(".PVR format does not support compressed palettized textures\n");
 		// JP - Rectangle VQ certainly does work on real hardware
 		//if (pte->w != pte->h)
 		//	ErrorExit(".PVR format does not support non-square compressed textures\n");

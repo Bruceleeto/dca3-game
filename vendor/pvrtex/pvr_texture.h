@@ -11,7 +11,7 @@ extern "C" {
 
 #define PVR_MAX_TEXTURE_WIDTH	1024
 #define PVR_MAX_TEXTURE_HEIGHT	1024
-#define PVR_MAX_MIPMAPS	(11)
+#define PVR_MAX_MIPMAPS	(1024)
 
 #define CHANNEL_CNT_ARGB	4
 #define VECTOR_W	2

@@ -33,6 +33,9 @@ REPACK_STREAM_DECODED_DIR?=$(REPACK_DIR)/stream-decoded
 REPACK_STREAM_DEST_DIR=$(REPACK_GTA_DIR)/stream
 REPACK_CUTS_ORIG_DIR?=$(REPACK_DIR)/cuts-orig
 REPACK_CUTS_DC_DIR?=$(REPACK_DIR)/cuts-dc
+REPACK_MISC_TXD_EXTRACT_DIR?=$(REPACK_DIR)/misc-extract
+REPACK_TEXTURES_DIR?=$(REPACK_DIR)/textures
+REPACK_TEXTURE_CLUSTERS_DIR?=$(REPACK_DIR)/texture-clusters
 
 LIBS :=
 TEXCONV_FLAGS :=
@@ -304,12 +307,15 @@ coltool: ../src/tools/coltool.cpp
 streamheaderpack: ../src/tools/streamheaderpack.cpp
 	$(CXX) -std=c++17 -o $@ -g -O0 $<
 
+merge-palettes: ../src/tools/merge-palettes.cpp
+	$(CXX) -std=c++17 -o $@ -g -O0 $<
+
 -include $(DEPS)
 
 #### Repacking ####
 
-TXD_OPTS_fonts = 256 256
-TXD_OPTS_hud = 128 128
+TXD_OPTS_fonts = 512 512
+TXD_OPTS_hud = 512 512
 TXD_OPTS_menu = 512 512
 TXD_OPTS_LOADSC0 = 512 512
 TXD_OPTS_LOADSC1 = 512 512
@@ -358,12 +364,15 @@ TXD_OPTS_frontend = 512 512 \
 	--include-tex assets/ps4_f.png ps4_f \
 	--include-tex assets/xbox_d.png xbox_d \
 	--include-tex assets/xbox_f.png xbox_f
+TXD_OPTS_generic = 512 512
+TXD_OPTS_MISC = 512 512
+TXD_OPTS_particle = 512 512
 
 DEFAULT_RES = 512
 
 PVR_ENCODER ?= PVRTEX
 TEXTURE_DOWNSAMPLE_TXD ?= NONE
-TEXTURE_DOWNSAMPLE_IMG ?= HALF
+TEXTURE_DOWNSAMPLE_IMG ?= NONE
 
 -include texlist.mk
 -include modlist.mk
@@ -391,6 +400,11 @@ STREAM_ADPCM_DC = $(addprefix $(REPACK_STREAM_DEST_DIR)/, $(STREAM_WAV:.wav=.APM
 IMG_TEXTURES_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_TEXTURES))
 IMG_MODELS_ORIG = $(addprefix $(REPACK_IMG_ORIG_DIR)/, $(IMG_MODELS))
 
+ALL_TEXTURES_ORIG = $(addprefix $(GTA_DIR)/,$(MISC_TXD)) $(IMG_TEXTURES_ORIG)
+ALL_TEXTURES_EXTRACT_PATH = $(addprefix $(REPACK_MISC_TXD_EXTRACT_DIR)/,$(MISC_TXD)) $(IMG_TEXTURES_ORIG)
+ALL_TEXTURES_ORIG_EXTRACT_txd = $(ALL_TEXTURES_EXTRACT_PATH:.txd=.extract)
+ALL_TEXTURES_ORIG_EXTRACT = $(ALL_TEXTURES_ORIG_EXTRACT_txd:.TXD=.extract)
+
 CUTS_IFP_ORIG = $(addprefix $(REPACK_CUTS_ORIG_DIR)/, $(CUTS_IFP))
 CUTS_MISC_ORIG = $(addprefix $(REPACK_CUTS_ORIG_DIR)/, $(CUTS_MISC))
 
@@ -401,12 +415,85 @@ SFX_REPACK_DC = $(SFX_REPACK_DC_WAV:.wav=.pcm)
 STREAM_MP3_DECODED = $(addprefix $(REPACK_STREAM_DECODED_DIR)/, $(STREAM_MP3:.mp3=.wav))
 STREAM_WAV_DECODED = $(addprefix $(REPACK_STREAM_DECODED_DIR)/, $(STREAM_WAV))
 
-.PRECIOUS: $(SFX_ORIG) $(SFX_REPACK_DC) $(STREAM_MP3_DECODED) $(STREAM_WAV_DECODED)
+.PRECIOUS: $(SFX_ORIG) $(SFX_REPACK_DC) $(STREAM_MP3_DECODED) $(STREAM_WAV_DECODED) $(ALL_TEXTURES_ORIG_EXTRACT)
 
-$(REPACK_DIR)/repacked: $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir $(LOOSE_FILES_DC) $(STREAM_ADPCM_DC) $(SFX_DC_RAW) $(SFX_DC_DSC) streamheaderpack
+# extracting textures from .txd
+
+# loose, gamefiles
+$(REPACK_MISC_TXD_EXTRACT_DIR)/%.extract: $(GTA_GAMEFILES_LOOSE_DIR)/%.TXD texconv
+	@rm -rf $(basename $@).contents
+	@mkdir -p $(basename $@).contents
+	@mkdir -p $(REPACK_TEXTURES_DIR)
+	./texconv $< $(basename $@) $(TXD_OPTS_$(notdir $*)) -e extract
+	@touch $@
+$(REPACK_MISC_TXD_EXTRACT_DIR)/%.extract: $(GTA_GAMEFILES_LOOSE_DIR)/%.txd texconv
+	@rm -rf $(basename $@).contents
+	@mkdir -p $(basename $@).contents
+	@mkdir -p $(REPACK_TEXTURES_DIR)
+	./texconv $< $(basename $@) $(TXD_OPTS_$(notdir $*)) -e extract
+	@touch $@
+
+# loose, originals
+$(REPACK_MISC_TXD_EXTRACT_DIR)/%.extract: $(GTA_DIR)/%.TXD texconv
+	@rm -rf $(basename $@).contents
+	@mkdir -p $(basename $@).contents
+	@mkdir -p $(REPACK_TEXTURES_DIR)
+	./texconv $< $(basename $@) $(TXD_OPTS_$(notdir $*)) -e extract
+	@touch $@
+$(REPACK_MISC_TXD_EXTRACT_DIR)/%.extract: $(GTA_DIR)/%.txd texconv
+	@rm -rf $(basename $@).contents
+	@mkdir -p $(basename $@).contents
+	@mkdir -p $(REPACK_TEXTURES_DIR)
+	./texconv $< $(basename $@) $(TXD_OPTS_$(notdir $*)) -e extract
+	@touch $@
+
+# img files
+$(REPACK_IMG_ORIG_DIR)/%.extract: $(REPACK_IMG_ORIG_DIR)/%.TXD texconv
+	@rm -rf $(basename $@).contents
+	@mkdir -p $(basename $@).contents
+	@mkdir -p $(REPACK_TEXTURES_DIR)
+	./texconv $< $(basename $@) 1024 1024 -e extract
+	@touch $@
+
+$(REPACK_IMG_ORIG_DIR)/%.extract: $(REPACK_IMG_ORIG_DIR)/%.txd texconv
+	@rm -rf $(basename $@).contents
+	@mkdir -p $(basename $@).contents
+	@mkdir -p $(REPACK_TEXTURES_DIR)
+	./texconv $< $(basename $@) 1024 1024 -e extract
+	@touch $@
+
+
+$(REPACK_DIR)/extracted: $(ALL_TEXTURES_ORIG_EXTRACT)
+	echo && echo && echo "Extracted TXDs" && echo && echo
+	@touch $@
+
+# Clustering them
+
+$(REPACK_DIR)/clustered: $(REPACK_DIR)/extracted ../src/tools/pal-clusters.py
+	echo "Creating clusters..."
+	python3 ../src/tools/pal-clusters.py $(REPACK_TEXTURES_DIR) $(REPACK_TEXTURE_CLUSTERS_DIR)
+	echo && echo && echo "Created texture clusters" && echo && echo
+	@touch $@
+
+# Palette creation
+
+CLUSTERS := $(shell seq 0 63)
+PAL_FILES := $(foreach cluster,$(CLUSTERS),$(REPACK_TEXTURE_CLUSTERS_DIR)/$(cluster).pal)
+
+$(REPACK_TEXTURE_CLUSTERS_DIR)/%.pal: $(REPACK_DIR)/clustered | pvrtex
+	../vendor/pvrtex/pvrtex $$(ls $(REPACK_TEXTURE_CLUSTERS_DIR)/cluster_$*/*.tga | sed 's/^/-i /') -f PAL4BPP -o $@
+
+$(REPACK_GTA_DIR)/dc-palette: $(REPACK_DIR)/clustered $(PAL_FILES) merge-palettes
+	./merge-palettes $(REPACK_TEXTURE_CLUSTERS_DIR) $(REPACK_GTA_DIR)/dc-palette
+	echo && echo && echo "Created cluster palettes" && echo && echo
+
+
+
+$(REPACK_DIR)/repacked: $(REPACK_GTA_DIR)/models/gta3.img $(REPACK_GTA_DIR)/models/gta3.dir $(LOOSE_FILES_DC) $(STREAM_ADPCM_DC) $(SFX_DC_RAW) $(SFX_DC_DSC) streamheaderpack $(REPACK_GTA_DIR)/dc-palette
 	mkdir -p $(@D)
 # $(REPACK_GTA_DIR) needed as first argument as paths in the game prefix with stream/
 	./streamheaderpack liberty $(REPACK_GTA_DIR) $(REPACK_STREAM_DEST_DIR)/hdr.bin
+	cp $(REPACK_GTA_DIR)/dc-palette $(REPACK_GTA_DIR)/dc-palette.pal
 	@git archive --format zip --output "$(REPACK_GTA_DIR)/DCA3-$(GIT_VERSION).zip" HEAD
 	@touch $@
 	@echo && echo && echo "*** Repack Completed Successfully ($(PROJECT_NAME)) ***" && echo && echo
@@ -445,18 +532,18 @@ $(REPACK_IMG_DC_DIR)/%.DFF: $(REPACK_IMG_ORIG_DIR)/%.DFF texconv
 	./texconv $< $@
 
 # first try the mods img directory. NB, the textures are not resized here, unlike normal .img textures
-$(REPACK_IMG_DC_DIR)/%.txd: $(GTA_MOD_IMG_DIR)/%.txd texconv
+$(REPACK_IMG_DC_DIR)/%.txd: $(GTA_MOD_IMG_DIR)/%.txd texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ 1024 1024 -e $(PVR_ENCODER) -d NONE
-$(REPACK_IMG_DC_DIR)/%.TXD: $(GTA_MOD_IMG_DIR)/%.TXD texconv
+$(REPACK_IMG_DC_DIR)/%.TXD: $(GTA_MOD_IMG_DIR)/%.TXD texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ 1024 1024 -e $(PVR_ENCODER) -d NONE
 
 # if not, the extracted img directory
-$(REPACK_IMG_DC_DIR)/%.txd: $(REPACK_IMG_ORIG_DIR)/%.txd texconv
+$(REPACK_IMG_DC_DIR)/%.txd: $(REPACK_IMG_ORIG_DIR)/%.txd texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ $(DEFAULT_RES) $(DEFAULT_RES) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_IMG)
-$(REPACK_IMG_DC_DIR)/%.TXD: $(REPACK_IMG_ORIG_DIR)/%.TXD texconv
+$(REPACK_IMG_DC_DIR)/%.TXD: $(REPACK_IMG_ORIG_DIR)/%.TXD texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ $(DEFAULT_RES) $(DEFAULT_RES) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_IMG)
 
@@ -502,26 +589,26 @@ $(REPACK_GTA_DIR)/%.DFF: $(GTA_DIR)/%.DFF texconv
 
 # first try the mods loose directory
 # Note the mods loose directory is not resized, unlike the normal .txd textures
-$(REPACK_GTA_DIR)/%.txd: $(GTA_MOD_LOOSE_DIR)/%.txd texconv
+$(REPACK_GTA_DIR)/%.txd: $(GTA_MOD_LOOSE_DIR)/%.txd texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ 1024 1024 -e $(PVR_ENCODER) -d NONE
-$(REPACK_GTA_DIR)/%.TXD: $(GTA_MOD_LOOSE_DIR)/%.TXD texconv
+$(REPACK_GTA_DIR)/%.TXD: $(GTA_MOD_LOOSE_DIR)/%.TXD texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ 1024 1024 -e $(PVR_ENCODER) -d NONE
 
 # then the gamefiles directory
-$(REPACK_GTA_DIR)/%.txd: $(GTA_GAMEFILES_LOOSE_DIR)/%.txd texconv
+$(REPACK_GTA_DIR)/%.txd: $(GTA_GAMEFILES_LOOSE_DIR)/%.txd texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
-$(REPACK_GTA_DIR)/%.TXD: $(GTA_GAMEFILES_LOOSE_DIR)/%.TXD texconv
+$(REPACK_GTA_DIR)/%.TXD: $(GTA_GAMEFILES_LOOSE_DIR)/%.TXD texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
 
 # if not, the original files
-$(REPACK_GTA_DIR)/%.txd: $(GTA_DIR)/%.txd texconv
+$(REPACK_GTA_DIR)/%.txd: $(GTA_DIR)/%.txd texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
-$(REPACK_GTA_DIR)/%.TXD: $(GTA_DIR)/%.TXD texconv
+$(REPACK_GTA_DIR)/%.TXD: $(GTA_DIR)/%.TXD texconv $(REPACK_GTA_DIR)/dc-palette
 	@mkdir -p $(@D)
 	./texconv $< $@ $(TXD_OPTS_$(notdir $*)) -e $(PVR_ENCODER) -d $(TEXTURE_DOWNSAMPLE_TXD)
 
