@@ -2026,6 +2026,10 @@ void CPad::Update(int16 pad)
 				NewState.RightStickY	= 0;
 				NewState.RightShock		= 0;
 				NewState.LeftShoulder1  = 0;
+				NewState.Cross          = 0;      // Added for safety
+                NewState.Triangle       = 0;      // Added for safety
+                NewState.Circle         = 0;      // Added for safety
+                NewState.Square         = 0;      // Added for safety
 			}
 			else
 			{
@@ -2048,8 +2052,13 @@ void CPad::Update(int16 pad)
 				NewState.RightStickX	= state->joy2x;
 				NewState.RightStickY	= state->joy2y;
 				NewState.RightShock		= state->dpad_left;
-
 				NewState.LeftShoulder1  = (state->rtrig > 128 && state->ltrig > 128) ? 255 : 0;
+				// Add PS2-style A and B mappings, This may be the only solution for purchase items issue ?... 
+				//Further more we can add other PS2 specific mapping here as certain `bool CPad::` functions are not available for mapping down below. 
+				NewState.Cross          = NewState.A;      // A -> Cross (accept/purchase)
+				NewState.Triangle       = NewState.B;      // B -> Triangle (exit)
+				NewState.Circle         = NewState.X;      // Optional: X -> Circle
+				NewState.Square         = NewState.Y;      // Optional: Y -> Square
 			}
 
 		} 
@@ -2076,6 +2085,10 @@ void CPad::Update(int16 pad)
 			NewState.RightStickY	= 0;
 			NewState.RightShock		= 0;
 			NewState.LeftShoulder1  = 0;
+			NewState.Cross          = 0;      // Added for safety
+			NewState.Triangle       = 0;      // Added for safety
+			NewState.Circle         = 0;      // Added for safety
+			NewState.Square         = 0;      // Added for safety
 		}
 
 		// if (old_contMaple == nullptr && contMaple != nullptr)
@@ -2132,12 +2145,12 @@ void CPad::Update(int16 pad)
 	if ( JustOutOfFrontend != 0 )
 		--JustOutOfFrontend;
 		
-#ifdef RW_DC
+
 	//auto old_contMaple = contMaple;
 	//auto n_dev = maple_enum_count();
 	contMaple = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
 	state = (cont_state_t *)maple_dev_status(contMaple);
-#endif
+
 }
 
 void CPad::DoCheats(void)
@@ -3515,16 +3528,15 @@ bool CPad::CycleCameraModeJustDown(void)
 	bool result;
 	switch (CURMODE)
 	{
-		case 0:
-		case 2:
-		case 3:
+		case 0: //audible feedback when changing camera ?
+
 		{
-			result = !!(NewState.Select && !OldState.Select);
+			result = !!(NewState.DPadUp && !OldState.DPadUp);
 
 			break;
 		}
 
-		case 1:
+		case 1: //audible feedback when changing camera ?
 		{
 			result = !!(NewState.DPadUp && !OldState.DPadUp);
 
@@ -3541,9 +3553,9 @@ bool CPad::CycleCameraModeJustDown(void)
 	{
 		switch (CURMODE)
 		{
-			case 1:
+			case 1: //audible feedback when changing camera ?
 			{
-				result = !!(NewState.DPadDown && !OldState.DPadDown);
+				result = !!(NewState.DPadUp && !OldState.DPadUp);
 				break;
 			}
 			default:
