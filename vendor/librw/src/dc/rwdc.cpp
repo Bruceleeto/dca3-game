@@ -5123,13 +5123,14 @@ driverOpen(void *o, int32, int32)
 	}
 	#endif
 
+	#if !defined(DC_TEXCONV)
 	dbglog(DBG_CRITICAL, "atomicContexts: %d per %d allocation\n", decltype(atomicContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "skinContexts: %d per %d allocation\n", decltype(skinContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "matfxContexts: %d per %d allocation\n", decltype(matfxContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "opCallbacks: %d per %d allocation\n", decltype(opCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "blendCallbacks: %d per %d allocation\n", decltype(blendCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	dbglog(DBG_CRITICAL, "ptCallbacks: %d per %d allocation\n", decltype(ptCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
-	
+	#endif
 
     pvr_init(&pvr_params);
 
