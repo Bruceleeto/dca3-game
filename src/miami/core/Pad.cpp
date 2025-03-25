@@ -1669,54 +1669,54 @@ void CPad::AffectFromXinput(uint32 pad)
 
 void CPad::UpdatePads(void)
 {
-    bool bUpdate = true;
+	bool bUpdate = true;
 
-    GetPad(0)->UpdateMouse();
+	GetPad(0)->UpdateMouse();
 #ifdef XINPUT
-    GetPad(0)->AffectFromXinput(m_bMapPadOneToPadTwo ? 1 : 0);
-    GetPad(1)->AffectFromXinput(m_bMapPadOneToPadTwo ? 0 : 1);
+	GetPad(0)->AffectFromXinput(m_bMapPadOneToPadTwo ? 1 : 0);
+	GetPad(1)->AffectFromXinput(m_bMapPadOneToPadTwo ? 0 : 1);
 #else
-    CapturePad(0);
+	CapturePad(0);
 #endif
 
-    // Improve keyboard input latency part 1
+	// Improve keyboard input latency part 1
 #ifdef FIX_BUGS
-    OldKeyState = NewKeyState;
-    NewKeyState = TempKeyState;
+	OldKeyState = NewKeyState;
+	NewKeyState = TempKeyState;
 #endif
 
 #ifdef DETECT_PAD_INPUT_SWITCH
-    if (GetPad(0)->PCTempJoyState.CheckForInput())
-        IsAffectedByController = true;
-    else {
+	if (GetPad(0)->PCTempJoyState.CheckForInput())
+		IsAffectedByController = true;
+	else {
 #endif
-        ControlsManager.ClearSimButtonPressCheckers();
-        ControlsManager.AffectPadFromKeyBoard();
-        ControlsManager.AffectPadFromMouse();
+		ControlsManager.ClearSimButtonPressCheckers();
+		ControlsManager.AffectPadFromKeyBoard();
+		ControlsManager.AffectPadFromMouse();
 
 #ifdef DETECT_PAD_INPUT_SWITCH
-    }
-    if (IsAffectedByController && (GetPad(0)->PCTempKeyState.CheckForInput() || GetPad(0)->PCTempMouseState.CheckForInput()))
-        IsAffectedByController = false;
+	}
+	if (IsAffectedByController && (GetPad(0)->PCTempKeyState.CheckForInput() || GetPad(0)->PCTempMouseState.CheckForInput()))
+		IsAffectedByController = false;
 #endif
 
-    if ( CReplay::IsPlayingBackFromFile() && !FrontEndMenuManager.m_bMenuActive )
-        bUpdate = false;
+	if ( CReplay::IsPlayingBackFromFile() && !FrontEndMenuManager.m_bMenuActive )
+		bUpdate = false;
 
-    if ( bUpdate )
-        GetPad(0)->Update(0);
+	if ( bUpdate )
+		GetPad(0)->Update(0);
 
 #ifndef MASTER
-    GetPad(1)->Update(1);
+	GetPad(1)->Update(1);
 #else
-    GetPad(1)->NewState.Clear();
-    GetPad(1)->OldState.Clear();
+	GetPad(1)->NewState.Clear();
+	GetPad(1)->OldState.Clear();
 #endif
 
-    // Improve keyboard input latency part 2
+	// Improve keyboard input latency part 2
 #ifndef FIX_BUGS
-    OldKeyState = NewKeyState;
-    NewKeyState = TempKeyState;
+	OldKeyState = NewKeyState;
+	NewKeyState = TempKeyState;
 #endif
 }
 
@@ -1727,391 +1727,430 @@ void CPad::ProcessPCSpecificStuff(void)
 
 void CPad::Update(int16 pad)
 {
-    OldState = NewState;
+	OldState = NewState;
 
 #ifdef GTA_PS2
-    bObsoleteControllerMessage = false;
+	bObsoleteControllerMessage = false;
 
-    int id;
-    int ext_id=0;
-    int state;
-    int rterm_id = 0;
-    unsigned short paddata, tpad;
-    unsigned char rdata[32];
+	//int iPressureBtn;
+	int id;
+	int ext_id=0;
+	int state;
+	int rterm_id = 0;
+	unsigned short paddata, tpad;
+	unsigned char rdata[32];
 
-    state = scePadGetState(pad, 0);
+	state = scePadGetState(pad, 0);
 
-    switch(Phase)
-    {
-    case 0:
-        if (state != scePadStateStable && state != scePadStateFindCTP1)
-            break;
-        id = scePadInfoMode(pad, 0, InfoModeCurID, 0);
-        if (id==0) break;
+	switch(Phase)
+	{
+	case 0:
+		if (state != scePadStateStable && state != scePadStateFindCTP1)
+			break;
+		id = scePadInfoMode(pad, 0, InfoModeCurID, 0);
+		if (id==0) break;
 
-        ext_id = scePadInfoMode(pad, 0, InfoModeCurExID, 0);
-        if (ext_id>0) id = ext_id;
+		ext_id = scePadInfoMode(pad, 0, InfoModeCurExID, 0);
+		if (ext_id>0) id = ext_id;
 
-        switch(id)
-        {
-        case 4: // Digital controller
-            Phase = 40; // Try for analog(dualshock)
-            break;
-        case 7: // Dualshock2 controller
-            Phase = 50;
-            break;
-        default:
-            Phase = 99;
-            break;
-        }
-        break;
+		switch(id)
+		{
+		case 4: // Digital controller
+			Phase = 40; // Try for analog(dualshock)
+			break;
+		case 7: // Dualshock2 controller
+			Phase = 50;
+			break;
+		default:
+			Phase = 99;
+			break;
+		}
+		break;
 
-        // Analog Controller (old dualshock)
-    case 40: // Analog Contoller check valid (otherwise fail phase)
-        if (scePadInfoMode(pad, 0, InfoModeIdTable, -1)==0)
-        {
-            Phase = 99;
-            break;
-        }
-        Phase++;
+		// Analog Controller (old dualshock)
+	case 40: // Analog Contoller check valid (otherwise fail phase)
+		if (scePadInfoMode(pad, 0, InfoModeIdTable, -1)==0)
+		{
+			Phase = 99;
+			break;
+		}
+		Phase++;
 
-    case 41: // Analog controller: Request Lock analog mode (asynchronous)
-        if (scePadSetMainMode(pad, 0, 1, 3)==1) Phase++;
-        break;
+	case 41: // Analog controller: Request Lock analog mode (asynchronous)
+		if (scePadSetMainMode(pad, 0, 1, 3)==1) Phase++;
+		break;
 
-    case 42: // Analog controller: Check state of previous request
-        if (scePadGetReqState(pad, 0)==scePadReqStateFaild)
-        {
-            Phase--;
-        }
+	case 42: // Analog controller: Check state of previous request
+		if (scePadGetReqState(pad, 0)==scePadReqStateFaild)
+		{
+			Phase--;
+		}
 
-        if (scePadGetReqState(pad, 0)==scePadReqStateComplete)
-        {
-            // Lock mode complete
-            Phase=0; // Accept normal dualshock
-        }
-        break;
+		if (scePadGetReqState(pad, 0)==scePadReqStateComplete)
+		{
+			// Lock mode complete
+			Phase=0; // Accept normal dualshock
+		}
+		break;
 
-        // DualShock 2 Controller
-    case 50: // Analog Contoller check valid (otherwise fail phase)
-        if (scePadInfoMode(pad, 0, InfoModeIdTable, -1)==0)
-        {
-            Phase = 99;
-            break;
-        }
-        Phase++;
+		// DualShock 2 Controller
+	case 50: // Analog Contoller check valid (otherwise fail phase)
+		if (scePadInfoMode(pad, 0, InfoModeIdTable, -1)==0)
+		{
+			Phase = 99;
+			break;
+		}
+		Phase++;
 
-    case 51: // Analog controller: Request Lock analog mode (asynchronous)
-        if (scePadSetMainMode(pad, 0, 1, 3)==1) Phase++;
-        break;
+	case 51: // Analog controller: Request Lock analog mode (asynchronous)
+		if (scePadSetMainMode(pad, 0, 1, 3)==1) Phase++;
+		break;
 
-    case 52: // Analog controller: Check state of previous request
-        if (scePadGetReqState(pad, 0)==scePadReqStateFaild)
-        {
-            Phase--;
-        }
+	case 52: // Analog controller: Check state of previous request
+		if (scePadGetReqState(pad, 0)==scePadReqStateFaild)
+		{
+			Phase--;
+		}
 
-        if (scePadGetReqState(pad, 0)==scePadReqStateComplete)
-        {
-            // Lock mode complete
-            Phase=0; // Accept normal dualshock
-        }
-        break;
+		if (scePadGetReqState(pad, 0)==scePadReqStateComplete)
+		{
+			// Lock mode complete
+			Phase=0; // Accept normal dualshock
+		}
+		break;
 
-    case 70: // DualShock 2 check pressure sensitive possible
-        if (scePadInfoPressMode(pad, 0)==1)
-        {
-            Phase = 76;
-            break;
-        }
-        Phase = 99;
-        break;
+	case 70: // DualShock 2 check pressure sensitive possible
+		if (scePadInfoPressMode(pad, 0)==1)
+		{
+			Phase = 76;
+			break;
+		}
+		Phase = 99;
+		break;
 
-    case 76: // DualShock2 enable pressure sensitive mode (asynchronous function)
-        if (scePadEnterPressMode(pad, 0)==1) Phase++;
-        break;
+	case 76: // DualShock2 enable pressure sensitive mode (asynchronous function)
+		if (scePadEnterPressMode(pad, 0)==1) Phase++;
+		break;
 
-    case 77: // Dualshock2 check status of request pressure sensitive mode
-        if (scePadGetReqState(pad, 0)==scePadReqStateFaild) Phase--;
-        if (scePadGetReqState(pad, 0)==scePadReqStateComplete)
-        {
-            Phase=80;
-        }
-        break;
+	case 77: // Dualshock2 check status of request pressure sensitive mode
+		if (scePadGetReqState(pad, 0)==scePadReqStateFaild) Phase--;
+		if (scePadGetReqState(pad, 0)==scePadReqStateComplete)
+		{
+			Phase=80;
+		}
+		break;
 
-        // DualShock 2 Controller
-    case 80: // Set motors
-        if (scePadInfoAct(pad, 0, -1, 0)==0)
-        {
-            Phase = 99;
-        }
+		// DualShock 2 Controller
+	case 80: // Set motors
+		if (scePadInfoAct(pad, 0, -1, 0)==0)
+		{
+			Phase = 99;
+		}
 
-        act_align[0] = 0; // Offset 0 for motor0
-        act_align[1] = 1; // Offset 1 for motor1
+		act_align[0] = 0; // Offset 0 for motor0
+		act_align[1] = 1; // Offset 1 for motor1
 
-        act_align[2] = 0xff;
-        act_align[3] = 0xff;
-        act_align[4] = 0xff;
-        act_align[5] = 0xff;
+		act_align[2] = 0xff;
+		act_align[3] = 0xff;
+		act_align[4] = 0xff;
+		act_align[5] = 0xff;
 
-        // Asynchronous function
-        if (scePadSetActAlign(pad, 0, act_align)==0) break;
-        Phase++;
-        break;
+		// Asynchronous function
+		if (scePadSetActAlign(pad, 0, act_align)==0) break;
+		Phase++;
+		break;
 
-    case 81:
-        if ( scePadGetState(pad, 0) != scePadStateExecCmd )
-        {
-            Phase = 99;
-        }
-        break;
 
-    default:
-        if ( state == scePadStateError ) break;
+	case 81:
+		if ( scePadGetState(pad, 0) != scePadStateExecCmd )
+		{
+			Phase = 99;
+		}
 
-        if ( state == scePadStateStable || state == scePadStateFindCTP1 )
-        {
-            if ( ShakeDur )
-            {
-                ShakeDur = Max(ShakeDur - (int32)CTimer::GetTimeStepInMilliseconds(), 0);
+		break;
 
-                if ( ShakeDur == 0 )
-                {
-                    act_direct[0] = 0;
-                    act_direct[1] = 0;
-                    scePadSetActDirect(pad, 0, act_direct);
-                }
-                else
-                {
-                    act_direct[0] = 0;
-                    act_direct[1] = (unsigned char) ShakeFreq;
-                    scePadSetActDirect(pad, 0, act_direct);
-                }
-            }
+	default:
+		if ( state == scePadStateError ) break;
 
-            if (scePadRead( pad, 0, rdata )==0)
-            {
-                NewState.Clear();
-                break;
-            }
+		if ( state == scePadStateStable || state == scePadStateFindCTP1 )
+		{
+			if ( ShakeDur )
+			{
+				ShakeDur = Max(ShakeDur - (int32)CTimer::GetTimeStepInMilliseconds(), 0);
 
-            if ((rdata[0] == 0))
-            {
-                paddata = (unsigned short) ( 0xffff ^ ((rdata[2]<<8)|rdata[3]) );
-                rterm_id = (rdata[1]);
+				if ( ShakeDur == 0 )
+				{
+					act_direct[0] = 0;
+					act_direct[1] = 0;
+					scePadSetActDirect(pad, 0, act_direct);
+				}
+				else
+				{
+					act_direct[0] = 0;
+					act_direct[1] = (unsigned char) ShakeFreq;
+					scePadSetActDirect(pad, 0, act_direct);
+				}
+			}
 
-                if ( (rterm_id>>4) == 7 ) // DUALSHOCK
-                {
-                    if (!CRecordDataForGame::IsPlayingBack() && !CRecordDataForChase::ShouldThisPadBeLeftAlone(pad))
-                    {
-                        tpad = paddata;
+			if (scePadRead( pad, 0, rdata )==0)
+			{
+				NewState.Clear();
+				break;
+			}
 
-                        NewState.DPadUp         = ( tpad & SCE_PADLup )    ? 255 : 0;
-                        NewState.DPadDown       = ( tpad & SCE_PADLdown )  ? 255 : 0;
-                        NewState.DPadLeft       = ( tpad & SCE_PADLleft )  ? 255 : 0;
-                        NewState.DPadRight      = ( tpad & SCE_PADLright ) ? 255 : 0;
-                        NewState.Triangle       = ( tpad & SCE_PADRup )    ? 255 : 0;
-                        NewState.Cross          = ( tpad & SCE_PADRdown )  ? 255 : 0;
-                        NewState.Square         = ( tpad & SCE_PADRleft )  ? 255 : 0;
-                        NewState.Circle         = ( tpad & SCE_PADRright ) ? 255 : 0;
-                        NewState.Start          = ( tpad & SCE_PADstart )  ? 255 : 0;
-                        NewState.Select         = ( tpad & SCE_PADselect ) ? 255 : 0;
-                        NewState.LeftShoulder1  = ( tpad & SCE_PADL1 )     ? 255 : 0;
-                        NewState.LeftShoulder2  = ( tpad & SCE_PADL2 )     ? 255 : 0;
-                        NewState.RightShoulder1 = ( tpad & SCE_PADR1 )     ? 255 : 0;
-                        NewState.RightShoulder2 = ( tpad & SCE_PADR2 )     ? 255 : 0;
-                        NewState.LeftShock      = ( tpad & SCE_PADi )      ? 255 : 0;
-                        NewState.RightShock     = ( tpad & SCE_PADj )      ? 255 : 0;
-                        NewState.RightStickX    = (short)rdata[4];
-                        NewState.RightStickY    = (short)rdata[5];
-                        NewState.LeftStickX     = (short)rdata[6];
-                        NewState.LeftStickY     = (short)rdata[7];
+			if ((rdata[0] == 0))
+			{
+				paddata = (unsigned short) ( 0xffff ^ ((rdata[2]<<8)|rdata[3]) );
+				rterm_id = (rdata[1]);
 
-                        #define CLAMP_AXIS(x) (((x) < 43 && (x) >= -42) ? 0 : (((x) > 0) ? (Max((x)-42, 0)*127/85) : Min((x)+42, 0)*127/85))
-                        #define FIX_AXIS(x) CLAMP_AXIS((x)-128)
+				if ( (rterm_id>>4) == 7 ) // DUALSHOCK
+				{
+					if (!CRecordDataForGame::IsPlayingBack() && !CRecordDataForChase::ShouldThisPadBeLeftAlone(pad))
+					{
+						tpad = paddata;
 
-                        NewState.RightStickX = FIX_AXIS(NewState.RightStickX);
-                        NewState.RightStickY = FIX_AXIS(NewState.RightStickY);
-                        NewState.LeftStickX  = FIX_AXIS(NewState.LeftStickX);
-                        NewState.LeftStickY  = FIX_AXIS(NewState.LeftStickY);
+						NewState.DPadUp			= ( tpad & SCE_PADLup )	   ? 255 : 0;
+						NewState.DPadDown		= ( tpad & SCE_PADLdown )  ? 255 : 0;
+						NewState.DPadLeft		= ( tpad & SCE_PADLleft )  ? 255 : 0;
+						NewState.DPadRight		= ( tpad & SCE_PADLright ) ? 255 : 0;
+						NewState.Triangle		= ( tpad & SCE_PADRup )	   ? 255 : 0;
+						NewState.Cross			= ( tpad & SCE_PADRdown )  ? 255 : 0;
+						NewState.Square			= ( tpad & SCE_PADRleft )  ? 255 : 0;
+						NewState.Circle			= ( tpad & SCE_PADRright ) ? 255 : 0;
+						NewState.Start			= ( tpad & SCE_PADstart )  ? 255 : 0;
+						NewState.Select			= ( tpad & SCE_PADselect ) ? 255 : 0;
+						NewState.LeftShoulder1	= ( tpad & SCE_PADL1 )	   ? 255 : 0;
+						NewState.LeftShoulder2	= ( tpad & SCE_PADL2 )	   ? 255 : 0;
+						NewState.RightShoulder1 = ( tpad & SCE_PADR1 )	   ? 255 : 0;
+						NewState.RightShoulder2 = ( tpad & SCE_PADR2 )	   ? 255 : 0;
+						NewState.LeftShock		= ( tpad & SCE_PADi )	   ? 255 : 0;
+						NewState.RightShock		= ( tpad & SCE_PADj )	   ? 255 : 0;
+						NewState.RightStickX	= (short)rdata[4];
+						NewState.RightStickY	= (short)rdata[5];
+						NewState.LeftStickX		= (short)rdata[6];
+						NewState.LeftStickY		= (short)rdata[7];
 
-                        #undef FIX_AXIS
-                        #undef CLAMP_AXIS
-                    }
-                }
-                else if ( (rterm_id>>4) == 4 ) // Controller (digital)
-                {
-                    if ( pad == 0 )
-                        bObsoleteControllerMessage = true;
-                    NewState.Clear();
-                }
+						#define CLAMP_AXIS(x) (((x) < 43 && (x) >= -42) ? 0 : (((x) > 0) ? (Max((x)-42, 0)*127/85) : Min((x)+42, 0)*127/85))
+						#define FIX_AXIS(x) CLAMP_AXIS((x)-128)
 
-                if ( NewState.IsAnyButtonPressed() )
-                    LastTimeTouched = CTimer::GetTimeInMilliseconds();
+						NewState.RightStickX = FIX_AXIS(NewState.RightStickX);
+						NewState.RightStickY = FIX_AXIS(NewState.RightStickY);
+						NewState.LeftStickX	 = FIX_AXIS(NewState.LeftStickX);
+						NewState.LeftStickY	 = FIX_AXIS(NewState.LeftStickY);
 
-                break;
-            }
+						#undef FIX_AXIS
+						#undef CLAMP_AXIS
+					}
+				}
+				else if ( (rterm_id>>4) == 4 ) // Controller (digital)
+				{
+					if ( pad == 0 )
+						bObsoleteControllerMessage = true;
+					NewState.Clear();
+				}
 
-            if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
-                iCurrHornHistory = 0;
+				if ( NewState.IsAnyButtonPressed() )
+					LastTimeTouched = CTimer::GetTimeInMilliseconds();
 
-            bHornHistory[iCurrHornHistory] = GetHorn();
-            NewState.Clear();
-            return;
-        }
-        break;
-    }
+				break;
+			}
 
-    if ( pad == 0 )
-    {
-        bOldDisplayNoControllerMessage = bDisplayNoControllerMessage;
-        if ( state == scePadStateDiscon )
-        {
-            bDisplayNoControllerMessage = true;
-            Phase = 0;
-        }
-        else
-            bDisplayNoControllerMessage = false;
-    }
+			if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
+				iCurrHornHistory = 0;
 
-    if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
-        iCurrHornHistory = 0;
+			bHornHistory[iCurrHornHistory] = GetHorn();
+			NewState.Clear();
+			return;
+		}
+		break;
+	}
 
-    bHornHistory[iCurrHornHistory] = GetHorn();
+	if ( pad == 0 )
+	{
+		bOldDisplayNoControllerMessage = bDisplayNoControllerMessage;
+		if ( state == scePadStateDiscon )
+		{
+			bDisplayNoControllerMessage = true;
+			Phase = 0;
+		}
+		else
+			bDisplayNoControllerMessage = false;
+	}
 
-    if ( !bDisplayNoControllerMessage )
-        CGame::bDemoMode = false;
+	if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
+		iCurrHornHistory = 0;
+
+	bHornHistory[iCurrHornHistory] = GetHorn();
+
+	if ( !bDisplayNoControllerMessage )
+		CGame::bDemoMode = false;
 #endif
 
 #if (defined GTA_PS2 || defined FIX_BUGS)
-    if (!CRecordDataForGame::IsPlayingBack() && !CRecordDataForChase::ShouldThisPadBeLeftAlone(pad))
+	if (!CRecordDataForGame::IsPlayingBack() && !CRecordDataForChase::ShouldThisPadBeLeftAlone(pad))
 #endif
-    {
+	{
 #ifdef RW_DC
-        if (((NewState.RightStickY > 64 && OldState.RightStickY > 64)) || ((NewState.RightStickY) < -64 && (OldState.RightStickY < -64)))
-        {
-            CPad::GetPad(0)->IsDualAnalog = true;
-        }
+		if (((NewState.RightStickY > 64 && OldState.RightStickY > 64)) || ((NewState.RightStickY) < -64 && (OldState.RightStickY < -64)))
+		{
+			// if (contMaple == nullptr)
+			// 	CPad::GetPad(0)->IsDualAnalog = false;
+			// else
+				CPad::GetPad(0)->IsDualAnalog = true;
+		}
 
-        if (pad == 0) 
-        {
-            if (contMaple == NULL)
-            {
-                CPad::GetPad(0)->IsDualAnalog = false;
-                NewState.DPadUp         = 0;
-                NewState.DPadDown       = 0;
-                NewState.DPadLeft       = 0;
-                NewState.DPadRight      = 0;
-                NewState.A              = 0;
-                NewState.B              = 0;
-                NewState.C              = 0;
-                NewState.D              = 0;
-                NewState.X              = 0;
-                NewState.Y              = 0;
-                NewState.Z              = 0;
-                NewState.Start          = 0;
-                NewState.RightTrigger   = 0;
-                NewState.LeftTrigger    = 0;
-                NewState.LeftStickX     = 0;
-                NewState.LeftStickY     = 0;
-                NewState.RightStickX    = 0;
-                NewState.RightStickY    = 0;
-                NewState.RightShock     = 0;
-                NewState.LeftShoulder1  = 0;
-                NewState.Cross          = 0;      // Added for safety
+		//CPad::IsDualAnalog = cont_has_capabilities(contMaple, CONT_CAPABILITIES_DUAL_ANALOG); //Query controller about Dual analog capabilities
+
+		if (pad == 0) 
+		{
+			if (contMaple == NULL)
+			{
+				CPad::GetPad(0)->IsDualAnalog = false;
+				NewState.DPadUp			= 0;
+				NewState.DPadDown		= 0;
+				NewState.DPadLeft		= 0;
+				NewState.DPadRight		= 0;
+				NewState.A				= 0;
+				NewState.B				= 0;
+				NewState.C				= 0;
+				NewState.D				= 0;
+				NewState.X				= 0;
+				NewState.Y				= 0;
+				NewState.Z				= 0;
+				NewState.Start			= 0;
+				NewState.RightTrigger	= 0;
+				NewState.LeftTrigger	= 0;
+				NewState.LeftStickX		= 0;
+				NewState.LeftStickY		= 0;
+				NewState.RightStickX	= 0;
+				NewState.RightStickY	= 0;
+				NewState.RightShock		= 0;
+				NewState.LeftShoulder1  = 0;
+				NewState.Cross          = 0;      // Added for safety
                 NewState.Triangle       = 0;      // Added for safety
                 NewState.Circle         = 0;      // Added for safety
                 NewState.Square         = 0;      // Added for safety
-            }
-            else
-            {
-                NewState.DPadUp         = state->dpad_up;
-                NewState.DPadDown       = state->dpad_down;
-                NewState.DPadLeft       = state->dpad_left;
-                NewState.DPadRight      = state->dpad_right;
-                NewState.A              = state->a;
-                NewState.B              = state->b;
-                NewState.C              = state->c;
-                NewState.D              = state->d;
-                NewState.X              = state->x;
-                NewState.Y              = state->y;
-                NewState.Z              = state->z;
-                NewState.Start          = state->start;
-                NewState.RightTrigger   = state->rtrig;
-                NewState.LeftTrigger    = state->ltrig;
-                NewState.LeftStickX     = state->joyx;
-                NewState.LeftStickY     = state->joyy;
-                NewState.RightStickX    = state->joy2x;
-                NewState.RightStickY    = state->joy2y;
-                NewState.RightShock     = state->dpad_left;
-                NewState.LeftShoulder1  = (state->rtrig > 128 && state->ltrig > 128) ? 255 : 0;
-                // Add PS2-style A and B mappings, This may be the only solution for purchase items issue ?... 
+			}
+			else
+			{
+				NewState.DPadUp			= state->dpad_up;				//This part could be inside a compiler directive to preserve the old code and just use this block if compil
+				NewState.DPadDown		= state->dpad_down;				//I also changed CControllerState inside Pad.h and created these values for DC controllers
+				NewState.DPadLeft		= state->dpad_left;
+				NewState.DPadRight		= state->dpad_right;
+				NewState.A				= state->a;
+				NewState.B				= state->b;
+				NewState.C				= state->c;
+				NewState.D				= state->d;
+				NewState.X				= state->x;
+				NewState.Y				= state->y;
+				NewState.Z				= state->z;
+				NewState.Start			= state->start;
+				NewState.RightTrigger	= state->rtrig;
+				NewState.LeftTrigger	= state->ltrig;
+				NewState.LeftStickX		= state->joyx;
+				NewState.LeftStickY		= state->joyy;
+				NewState.RightStickX	= state->joy2x;
+				NewState.RightStickY	= state->joy2y;
+				NewState.RightShock		= state->dpad_left;
+				NewState.LeftShoulder1  = (state->rtrig > 128 && state->ltrig > 128) ? 255 : 0;
+				// Add PS2-style A and B mappings, This may be the only solution for purchase items issue ?... 
 				//Further more we can add other PS2 specific mapping here as certain `bool CPad::` functions are not available for mapping down below. 
-                NewState.Cross          = NewState.A;      // A -> Cross (accept/purchase)
-                NewState.Triangle       = NewState.B;      // B -> Triangle (exit)
-                NewState.Circle         = NewState.X;      // Optional: X -> Circle
-                NewState.Square         = NewState.Y;      // Optional: Y -> Square
-            }
-        } 
-        else 
-        {
-            NewState.DPadUp         = 0;
-            NewState.DPadDown       = 0;
-            NewState.DPadLeft       = 0;
-            NewState.DPadRight      = 0;
-            NewState.A              = 0;
-            NewState.B              = 0;
-            NewState.C              = 0;
-            NewState.D              = 0;
-            NewState.X              = 0;
-            NewState.Y              = 0;
-            NewState.Z              = 0;
-            NewState.Start          = 0;
-            NewState.RightTrigger   = 0;
-            NewState.LeftTrigger    = 0;
-            NewState.LeftStickX     = 0;
-            NewState.LeftStickY     = 0;
-            NewState.RightStickX    = 0;
-            NewState.RightStickY    = 0;
-            NewState.RightShock     = 0;
-            NewState.LeftShoulder1  = 0;
-            NewState.Cross          = 0;      // Added for safety
-            NewState.Triangle       = 0;      // Added for safety
-            NewState.Circle         = 0;      // Added for safety
-            NewState.Square         = 0;      // Added for safety
-        }
+				NewState.Cross          = NewState.A;      // A -> Cross (accept/purchase)
+				NewState.Triangle       = NewState.B;      // B -> Triangle (exit)
+				NewState.Circle         = NewState.X;      // Optional: X -> Circle
+				NewState.Square         = NewState.Y;      // Optional: Y -> Square
+			}
+
+		} 
+
+		else 
+		{
+			NewState.DPadUp			= 0;
+			NewState.DPadDown		= 0;
+			NewState.DPadLeft		= 0;
+			NewState.DPadRight		= 0;
+			NewState.A				= 0;
+			NewState.B				= 0;
+			NewState.C				= 0;
+			NewState.D				= 0;
+			NewState.X				= 0;
+			NewState.Y				= 0;
+			NewState.Z				= 0;
+			NewState.Start			= 0;
+			NewState.RightTrigger	= 0;
+			NewState.LeftTrigger	= 0;
+			NewState.LeftStickX		= 0;
+			NewState.LeftStickY		= 0;
+			NewState.RightStickX	= 0;
+			NewState.RightStickY	= 0;
+			NewState.RightShock		= 0;
+			NewState.LeftShoulder1  = 0;
+			NewState.Cross          = 0;      // Added for safety
+			NewState.Triangle       = 0;      // Added for safety
+			NewState.Circle         = 0;      // Added for safety
+			NewState.Square         = 0;      // Added for safety
+		}
+
+		// if (old_contMaple == nullptr && contMaple != nullptr)
+		// {
+		// 	CPad::GetPad(0)->IsDualAnalog = false;
+		// 	NewState.DPadUp			= 0;
+		// 	NewState.DPadDown		= 0;
+		// 	NewState.DPadLeft		= 0;
+		// 	NewState.DPadRight		= 0;
+		// 	NewState.A				= 0;
+		// 	NewState.B				= 0;
+		// 	NewState.C				= 0;
+		// 	NewState.D				= 0;
+		// 	NewState.X				= 0;
+		// 	NewState.Y				= 0;
+		// 	NewState.Z				= 0;
+		// 	NewState.Start			= 0;
+		// 	NewState.RightTrigger	= 0;
+		// 	NewState.LeftTrigger	= 0;
+		// 	NewState.LeftStickX		= 0;
+		// 	NewState.LeftStickY		= 0;
+		// 	NewState.RightStickX	= 0;
+		// 	NewState.RightStickY	= 0;
+		// 	NewState.RightShock		= 0;
+		// }
+
 #else
-        NewState = ReconcileTwoControllersInput(PCTempKeyState, PCTempJoyState);
-        NewState = ReconcileTwoControllersInput(PCTempMouseState, NewState);
+		NewState = ReconcileTwoControllersInput(PCTempKeyState, PCTempJoyState);
+		NewState = ReconcileTwoControllersInput(PCTempMouseState, NewState);
 #endif
-    }
+	}
 
-    PCTempJoyState.Clear();
-    PCTempKeyState.Clear();
-    PCTempMouseState.Clear();
+	PCTempJoyState.Clear();
+	PCTempKeyState.Clear();
+	PCTempMouseState.Clear();
 
-    ProcessPCSpecificStuff();
+	ProcessPCSpecificStuff();
 
-    if (NewState.CheckForInput())
-        LastTimeTouched = CTimer::GetTimeInMilliseconds();
-    
-    if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
-        iCurrHornHistory = 0;
+	if (NewState.CheckForInput())
+		LastTimeTouched = CTimer::GetTimeInMilliseconds();
+	
+	if ( ++iCurrHornHistory >= HORNHISTORY_SIZE )
+		iCurrHornHistory = 0;
 
-    bHornHistory[iCurrHornHistory] = GetHorn();
+	bHornHistory[iCurrHornHistory] = GetHorn();
 
-    for (int32 i = DRUNK_STEERING_BUFFER_SIZE - 2; i >= 0; i--) {
-        SteeringLeftRightBuffer[i + 1] = SteeringLeftRightBuffer[i];
-    }
+	for (int32 i = DRUNK_STEERING_BUFFER_SIZE - 2; i >= 0; i--) {
+		SteeringLeftRightBuffer[i + 1] = SteeringLeftRightBuffer[i];
+	}
 
-    if ( !bDisplayNoControllerMessage )
-        CGame::bDemoMode = false;
+	if ( !bDisplayNoControllerMessage )
+		CGame::bDemoMode = false;
 
-    if ( JustOutOfFrontend != 0 )
-        --JustOutOfFrontend;
+	if ( JustOutOfFrontend != 0 )
+		--JustOutOfFrontend;
+		
 
-    contMaple = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
-    state = (cont_state_t *)maple_dev_status(contMaple);
+	//auto old_contMaple = contMaple;
+	//auto n_dev = maple_enum_count();
+	contMaple = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+	state = (cont_state_t *)maple_dev_status(contMaple);
+
 }
 
 void CPad::DoCheats(void)
@@ -3492,7 +3531,7 @@ bool CPad::CycleCameraModeJustDown(void)
 		case 0: //audible feedback when changing camera ?
 
 		{
-			return	!!(NewState.DPadUp && !OldState.DPadUp);
+			result = !!(NewState.DPadUp && !OldState.DPadUp);
 
 			break;
 		}
@@ -3514,7 +3553,7 @@ bool CPad::CycleCameraModeJustDown(void)
 	{
 		switch (CURMODE)
 		{
-			case 1:
+			case 1: //audible feedback when changing camera ?
 			{
 				result = !!(NewState.DPadUp && !OldState.DPadUp);
 				break;
