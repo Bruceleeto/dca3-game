@@ -41,6 +41,7 @@ public:
 	static void DrawColModel(const CMatrix &mat, const CColModel &colModel);
 	static void DrawColModel_Coloured(const CMatrix &mat, const CColModel &colModel, int32 id);
 
+	static void RemoveTrianglePlanes(CColModel *model);
 	static void CalculateTrianglePlanes(CColModel *model);
 
 	// all these return true if there's a collision

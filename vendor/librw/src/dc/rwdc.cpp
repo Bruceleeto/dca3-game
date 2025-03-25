@@ -43,6 +43,7 @@ extern const char* currentFile;
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
 bool re3EmergencyRemoveModel();
+void* re3StreamingAlloc(size_t size);
 
 // #include "rwdcimpl.h"
 
@@ -627,13 +628,11 @@ struct alignas(8) UniformObject
 // So we provide default ctors. We lose the POD status but win
 // in perf for std::vector.
 
-struct mesh_context_t {
-	mesh_context_t() { }
+struct matfx_context_t {
+	matfx_context_t() { }
 
-	RGBA color;
-	float32 ambient;
-	float32 diffuse;
-	size_t matfxContextOffset;
+	matrix_t mtx;
+	float32 coefficient;
 
 	uint32_t hdr_cmd;
 	uint32_t hdr_mode1;
@@ -641,11 +640,13 @@ struct mesh_context_t {
 	uint32_t hdr_mode3;
 };
 
-struct matfx_context_t {
-	matfx_context_t() { }
+struct mesh_context_t {
+	mesh_context_t() { }
 
-	matrix_t mtx;
-	float32 coefficient;
+	RGBA color;
+	float32 ambient;
+	float32 diffuse;
+	matfx_context_t* matfxContextPointer;
 
 	uint32_t hdr_cmd;
 	uint32_t hdr_mode1;
@@ -664,17 +665,16 @@ static_assert(sizeof(skin_context_t) == sizeof(Matrix));
 struct atomic_context_t {
 	atomic_context_t() { }
 
-	size_t meshContextOffset;
-	size_t skinContextOffset;
+	matrix_t mtx;
+	UniformObject uniform;
+	
+	skin_context_t* skinContextPointer;
 	Atomic* atomic;
 	Geometry* geo;
 	Camera* cam;
 
 	bool global_needsNoClip;
 	bool skinMatrix0Identity;
-
-	matrix_t worldView, mtx;
-	UniformObject uniform;
 };
 /* END Ligting Structs and Defines */
 
@@ -815,13 +815,283 @@ void beginUpdate(Camera* cam)  {
 }
 
 
-std::vector<atomic_context_t> atomicContexts;
-std::vector<mesh_context_t> meshContexts;
-std::vector<skin_context_t> skinContexts;
-std::vector<matfx_context_t> matfxContexts;
-std::vector<std::function<void()>> opCallbacks;
-std::vector<std::function<void()>> blendCallbacks;
-std::vector<std::function<void()>> ptCallbacks;
+template<typename T>
+struct chunked_vector {
+    static constexpr size_t chunk_size = 8192;
+
+	struct chunk;
+
+    struct chunk_header {
+        chunk* prev;
+        chunk* next;
+        size_t used;
+        size_t free;
+    };
+
+    struct chunk {
+        static constexpr size_t item_count = (chunk_size - sizeof(chunk_header)) / sizeof(T);
+        union {
+            struct {
+                chunk_header header;
+                T items[item_count];
+            };
+            uint8_t data[chunk_size];
+        };
+    };
+
+    // In-object first chunk storage.
+    chunk* first;
+    chunk* last;
+
+    // Constructor: initialize first chunk’s header and set pointers.
+    chunked_vector()
+    {
+		first = last = static_cast<chunk*>(malloc(sizeof(chunk)));
+		
+		first->header.prev = nullptr;
+		first->header.next = nullptr;
+		first->header.used = 0;
+		first->header.free = chunk::item_count;
+
+        static_assert(sizeof(chunk) == chunk_size, "chunk size mismatch");
+    }
+
+    // Destructor: free extra chunks and call clear() to destruct contained objects.
+    ~chunked_vector() {
+        clear();
+        // Free all dynamically allocated chunks
+        chunk* curr = first;
+        while (curr) {
+            chunk* next = curr->header.next;
+            free(curr);
+            curr = next;
+        }
+    }
+
+    // Return a reference to the last element. (Precondition: not empty.)
+    T& back() {
+        assert(last->header.used > 0 && "back() called on empty vector");
+        return last->items[last->header.used - 1];
+    }
+
+    // // Random-access: iterate through chunks until the correct index is found.
+    // T& operator[](size_t idx) {
+    //     chunk* curr = first;
+    //     while (curr) {
+    //         if (idx < curr->header.used)
+    //             return curr->items[idx];
+    //         idx -= curr->header.used;
+    //         curr = curr->header.next;
+    //     }
+    //     assert(0 && "Index out of range");
+    //     // Should never reach here.
+    //     return first->items[0];
+    // }
+
+    // Emplace amt default-constructed elements in a contiguous block (within one chunk)
+    // and return a pointer to the first new element.
+    T* emplace_many(size_t amt) {
+        // Assert that amt is not greater than one chunk's capacity.
+        assert(amt <= chunk::item_count && "emplace_many: amt exceeds a single chunk's capacity");
+
+        // Ensure the current chunk has enough free space.
+        if (last->header.free < amt) {
+            if (last->header.next && last->header.next->header.free >= amt) {
+                last = last->header.next;
+            } else {
+                // Allocate a new chunk.
+                chunk* new_chunk = static_cast<chunk*>(malloc(sizeof(chunk)));
+                assert(new_chunk && "malloc failed in emplace_many");
+                new_chunk->header.prev = last;
+                new_chunk->header.next = nullptr;
+                new_chunk->header.used = 0;
+                new_chunk->header.free = chunk::item_count;
+                last->header.next = new_chunk;
+                last = new_chunk;
+            }
+        }
+        T* start_ptr = &last->items[last->header.used];
+        for (size_t i = 0; i < amt; ++i) {
+            new (&last->items[last->header.used]) T();
+            last->header.used++;
+            last->header.free--;
+        }
+        return start_ptr;
+    }
+
+    // // Return total number of elements across all chunks.
+    // size_t size() const {
+    //     size_t total = 0;
+    //     for (chunk* curr = first; curr; curr = curr->header.next) {
+    //         total += curr->header.used;
+    //     }
+    //     return total;
+    // }
+	bool empty() const {
+		return first->header.used == 0;
+	}
+
+    // Clear all elements: call destructors and reset used/free counters.
+    // Note: extra chunks are NOT freed.
+    void clear() {
+        for (chunk* curr = first; curr; curr = curr->header.next) {
+            for (size_t i = 0; i < curr->header.used; ++i) {
+                curr->items[i].~T();
+            }
+            curr->header.used = 0;
+            curr->header.free = chunk::item_count;
+        }
+		// Free all chunks except first chunk.
+		chunk* curr = first->header.next;
+		while (curr) {
+			chunk* next = curr->header.next;
+			free(curr);
+			curr = next;
+		}
+		first->header.next = nullptr;
+        // Reset last pointer to first
+        last = first;
+    }
+
+    // Emplace a default-constructed element at the end.
+    void emplace_back() {
+        if (last->header.free == 0) {
+            if (last->header.next) {
+                last = last->header.next;
+            } else {
+                chunk* new_chunk = static_cast<chunk*>(malloc(sizeof(chunk)));
+                assert(new_chunk && "malloc failed in emplace_back");
+                new_chunk->header.prev = last;
+                new_chunk->header.next = nullptr;
+                new_chunk->header.used = 0;
+                new_chunk->header.free = chunk::item_count;
+                last->header.next = new_chunk;
+                last = new_chunk;
+            }
+        }
+        new (&last->items[last->header.used]) T();
+        last->header.used++;
+        last->header.free--;
+    }
+
+    // Emplace an element by moving it into the container.
+    void emplace_back(T&& v) {
+        if (last->header.free == 0) {
+            if (last->header.next) {
+                last = last->header.next;
+            } else {
+                chunk* new_chunk = static_cast<chunk*>(malloc(sizeof(chunk)));
+                assert(new_chunk && "malloc failed in emplace_back(T&&)");
+                new_chunk->header.prev = last;
+                new_chunk->header.next = nullptr;
+                new_chunk->header.used = 0;
+                new_chunk->header.free = chunk::item_count;
+                last->header.next = new_chunk;
+                last = new_chunk;
+            }
+        }
+        new (&last->items[last->header.used]) T(std::forward<T>(v));
+        last->header.used++;
+        last->header.free--;
+    }
+
+    // Iterate over each element and invoke the callback.
+    void forEach(void(*cb)(T&)) {
+        for (chunk* curr = first; curr; curr = curr->header.next) {
+            for (size_t i = 0; i < curr->header.used; ++i) {
+                cb(curr->items[i]);
+            }
+        }
+    }
+};
+
+template<typename T>
+struct free_pointer_t {
+	T* ptr;
+	free_pointer_t(T* p) : ptr(p) { }
+	free_pointer_t(free_pointer_t&& other) : ptr(other.ptr) { other.ptr = nullptr; }
+	free_pointer_t(const free_pointer_t&) = delete;
+	~free_pointer_t() {
+		if (ptr) {
+			free(ptr);
+		}
+	}
+};
+
+chunked_vector<atomic_context_t> atomicContexts;
+chunked_vector<mesh_context_t> meshContexts;
+chunked_vector<skin_context_t> skinContexts;
+static_assert(chunked_vector<skin_context_t>::chunk::item_count >= 64);
+chunked_vector<matfx_context_t> matfxContexts;
+
+// A basic move-only function wrapper for callables with signature R(Args...)
+template <typename>
+class move_only_function; // primary template not defined
+
+template <typename R, typename... Args>
+class move_only_function<R(Args...)> {
+public:
+    // Default constructor creates an empty callable.
+    move_only_function() noexcept : callable_(nullptr) {}
+
+    // Templated constructor to accept any callable object.
+    template <typename F>
+    move_only_function(F&& f)
+        : callable_(new model<F>(std::move(f))) {}
+
+    // Move constructor.
+    move_only_function(move_only_function&& other) noexcept
+        : callable_(other.callable_) {
+        other.callable_ = nullptr;
+    }
+
+    // Move assignment operator.
+    move_only_function& operator=(move_only_function&& other) noexcept {
+        if (this != &other) {
+            delete callable_;
+            callable_ = other.callable_;
+            other.callable_ = nullptr;
+        }
+        return *this;
+    }
+
+    // Delete copy constructor and copy assignment operator.
+    move_only_function(const move_only_function&) = delete;
+    move_only_function& operator=(const move_only_function&) = delete;
+
+    // Destructor.
+    ~move_only_function() {
+        delete callable_;
+    }
+
+    // Invoke the stored callable.
+    R operator()(Args... args) {
+        return callable_->invoke(std::forward<Args>(args)...);
+    }
+
+private:
+    // Base class for type erasure.
+    struct concept_t {
+        virtual ~concept_t() = default;
+        virtual R invoke(Args&&... args) = 0;
+    };
+
+    // Derived template class that stores the actual callable.
+    template <typename F>
+    struct model : concept_t {
+        F f;
+        explicit model(F&& f) : f(std::move(f)) {}
+        R invoke(Args&&... args) override {
+            return f(std::forward<Args>(args)...);
+        }
+    };
+
+    concept_t* callable_;
+};
+
+chunked_vector<move_only_function<void()>> opCallbacks;
+chunked_vector<move_only_function<void()>> blendCallbacks;
+chunked_vector<move_only_function<void()>> ptCallbacks;
 
 void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 	
@@ -1123,27 +1393,27 @@ void endUpdate(Camera* cam) {
 		pvr_dr_init(&drState);
 		pvr_list_begin(PVR_LIST_OP_POLY);
 		enter_oix();
-		if (opCallbacks.size()) {
-			for (auto&& cb: opCallbacks) {
+		if (!opCallbacks.empty()) {
+			opCallbacks.forEach([](auto &cb) {
 				cb();
-			}
+			});
 		}
 		pvr_list_finish();
-		if (ptCallbacks.size()) {
+		if (!ptCallbacks.empty()) {
 			PVR_SET(0x11C, 64); // PT Alpha test value
 			pvr_dr_init(&drState);
 			pvr_list_begin(PVR_LIST_PT_POLY);
-			for (auto&& cb: ptCallbacks) {
+			ptCallbacks.forEach([](auto &cb) {
 				cb();
-			}
+			});
 			pvr_list_finish();
 		}
 		pvr_list_begin(PVR_LIST_TR_POLY);
-		if (blendCallbacks.size()) {
+		if (!blendCallbacks.empty()) {
 			pvr_dr_init(&drState);
-			for (auto&& cb: blendCallbacks) {
+			blendCallbacks.forEach([](auto &cb) {
 				cb();
-			}
+			});
 		}
 
 		if (vertexOverflown()) {
@@ -1480,55 +1750,60 @@ pvr_ptr_t pvrTexturePointer(Raster *r) {
 void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVertices) {
 	auto *verts = reinterpret_cast<Im2DVertex *>(vertices);
 
+	pvr_poly_cxt_t cxt;
+
+	if (current_raster) [[likely]] {
+		pvr_poly_cxt_txr(&cxt, 
+						PVR_LIST_TR_POLY, 
+						pvrFormatForRaster(current_raster), 
+						current_raster->width, 
+						current_raster->height,
+						pvrTexturePointer(current_raster), 
+						PVR_FILTER_BILINEAR);
+		pvrTexAddress(&cxt, addressingU, addressingV);
+	} else { 
+		pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
+	}
+
+	if (blendEnabled) [[likely]] {
+		cxt.blend.src = srcBlend;
+		cxt.blend.dst = dstBlend;
+	} else {
+		// non blended sprites are also submitted in TR lists
+		// so we need to reset the blend mode
+		cxt.blend.src = PVR_BLEND_ONE;
+		cxt.blend.dst = PVR_BLEND_ZERO;
+	}
+
+	cxt.gen.culling      = cullModePvr;
+	cxt.depth.comparison = zFunction;
+	cxt.depth.write      = zWrite;
+
+	cxt.gen.fog_type = fogFuncPvr;
+
+	pvr_poly_hdr_t hdr;
+	pvr_poly_compile(&hdr, &cxt);
+
+	assert(primType == PRIMTYPETRILIST || primType == PRIMTYPETRIFAN);
+	
 	auto renderCB = 
-		[=,
-			current_raster = dc::current_raster,
-			blend_enabled  = dc::blendEnabled,
-			src_blend      = dc::srcBlend,
-			dst_blend      = dc::dstBlend,
-			z_function     = dc::zFunction,
-			z_write        = dc::zWrite,
-			cull_mode_pvr  = dc::cullModePvr,
-			addressingU    = dc::addressingU,
-			addressingV    = dc::addressingV,
-            fog_func_pvr   = dc::fogFuncPvr]
+		[
+			primType,
+			numVertices,
+			cmd = hdr.cmd,
+			mode1 = hdr.mode1,
+			mode2 = hdr.mode2,
+			mode3 = hdr.mode3
+		]
 		(const Im2DVertex* vtx) __attribute__((always_inline)) 
 	{
 
 		auto pvrHeaderSubmit = [=]() __attribute__((always_inline)) {
-			pvr_poly_cxt_t cxt;
-
-			if (current_raster) [[likely]] {
-				pvr_poly_cxt_txr(&cxt, 
-								PVR_LIST_TR_POLY, 
-								pvrFormatForRaster(current_raster), 
-								current_raster->width, 
-								current_raster->height,
-								pvrTexturePointer(current_raster), 
-								PVR_FILTER_BILINEAR);
-				pvrTexAddress(&cxt, addressingU, addressingV);
-			} else { 
-				pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
-			}
-
-			if (blend_enabled) [[likely]] {
-				cxt.blend.src = src_blend;
-				cxt.blend.dst = dst_blend;
-			} else {
-				// non blended sprites are also submitted in TR lists
-				// so we need to reset the blend mode
-				cxt.blend.src = PVR_BLEND_ONE;
-				cxt.blend.dst = PVR_BLEND_ZERO;
-			}
-
-			cxt.gen.culling      = cull_mode_pvr;
-			cxt.depth.comparison = z_function;
-			cxt.depth.write      = z_write;
-
-			cxt.gen.fog_type = fog_func_pvr;
-
 			auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
-			pvr_poly_compile(hdr, &cxt);
+			hdr->cmd = cmd;
+			hdr->mode1 = mode1;
+			hdr->mode2 = mode2;
+			hdr->mode3 = mode3;
 			pvr_dr_commit(hdr);
 		};
 
@@ -1584,26 +1859,130 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		}
 	};
 
-	std::vector<Im2DVertex> vertData(verts, verts + numVertices);
-	blendCallbacks.emplace_back([=, data = std::move(vertData)]() {
-		renderCB(&data[0]);
+	Im2DVertex* vertData = (Im2DVertex*)malloc(numVertices * sizeof(Im2DVertex));
+	assert(vertData);
+	memcpy(vertData, verts, numVertices * sizeof(Im2DVertex));
+	blendCallbacks.emplace_back([renderCB, vertData=free_pointer_t{vertData}]() {
+		renderCB(vertData.ptr);
 	});
 }
 
 void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 numVertices, void *indices, int32 numIndices) {
 	auto idx = (unsigned short*)indices;
-	auto vtx = (Im2DVertex*)vertices;
+	auto verts = (Im2DVertex*)vertices;
 
-    std::vector<Im2DVertex> vertData(numIndices);
+	pvr_poly_cxt_t cxt;
 
-	for (int32 i = 0; i < numIndices; i++) {
-		vertData[i] = vtx[idx[i]];
+	if (current_raster) [[likely]] {
+		pvr_poly_cxt_txr(&cxt, 
+						PVR_LIST_TR_POLY, 
+						pvrFormatForRaster(current_raster), 
+						current_raster->width, 
+						current_raster->height,
+						pvrTexturePointer(current_raster), 
+						PVR_FILTER_BILINEAR);
+		pvrTexAddress(&cxt, addressingU, addressingV);
+	} else { 
+		pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
 	}
 
-	im2DRenderPrimitive(primType, &vertData[0], vertData.size());
+	if (blendEnabled) [[likely]] {
+		cxt.blend.src = srcBlend;
+		cxt.blend.dst = dstBlend;
+	} else {
+		// non blended sprites are also submitted in TR lists
+		// so we need to reset the blend mode
+		cxt.blend.src = PVR_BLEND_ONE;
+		cxt.blend.dst = PVR_BLEND_ZERO;
+	}
+
+	cxt.gen.culling      = cullModePvr;
+	cxt.depth.comparison = zFunction;
+	cxt.depth.write      = zWrite;
+
+	cxt.gen.fog_type = fogFuncPvr;
+
+	pvr_poly_hdr_t hdr;
+	pvr_poly_compile(&hdr, &cxt);
+
+	assert(primType == PRIMTYPETRILIST);
+	
+	auto renderCB = 
+		[
+			primType,
+			numIndices,
+			cmd = hdr.cmd,
+			mode1 = hdr.mode1,
+			mode2 = hdr.mode2,
+			mode3 = hdr.mode3
+		]
+		(const Im2DVertex* vtx, const uint16_t* idx) __attribute__((always_inline)) 
+	{
+
+		auto pvrHeaderSubmit = [=]() __attribute__((always_inline)) {
+			auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
+			hdr->cmd = cmd;
+			hdr->mode1 = mode1;
+			hdr->mode2 = mode2;
+			hdr->mode3 = mode3;
+			pvr_dr_commit(hdr);
+		};
+
+		auto pvrVertexSubmit = [](const Im2DVertex &gtaVert, unsigned flags) 
+		__attribute__((always_inline)) 
+		{
+			auto *pvrVert  = pvr_dr_target(drState); 
+			pvrVert->flags = flags;
+			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
+			pvrVert->y	   = gtaVert.y;
+			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->u 	   = gtaVert.u;
+			pvrVert->v 	   = gtaVert.v;
+			pvrVert->argb  = (gtaVert.a << 24) |
+							 (gtaVert.r << 16) |
+							 (gtaVert.g <<  8) |
+							 (gtaVert.b <<  0);
+			pvr_dr_commit(pvrVert);
+		};
+
+		switch(primType) {
+			case PRIMTYPETRILIST:
+				pvrHeaderSubmit();
+				dcache_pref_block(vtx);
+				for(int i = 0; i < numIndices; i += 3) [[likely]] {
+					dcache_pref_block(&vtx[idx[i + 1]]);
+					pvrVertexSubmit(vtx[idx[i + 0]], PVR_CMD_VERTEX);
+					dcache_pref_block(&vtx[idx[i + 2]]);
+					pvrVertexSubmit(vtx[idx[i + 1]], PVR_CMD_VERTEX);
+					dcache_pref_block(&vtx[idx[i + 3]]);
+					pvrVertexSubmit(vtx[idx[i + 2]], PVR_CMD_VERTEX_EOL);
+				}
+			break;
+		default:
+			UNIMPL_LOGV("primType: %d, vertices: %p, numVertices: %d", primType, vertices, numVertices);
+		}
+	};
+
+	Im2DVertex* vertData = (Im2DVertex*)malloc(numVertices * sizeof(Im2DVertex));
+	assert(vertData);
+	memcpy(vertData, verts, numVertices * sizeof(Im2DVertex));
+	uint16_t* idxData = (uint16_t*)malloc(numIndices * sizeof(uint16_t));
+	assert(idxData);
+	memcpy(idxData, idx, numIndices * sizeof(uint16_t));
+	blendCallbacks.emplace_back([renderCB, vertData=free_pointer_t(vertData), idxData=free_pointer_t(idxData)]() {
+		renderCB(vertData.ptr, idxData.ptr);
+	});
+
+    // std::vector<Im2DVertex> vertData(numIndices);
+
+	// for (int32 i = 0; i < numIndices; i++) {
+	// 	vertData[i] = vtx[idx[i]];
+	// }
+
+	// im2DRenderPrimitive(primType, &vertData[0], vertData.size());
 }
 
-static std::vector<Im3DVertex> im3dVertices; 
+static Im3DVertex* im3dVertices; 
 void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 flags) {
     // UNIMPL_LOGV("start %d", numVertices);
     if(worldMat == nil){
@@ -1621,7 +2000,12 @@ void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 f
 	rw::RawMatrix::mult(&mtx, &proj, (RawMatrix*)&DCE_MAT_SCREENVIEW);
 	// mat_load(&DCE_MAT_SCREENVIEW);     // ~11 cycles.
 	mat_load(( matrix_t*)&mtx.right);  // Number of cycles: ~32.
-    im3dVertices.resize(numVertices);
+    if (im3dVertices) {
+		free(im3dVertices);
+	}
+
+	im3dVertices = (Im3DVertex*)malloc(numVertices * sizeof(Im3DVertex));
+	assert(im3dVertices);
 
     auto vtx = (Im3DVertex*)vertices;
 
@@ -1649,49 +2033,56 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 								void         *indices, 
 								int32_t       numIndices) 
 {
+	if (primType == PRIMTYPELINELIST || primType == PRIMTYPEPOLYLINE) {
+		return;
+	}
+	pvr_poly_cxt_t cxt;
+
+	if (current_raster) [[likely]] {
+		pvr_poly_cxt_txr(&cxt, 
+						blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, 
+						pvrFormatForRaster(current_raster), 
+						current_raster->width, 
+						current_raster->height,
+						pvrTexturePointer(current_raster), 
+						PVR_FILTER_BILINEAR);
+		pvrTexAddress(&cxt, addressingU, addressingV);
+	} else pvr_poly_cxt_col(&cxt, blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY);		
+
+	if (blendEnabled) [[likely]] {
+		cxt.blend.src = srcBlend;
+		cxt.blend.dst = dstBlend;
+	}
+
+	cxt.gen.culling      = cullModePvr;
+	cxt.depth.comparison = zFunction;
+	cxt.depth.write      = zWrite;
+
+
+	cxt.gen.fog_type = fogFuncPvr;
+
+	pvr_poly_hdr_t hdr;
+	pvr_poly_compile(&hdr, &cxt);
+
+	assert(primType == PRIMTYPETRILIST);
+
 	auto renderCB = 
-		[=,
-		 current_raster = dc::current_raster,
-		 cull_mode_pvr  = dc::cullModePvr,
-		 src_blend      = dc::srcBlend,
-		 dst_blend      = dc::dstBlend,
-		 blend_enabled  = dc::blendEnabled,
-		 z_function     = dc::zFunction,
-		 z_write        = dc::zWrite,
-		 addressingU    = dc::addressingU,
-		 addressingV    = dc::addressingV,
-		 fog_func_pvr   = dc::fogFuncPvr]
+		[
+			numIndices,
+			cmd = hdr.cmd,
+			mode1 = hdr.mode1,
+			mode2 = hdr.mode2,
+			mode3 = hdr.mode3
+		]
 		 (const void* indices, const Im3DVertex *im3dVertices) __attribute__((always_inline)) 
 		
 	{
 		auto pvrHeaderSubmit = [=]() __attribute__((always_inline)) {
-			pvr_poly_cxt_t cxt;
-
-			if (current_raster) [[likely]] {
-				pvr_poly_cxt_txr(&cxt, 
-								blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, 
-								pvrFormatForRaster(current_raster), 
-								current_raster->width, 
-								current_raster->height,
-								pvrTexturePointer(current_raster), 
-								PVR_FILTER_BILINEAR);
-				pvrTexAddress(&cxt, addressingU, addressingV);
-			} else pvr_poly_cxt_col(&cxt, blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY);		
-
-			if (blend_enabled) [[likely]] {
-				cxt.blend.src = src_blend;
-				cxt.blend.dst = dst_blend;
-			}
-
-			cxt.gen.culling      = cull_mode_pvr;
-			cxt.depth.comparison = z_function;
-			cxt.depth.write      = z_write;
-
-
-			cxt.gen.fog_type = fog_func_pvr;
-
 			auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
-			pvr_poly_compile(hdr, &cxt);
+			hdr->cmd = cmd;
+			hdr->mode1 = mode1;
+			hdr->mode2 = mode2;
+			hdr->mode3 = mode3;
 			pvr_dr_commit(hdr);
 		};
 
@@ -1740,98 +2131,95 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 			DCE_RenderSubmitVertex(&pvrVert, flags);
 		};
 
-		if(primType == PRIMTYPETRILIST) [[likely]] {
-			const auto *idx = reinterpret_cast<const uint16 *>(indices);
-			
-			pvrHeaderSubmit();
+		const auto *idx = reinterpret_cast<const uint16 *>(indices);
+		
+		pvrHeaderSubmit();
 
-			dcache_pref_block(idx);
-			for (int32_t i = 0; i < numIndices; i += 3) [[likely]]{
-				uint16_t idx0 = idx[i + 0];
-				auto     vtx0 = im3dVertices[idx0];
-				uint16_t idx1 = idx[i + 1];
-				auto     vtx1 = im3dVertices[idx1];
-				uint16_t idx2 = idx[i + 2];
-				auto     vtx2 = im3dVertices[idx2];
+		dcache_pref_block(idx);
+		for (int32_t i = 0; i < numIndices; i += 3) [[likely]]{
+			uint16_t idx0 = idx[i + 0];
+			auto     vtx0 = im3dVertices[idx0];
+			uint16_t idx1 = idx[i + 1];
+			auto     vtx1 = im3dVertices[idx1];
+			uint16_t idx2 = idx[i + 2];
+			auto     vtx2 = im3dVertices[idx2];
 
-				uint32_t vismask = 0;
-				if(vtx0.position.z > 1.0f) vismask |= 0b100;
-				vismask >>= 1;
-				if(vtx1.position.z > 1.0f) vismask |= 0b100;
-				vismask >>= 1;
-				if(vtx2.position.z > 1.0f) vismask |= 0b100;
+			uint32_t vismask = 0;
+			if(vtx0.position.z > 1.0f) vismask |= 0b100;
+			vismask >>= 1;
+			if(vtx1.position.z > 1.0f) vismask |= 0b100;
+			vismask >>= 1;
+			if(vtx2.position.z > 1.0f) vismask |= 0b100;
 
-				if (vismask == 0) continue;
+			if (vismask == 0) continue;
 
-				if (vismask == 7) {
+			if (vismask == 7) {
+				VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+				VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+				VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX_EOL);
+			}
+
+			switch (vismask) {
+				case 1: // 0 visible, 1 and 2 hidden
+					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
+					break;
+				case 2: // 0 hidden, 1 visible, 2 hidden
+					pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
+					VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
+					break;
+				case 3: // 0 and 1 visible, 2 hidden
 					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
 					VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
+					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
+					break;
+				case 4: // 0 and 1 hidden, 2 visible
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
+					break;
+				case 5: // 0 visible, 1 hidden, 2 visible
+					VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
 					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX_EOL);
-				}
-
-				switch (vismask) {
-					case 1: // 0 visible, 1 and 2 hidden
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
-						break;
-					case 2: // 0 hidden, 1 visible, 2 hidden
-						pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
-						break;
-					case 3: // 0 and 1 visible, 2 hidden
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX_EOL);
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx2, PVR_CMD_VERTEX_EOL);
-						break;
-					case 4: // 0 and 1 hidden, 2 visible
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
-						break;
-					case 5: // 0 visible, 1 hidden, 2 visible
-						VTXSUBMITIM3D(vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX_EOL);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
-						break;
-					case 6: // 0 hidden, 1 and 2 visible
-						VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX_EOL);
-						VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
-						pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX_EOL);
-						break;
-					default:
-						break;
-				}
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx0, vtx1, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx1, PVR_CMD_VERTEX_EOL);
+					break;
+				case 6: // 0 hidden, 1 and 2 visible
+					VTXSUBMITIM3D(vtx1, PVR_CMD_VERTEX);
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX_EOL);
+					VTXSUBMITIM3D(vtx2, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx1, vtx0, PVR_CMD_VERTEX);
+					pvrVertexSubmit_interp(vtx2, vtx0, PVR_CMD_VERTEX_EOL);
+					break;
+				default:
+					break;
 			}
-		} 
-		else UNIMPL_LOGV("primType: %d", primType);
+		}
 	};
 
+	assert(im3dVertices);
+	auto vtxData = im3dVertices;
+	im3dVertices = nullptr;
+
+	auto *idxData = (uint16_t*)malloc(numIndices * sizeof(uint16_t));
+	assert(idxData);
+	memcpy(idxData, indices, numIndices * sizeof(uint16_t));
+
 	if (blendEnabled) {
-		auto *idx = reinterpret_cast<uint16_t *>(indices);
-		std::vector<uint16_t> indexBuffer(idx, idx + numIndices);
-		blendCallbacks.emplace_back([=, 
-								 data = std::move(indexBuffer), 
-								 vtxData = im3dVertices](){
-				renderCB(&data[0], &vtxData[0]);
+		blendCallbacks.emplace_back([renderCB, idxData = free_pointer_t(idxData), vtxData = free_pointer_t(vtxData)](){
+				renderCB(idxData.ptr, vtxData.ptr);
 		});
 	} else {
-		auto *idx = reinterpret_cast<uint16_t *>(indices);
-		std::vector<uint16_t> indexBuffer(idx, idx + numIndices);
-		opCallbacks.emplace_back([=, 
-								 data = std::move(indexBuffer), 
-								 vtxData = im3dVertices](){
-				renderCB(&data[0], &vtxData[0]);
+		opCallbacks.emplace_back([renderCB, idxData = free_pointer_t(idxData), vtxData = free_pointer_t(vtxData)](){
+			renderCB(idxData.ptr, vtxData.ptr);
 		});
 	}
 
@@ -1839,7 +2227,10 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 
 void im3DEnd(void) {
     // UNIMPL_LOG();
-    im3dVertices.resize(0);
+    if (im3dVertices) {
+		free(im3dVertices);
+	}
+	im3dVertices = nullptr;
 }
 
 template<typename Vin, typename Vout>
@@ -3563,18 +3954,17 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 	int32 numMeshes = geo->meshHeader->numMeshes;
 
-	size_t skinContextOffset = skinContexts.size();
+	skin_context_t* skinContextPointer = nullptr;
 	bool skinMatrix0Identity = false;
 	if (skin) {
-		skinContexts.resize(skinContextOffset + skin->numBones);
-		skinMatrix0Identity = uploadSkinMatrices(atomic, &(skinContexts.data() + skinContextOffset)->mtx);
+		skinContextPointer = skinContexts.emplace_many(skin->numBones);
+		skinMatrix0Identity = uploadSkinMatrices(atomic, &skinContextPointer->mtx);
 	}
 
 	atomicContexts.emplace_back();
 	auto ac = &atomicContexts.back();
 
-	ac->meshContextOffset = meshContexts.size();
-	ac->skinContextOffset = skinContextOffset;
+	ac->skinContextPointer = skinContextPointer;
 	ac->atomic = atomic;
 	ac->geo = geo;
 	ac->cam = cam;
@@ -3589,18 +3979,11 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	rw::convMatrix(&world, atomic->getFrame()->getLTM());
 	
 
-	mat_load((matrix_t*)&cam->devView);
-	mat_apply((matrix_t*)&world);
-	mat_store((matrix_t*)&atomicContexts.back().worldView);
-
 	mat_load((matrix_t*)&cam->devProjScreen);
-	mat_apply((matrix_t*)&atomicContexts.back().worldView);
+	mat_apply((matrix_t*)&cam->devView);
+	mat_apply((matrix_t*)&world);
 	mat_store((matrix_t*)&atomicContexts.back().mtx);
 
-	int16_t contextId = atomicContexts.size() - 1;
-
-	assert(numMeshes <= 32767);
-	assert(atomicContexts.size() <= 32767);
 	auto meshes = geo->meshHeader->getMeshes();
 
 	for (int16_t n = 0; n < numMeshes; n++) {
@@ -3614,17 +3997,16 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 		MatFX *matfx = MatFX::get(meshes[n].material);
 
-		bool isMatFX = false;
-		float matfxCoefficient = 0.0f;
-		size_t matfxContextOffset = matfxContexts.size();
+		matfx_context_t* matfxContextPointer = nullptr;
+
 		if (doEnvironmentMaps && matfx && matfx->type == MatFX::ENVMAP && matfx->fx[0].env.tex != nil && matfx->fx[0].env.coefficient != 0.0f) {
-			isMatFX = true;
-			matfxCoefficient = matfx->fx[0].env.coefficient;
-			matfxContexts.resize(matfxContexts.size() + 1);
+			float matfxCoefficient = matfx->fx[0].env.coefficient;
+			matfxContexts.emplace_back();
+			matfxContextPointer = &matfxContexts.back();
 			// N.B. world here gets converted to a 3x3 matrix
 			// 		this is fine, as we only use it for env mapping from now on
 			uploadEnvMatrix(matfx->fx[0].env.frame, &world, &matfxContexts.back().mtx);
-			matfxContexts.back().coefficient = matfxCoefficient;
+			matfxContextPointer->coefficient = matfxCoefficient;
 			
 			pvr_poly_cxt_t cxt;
 
@@ -3647,15 +4029,15 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 			pvr_poly_hdr_t hdr;
 			pvr_poly_compile(&hdr, &cxt);
-			matfxContexts.back().hdr_cmd = hdr.cmd;
-			matfxContexts.back().hdr_mode1 = hdr.mode1;
-			matfxContexts.back().hdr_mode2 = hdr.mode2;
-			matfxContexts.back().hdr_mode3 = hdr.mode3;
+			matfxContextPointer->hdr_cmd = hdr.cmd;
+			matfxContextPointer->hdr_mode1 = hdr.mode1;
+			matfxContextPointer->hdr_mode2 = hdr.mode2;
+			matfxContextPointer->hdr_mode3 = hdr.mode3;
 		}
 
 		pvr_poly_cxt_t cxt;
 		int pvrList;
-		if (doBlend || isMatFX) {
+		if (doBlend || matfxContextPointer) {
 			if (doAlphaTest && !doBlendMaterial) {
 				pvrList = PVR_LIST_PT_POLY;
 			} else {
@@ -3685,8 +4067,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				PVR_UVFMT_16BIT,
 
 				PVR_CLRFMT_4FLOATS,
-				isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
-				isMatFX ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
+				matfxContextPointer ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
+				matfxContextPointer ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
 				zFunction,
 				zWrite,
 				cullModePvr,
@@ -3698,8 +4080,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 				pvrList,
 
 				PVR_CLRFMT_4FLOATS,
-				isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
-				isMatFX ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
+				matfxContextPointer ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
+				matfxContextPointer ? PVR_BLEND_INVSRCALPHA : doBlend ? dstBlend : PVR_BLEND_ZERO,
 				zFunction,
 				zWrite,
 				cullModePvr,
@@ -3713,7 +4095,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		mc->color = meshes[n].material->color;
 		mc->ambient = meshes[n].material->surfaceProps.ambient;
 		mc->diffuse = meshes[n].material->surfaceProps.diffuse;
-		mc->matfxContextOffset = isMatFX ? matfxContextOffset : SIZE_MAX;
+		mc->matfxContextPointer = matfxContextPointer;
 
 		mc->hdr_cmd = hdr.cmd;
 		mc->hdr_mode1 = hdr.mode1;
@@ -3721,20 +4103,17 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 		mc->hdr_mode3 = hdr.mode3;
 
 		// clipping performed per meshlet
-		auto renderCB = [contextId, n] {
+		auto renderCB = [acp = (const atomic_context_t*) ac , meshContext = (const mesh_context_t*) mc, n] () {
 			if (vertexBufferFree() < freeVertexTarget) {
 				return;
 			}
-			const atomic_context_t* acp = &atomicContexts[contextId];
 			auto geo = acp->geo;
 			auto mesh = geo->meshHeader->getMeshes() + n;
 			const auto& global_needsNoClip = acp->global_needsNoClip;
 			const auto& uniformObject = acp->uniform;
 			const auto& mtx = acp->mtx;
-			const auto& worldView = acp->worldView;
 			const auto& atomic = acp->atomic;
 			const auto& cam = acp->cam;
-			const auto meshContext = &meshContexts[acp->meshContextOffset + n];
 			Skin* skin = Skin::get(geo);
 
 			bool textured = geo->numTexCoordSets && mesh->material->texture;
@@ -3799,7 +4178,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						}
 					}
 
-					if (meshContext->matfxContextOffset != SIZE_MAX) {
+					if (meshContext->matfxContextPointer) {
 						auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
 						hdr->cmd = meshContext->hdr_cmd;
 						hdr->mode1 = meshContext->hdr_mode1;
@@ -3840,7 +4219,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						
 						bool small_xyz = selector & 8;
 						unsigned skinSelector = small_xyz + acp->skinMatrix0Identity*2;
-						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &(skinContexts.data() + acp->skinContextOffset)->mtx);
+						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &acp->skinContextPointer->mtx);
 						
 						mat_load(&mtx);
 						tnlMeshletTransformSelector[clippingRequired * 2](OCR_SPACE, OCR_SPACE + 4, meshlet->vertexCount, 64);
@@ -3927,9 +4306,9 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						clipAndsubmitMeshletSelector[textured](OCR_SPACE, indexData, meshlet->indexCount);
 					}
 
-					if (meshContext->matfxContextOffset != SIZE_MAX) {
+					if (meshContext->matfxContextPointer) {
 						assert(!skin);
-						auto matfxContext = &matfxContexts[meshContext->matfxContextOffset];
+						auto matfxContext = meshContext->matfxContextPointer;
 
 						auto* hdr = reinterpret_cast<pvr_poly_hdr_t *>(pvr_dr_target(drState));
 						hdr->cmd = matfxContext->hdr_cmd;
@@ -4020,7 +4399,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			}
 		};
 
-		if (doBlend || isMatFX) {
+		if (doBlend || matfxContextPointer) {
 			if (doAlphaTest && !doBlendMaterial) {
 				ptCallbacks.emplace_back(std::move(renderCB));
 			} else {
@@ -4743,7 +5122,15 @@ driverOpen(void *o, int32, int32)
 		}
 	}
 	#endif
-	
+
+	#if !defined(DC_TEXCONV)
+	dbglog(DBG_CRITICAL, "atomicContexts: %d per %d allocation\n", decltype(atomicContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "skinContexts: %d per %d allocation\n", decltype(skinContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "matfxContexts: %d per %d allocation\n", decltype(matfxContexts)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "opCallbacks: %d per %d allocation\n", decltype(opCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "blendCallbacks: %d per %d allocation\n", decltype(blendCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	dbglog(DBG_CRITICAL, "ptCallbacks: %d per %d allocation\n", decltype(ptCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
+	#endif
 
     pvr_init(&pvr_params);
 
@@ -4782,6 +5169,8 @@ driverClose(void *o, int32, int32)
 
 	pvr_shutdown();
 
+	engine->driver[PLATFORM_DC]->defaultPipeline->destroy();
+	engine->driver[PLATFORM_DC]->defaultPipeline = nil;
 	return o;
 }
 
@@ -4836,6 +5225,11 @@ readNativeTexture(Stream *stream)
 	auto natras = GETDCRASTEREXT(raster);
 	
 	auto cached = cachedRasters.find(pvr_id);
+
+	assert(natras->raster != nil);
+	assert(natras->raster->texaddr == nil);
+	assert(natras->raster->refs == 1);
+	free(natras->raster);
 
 	if (pvr_id != 0 && cached != cachedRasters.end()) {
 		cached->second->refs++;
@@ -4985,7 +5379,7 @@ readNativeData(Stream *stream, int32 length, void *object, int32, int32)
 		return nil;
 	}
 
-	DCModelDataHeader *header = (DCModelDataHeader *)rwNew(sizeof(DCModelDataHeader) + chunkLen - 8, MEMDUR_EVENT | ID_GEOMETRY);
+	DCModelDataHeader *header = (DCModelDataHeader *)re3StreamingAlloc(sizeof(DCModelDataHeader) + chunkLen - 8 /*, MEMDUR_EVENT | ID_GEOMETRY*/);
 	geo->instData = header;
 	stream->read32(&header->platform, 4);
 	uint32_t version;

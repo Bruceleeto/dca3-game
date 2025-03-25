@@ -419,7 +419,8 @@ CCutsceneMgr::DeleteCutsceneData(void)
 		CBaseModelInfo *minfo = CModelInfo::GetModelInfo(i);
 		CColModel *colModel = minfo->GetColModel();
 		if (colModel != &CTempColModels::ms_colModelPed1) {
-			delete colModel;
+			// no need to delete anymore, SetColModel will do it (~skmp)
+			//delete colModel;
 			minfo->SetColModel(&CTempColModels::ms_colModelPed1);
 		}
 	}

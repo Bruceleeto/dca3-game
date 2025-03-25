@@ -40,6 +40,14 @@ CBaseModelInfo::DeleteCollisionModel(void)
 	}
 }
 
+void CBaseModelInfo::SetColModel(CColModel *col, bool owns) {
+	if (m_bOwnsColModel) {
+		delete m_colModel;
+	}
+	m_colModel = col;
+	m_bOwnsColModel = owns;
+}
+
 void
 CBaseModelInfo::AddRef(void)
 {

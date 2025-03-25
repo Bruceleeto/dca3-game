@@ -221,6 +221,7 @@ AnimInterpolator::setCurrentAnim(Animation *anim)
 {
 	int32 i;
 	AnimInterpolatorInfo *interpInfo = anim->interpInfo;
+	assert(this->currentAnim == nil || this->currentAnim  == anim);
 	this->currentAnim = anim;
 	this->currentTime = 0.0f;
 	int32 maxkf = this->maxInterpKeyFrameSize;

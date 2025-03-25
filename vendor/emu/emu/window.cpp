@@ -125,6 +125,8 @@ void x11_window_create()
     x11_win = (void*)x11Window;
     x11_vis = (void*)x11Visual->visual;
 
+    delete x11Visual;
+
     x11_window_set_text("GTA3dc");
 }
 

@@ -2288,6 +2288,15 @@ CCollision::DistToLine(const CVector *l0, const CVector *l1, const CVector *poin
 }
 
 void
+CCollision::RemoveTrianglePlanes(CColModel *model)
+{
+	if(model->trianglePlanes){
+		ms_colModelCache.Remove(model->GetLinkPtr());
+		model->RemoveTrianglePlanes();
+	}
+}
+
+void
 CCollision::CalculateTrianglePlanes(CColModel *model)
 {
 	assert(model);

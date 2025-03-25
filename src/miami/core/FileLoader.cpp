@@ -30,6 +30,8 @@
 #include "ColStore.h"
 #include "Occlusion.h"
 
+void* re3StreamingAlloc(size_t size);
+
 char CFileLoader::ms_line[256];
 
 const char*
@@ -303,6 +305,24 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.boundingBox.max.z = *(float*)(buf+36);
 	model.numSpheres = *(int16*)(buf+40);
 	buf += 44;
+	if (model.spheres) {
+		RwFree(model.spheres);
+	}
+	if (model.lines) {
+		RwFree(model.lines);
+	}
+	if (model.boxes) {
+		RwFree(model.boxes);
+	}
+	if (model.vertices) {
+		RwFree(model.vertices);
+	}
+	if (model.triangles) {
+		RwFree(model.triangles);
+	}
+	if (model.trianglePlanes) {
+		CCollision::RemoveTrianglePlanes(&model);
+	}
 	if(model.numSpheres > 0){
 		model.spheres = (CColSphere*)RwMalloc(model.numSpheres*sizeof(CColSphere));
 		REGISTER_MEMPTR(&model.spheres);
@@ -360,7 +380,7 @@ CFileLoader::LoadCollisionModel(uint8 *buf, CColModel &model, char *modelname)
 	model.numTriangles = *(int16*)buf;
 	buf += 4;
 	if(model.numTriangles > 0){
-		model.triangles = (CColTriangle*)RwMalloc(model.numTriangles*sizeof(CColTriangle));
+		model.triangles = (CColTriangle*)re3StreamingAlloc(model.numTriangles*sizeof(CColTriangle));
 		REGISTER_MEMPTR(&model.triangles);
 		for(i = 0; i < model.numTriangles; i++){
 			model.triangles[i].Set(*(uint16*)buf, *(uint16*)(buf+2), *(uint16*)(buf+4), buf[6]);
