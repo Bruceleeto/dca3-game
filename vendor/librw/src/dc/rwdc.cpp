@@ -1036,7 +1036,7 @@ public:
 
     // Templated constructor to accept any callable object.
     template <typename F>
-    move_only_function(F f)
+    move_only_function(F&& f)
         : callable_(new model<F>(std::move(f))) {}
 
     // Move constructor.
@@ -1080,7 +1080,7 @@ private:
     template <typename F>
     struct model : concept_t {
         F f;
-        explicit model(F f) : f(std::move(f)) {}
+        explicit model(F&& f) : f(std::move(f)) {}
         R invoke(Args&&... args) override {
             return f(std::forward<Args>(args)...);
         }
