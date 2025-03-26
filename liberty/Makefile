@@ -605,20 +605,20 @@ $(REPACK_SFX_DC_DIR)/%.pcm: $(REPACK_SFX_ORIG_DIR)/%.wav aud2adpcm
 # stream processing
 
 # first try the mods loose directory
-$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_MOD_LOOSE_DIR)/[Aa]udio/%.wav aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_MOD_LOOSE_DIR)/audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_MOD_LOOSE_DIR)/[Aa]udio/%.mp3 aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_MOD_LOOSE_DIR)/audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
 # then original folder
-$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/[Aa]udio/%.wav aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/audio/%.wav aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
-$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/[Aa]udio/%.mp3 aud2adpcm
+$(REPACK_STREAM_DEST_DIR)/%.APM: $(GTA_DIR)/audio/%.mp3 aud2adpcm
 	@mkdir -p $(@D)
 	./aud2adpcm $(AUDIO_STREAM_OPTION) $< $@
 
