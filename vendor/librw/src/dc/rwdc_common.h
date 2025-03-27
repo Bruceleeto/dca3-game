@@ -267,62 +267,6 @@ __always_inline __hot constexpr float Acos(float x) {
         x2 = __x; y2 = __y; z2 = __z; \
     }
 
-// no declspec naked, so can't do rts / fschg. instead compiler pads with nop?
-__always_inline __hot void mat_load_3x3(const matrix_t* mtx) {
-    __asm__ __volatile__ (
-        R"(
-            fschg
-            frchg
-
-            fmov        @%[mtx]+, dr0
-            fldi0 		fr12
-
-            fmov        @%[mtx]+, dr2
-            fldi0 		fr13
-
-            fmov        @%[mtx]+, dr4
-            fldi0	    fr3
-
-            fmov        @%[mtx]+, dr6
-            fmov        dr12, dr14
-
-            fmov        @%[mtx]+, dr8
-            fldi0	    fr7
-
-            fmov        @%[mtx]+, dr10
-            fldi0	    fr11
-
-            fschg
-            frchg
-        )"
-        : [mtx] "+r" (mtx)
-    );
-}
-
-// sets pos.w to 1
-__always_inline __hot void rw_mat_load_4x4(const rw::Matrix* mtx) {
-    __asm__ __volatile__ (
-        R"(
-            fschg
-            frchg
-            fmov        @%[mtx]+, dr0
-
-            fmov        @%[mtx]+, dr2
-            fmov        @%[mtx]+, dr4
-            fmov        @%[mtx]+, dr6
-            fmov        @%[mtx]+, dr8
-            fmov        @%[mtx]+, dr10
-            fmov        @%[mtx]+, dr12
-            fmov        @%[mtx]+, dr14
-            fldi1 	 	fr15
-
-            fschg
-            frchg
-        )"
-        : [mtx] "+r" (mtx)
-    );
-}
-
 __always_inline __hot void mat_transpose(void) {
     asm volatile (
         "frchg\n\t" // fmov for singles only works on front bank
@@ -559,23 +503,6 @@ __hot inline void mat_load_apply(const matrix_t* matrix1, const matrix_t* matrix
 		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
 		w_ = tmp1233123.w; \
 	} while(false)
-
-inline void mat_load_3x3(const matrix_t* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[0][3] = 0.0f;
-	XMTRX[1][3] = 0.0f;
-	XMTRX[2][3] = 0.0f;
-
-	XMTRX[3][0] = 0.0f;
-	XMTRX[3][1] = 0.0f;
-	XMTRX[3][2] = 0.0f;
-	XMTRX[3][3] = 0.0f;
-}
-
-inline void rw_mat_load_4x4(const rw::Matrix* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[3][3] = 1.0f;
-}
 
 inline void mat_transpose(void) {
     matrix_t tmp;

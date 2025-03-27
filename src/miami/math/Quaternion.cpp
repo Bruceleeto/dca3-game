@@ -49,7 +49,7 @@ CQuaternion::Get(RwV3d *axis, float *angle)
 {
 	*angle = Acos(w);
 	float s = Sin(*angle);
-	float invS = dc::Invert(s);
+	float invS = dc::Invert<true, false>(s);
 
 	axis->x = x * invS;
 	axis->y = y * invS;
@@ -151,8 +151,7 @@ CQuaternion::Get(float *f1, float *f2, float *f3)
 	*f3 = Atan2(matrix.right.y, matrix.up.y);
 	if (*f3 < 0.0f)
 		*f3 += TWOPI;
-	float s = Sin(*f3);
-	float c = Cos(*f3);
+	auto [s, c] = SinCos(*f3);
 	*f1 = Atan2(-matrix.at.y, s * matrix.right.y + c * matrix.up.y);
 	if (*f1 < 0.0f)
 		*f1 += TWOPI;
@@ -164,12 +163,10 @@ CQuaternion::Get(float *f1, float *f2, float *f3)
 void
 CQuaternion::Set(float f1, float f2, float f3)
 {
-	float c1 = Cos(f1 * 0.5f);
-	float c2 = Cos(f2 * 0.5f);
-	float c3 = Cos(f3 * 0.5f);
-	float s1 = Sin(f1 * 0.5f);
-	float s2 = Sin(f2 * 0.5f);
-	float s3 = Sin(f3 * 0.5f);
+	auto [s1, c1] = SinCos(f1 * 0.5f);
+	auto [s2, c2] = SinCos(f2 * 0.5f);
+	auto [s3, c3] = SinCos(f3 * 0.5f);
+
 	x = ((c2 * c1) * s3) - ((s2 * s1) * c3);
 	y = ((s1 * c2) * c3) + ((s2 * c1) * s3);
 	z = ((s2 * c1) * c3) - ((s1 * c2) * s3);

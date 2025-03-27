@@ -617,12 +617,13 @@ bool
 CCollision::ProcessSphereSphere(const CColSphere &s1, const CColSphere &s2, CColPoint &point, float &mindistsq)
 {
 	CVector dist = s1.center - s2.center;
-	float d = dist.Magnitude() - s2.radius;	// distance from s1's center to s2
+	float mag = dist.Magnitude();
+	float d = mag - s2.radius;	// distance from s1's center to s2
 	float depth = s1.radius - d;	// sphere overlap
 	if(d < 0.0f) d = 0.0f;		// clamp to zero, i.e. if s1's center is inside s2
 	// no collision if sphere is not close enough
 	if(d*d < mindistsq && d < s1.radius){
-		dist.Normalise();
+		dist *= Invert<true, false>(mag);
 		point.point = s1.center - dist*d;
 		point.normal = dist;
 #ifndef VU_COLLISION

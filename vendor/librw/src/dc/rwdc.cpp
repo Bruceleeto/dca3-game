@@ -2856,7 +2856,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 
 				__builtin_prefetch(srcVtxBytes);
 				for(int c = 0; c < count - 1; ++c)
-					innerLoop.template operator()<false>();
+					innerLoop.template operator()<true>();
 				innerLoop.template operator()<false>();
 	
 			} else if (!(flags & 0x80)) {
@@ -3464,9 +3464,6 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	assert(atomicContexts.size() <= 32767);
 	auto meshes = geo->meshHeader->getMeshes();
 
-	RawMatrix worldOrient;
-	bool worldOrientValid = false;
-
 	for (int16_t n = 0; n < numMeshes; n++) {
 		bool doBlend = meshes[n].material->color.alpha != 255; // TODO: check all vertexes for alpha?
 		bool doBlendMaterial = doBlend;
@@ -3485,16 +3482,8 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			isMatFX = true;
 			matfxCoefficient = matfx->fx[0].env.coefficient;
 			matfxContexts.resize(matfxContexts.size() + 1);
-#warning "Get rid of me by creating mat_apply_3x3()!"
-			if(!worldOrientValid) {
-				rw::convMatrix(&worldOrient, atomic->getFrame()->getLTM());
-				worldOrient.pos = { 0, 0, 0 };
-				worldOrient.rightw = 0;
-				worldOrient.upw = 0;
-				worldOrient.atw = 0;
-				worldOrientValid = true;
-			}
-			uploadEnvMatrix(matfx->fx[0].env.frame, &worldOrient, &matfxContexts.back().mtx);
+
+			uploadEnvMatrix(matfx->fx[0].env.frame, reinterpret_cast<rw::RawMatrix*>(atomic->getFrame()->getLTM()), &matfxContexts.back().mtx);
 			matfxContexts.back().coefficient = matfxCoefficient;
 			
 			pvr_poly_cxt_t cxt;
