@@ -314,7 +314,10 @@ streamheaderpack: ../src/tools/streamheaderpack.cpp
 
 TXD_OPTS_fonts = 256 256
 TXD_OPTS_hud = 128 128
-TXD_OPTS_menu = 512 512
+TXD_OPTS_menu = 512 512 \
+	--delete-tex mapTop03 --delete-tex mapTop02 --delete-tex mapTop01 \
+	--delete-tex mapMid03 --delete-tex mapMid02 --delete-tex mapMid01 \
+	--delete-tex mapBot03 --delete-tex mapBot02 --delete-tex mapBot01
 TXD_OPTS_LOADSC0 = 512 512
 TXD_OPTS_LOADSC1 = 512 512
 TXD_OPTS_LOADSC10 = 512 512
