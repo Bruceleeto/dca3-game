@@ -5158,7 +5158,9 @@ driverOpen(void *o, int32, int32)
 		pvr_params.opb_overflow_count -= pvr_params.fsaa_enabled ? 1 : 2;
 	}
 
+	#if !defined(DC_SIM)
 	vid_set_mode(DM_640x480, videoModes[VIDEO_MODE].depth == 24 ? PM_RGB888P : PM_RGB565);
+	#endif
     pvr_init(&pvr_params);
 
 	fake_tex = pvr_mem_malloc(sizeof(fake_tex_data));
