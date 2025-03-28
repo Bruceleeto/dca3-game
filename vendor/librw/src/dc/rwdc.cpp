@@ -575,7 +575,7 @@ size_t vertexBufferFree() {
 
 bool vertexOverflown() {
 	return  PVR_GET(PVR_TA_VERTBUF_POS) >= PVR_GET(PVR_TA_VERTBUF_END) ||
-			PVR_GET(PVR_TA_OPB_POS)*4 >= PVR_GET(PVR_TA_OPB_END);
+			(PVR_GET(PVR_TA_OPB_POS)*4 >= PVR_GET(PVR_TA_OPB_END) && PVR_GET(PVR_TA_OPB_POS) != PVR_GET(PVR_TA_OPB_INIT));
 }
 
 constexpr size_t freeVertexTarget_Step_Up = 32 * 1024;
