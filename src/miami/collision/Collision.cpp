@@ -2024,15 +2024,18 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 
 	// From model A space to model B space
 	matAB = Invert(matrixB, matAB);
+#ifndef DC_SH4
 	matAB *= matrixA;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(&matAB));
+	mat_apply(reinterpret_cast<const matrix_t*>(&matrixA));
+#endif
 
 	CColSphere bsphereAB;	// bounding sphere of A in B space
 	bsphereAB.radius = modelA.boundingSphere.radius;
 #ifndef DC_SH4
 	bsphereAB.center = matAB * modelA.boundingSphere.center;
 #else
-	/* No need to reload the matrix, since it's already banked.
-	mat_load(reinterpret_cast<const matrix_t *>(&matAB)); */
 	mat_trans_single3_nodiv_nomod(modelA.boundingSphere.center.x,
 	                              modelA.boundingSphere.center.y,
 	                              modelA.boundingSphere.center.z,
@@ -2046,7 +2049,7 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	// transform modelA's spheres and lines to B space
 	for(i = 0; i < modelA.numSpheres; i++){
 		CColSphere &s = modelA.spheres[i];
-		#ifndef DC_SH4
+#ifndef DC_SH4
 		aSpheresA[i].Set(s.radius, matAB * s.center, s.surface, s.piece);
 #else
 		auto &d = aSpheresA[i];
@@ -2093,10 +2096,11 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	int numTrianglesB = 0;
 	// B to A space
 	matBA = Invert(matrixA, matBA);
+#ifndef DC_SH4
 	matBA *= matrixB;
-#ifdef DC_SH4
-	/* No need to reload the matrix, since it's already banked.
-	mat_load(reinterpret_cast<const matrix_t *>(&matBA)); */
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(&matBA));
+	mat_apply(reinterpret_cast<const matrix_t*>(&matrixB));
 #endif
 	for(i = 0; i < modelB.numSpheres; i++){
 		s.radius = modelB.spheres[i].radius;
