@@ -34,7 +34,7 @@ public:
 	bool m_hasRwMatrix=false;	// are we the owner?
 #endif
 
-	CMatrix(void)=default;
+	CMatrix(void) {}
 	CMatrix(CMatrix const &m);
 	CMatrix(RwMatrix *matrix, bool owner = false);
 	CMatrix(float scale){
