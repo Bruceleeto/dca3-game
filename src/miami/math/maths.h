@@ -2,6 +2,7 @@
 
 #include "src/common_defines.h"
 
+#include <dc/matrix.h>
 
 #ifdef DC_SH4
 
