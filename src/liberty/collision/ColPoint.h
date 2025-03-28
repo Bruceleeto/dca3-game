@@ -1,6 +1,6 @@
 #pragma once
 
-struct CColPoint
+struct alignas(8) CColPoint
 {
 	CVector point;
 	int pad1;
