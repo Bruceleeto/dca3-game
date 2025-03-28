@@ -2169,7 +2169,7 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	assert(modelA.numLines <= MAXNUMLINES);
 
 	// From model A space to model B space
-	matAB = Invert(matrixB, matAB);
+	Invert(matrixB, matAB);
 #ifndef DC_SH4
 	matAB *= matrixA;
 #else
@@ -2242,7 +2242,7 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	int numBoxesB = 0;
 	int numTrianglesB = 0;
 	// B to A space
-	matBA = Invert(matrixA, matBA);
+	Invert(matrixA, matBA);
 #ifndef DC_SH4
 	matBA *= matrixB;
 #else

@@ -45,7 +45,7 @@ __always_inline void TransformPoint(CVuVector &out, const CMatrix &mat, const CV
 		": : "r" (&out) , "r" (&mat) ,"r" (&in): "memory");
 #elif defined(DC_SH4)
 	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
-	mat_trans_nodiv_nomod(in.x, in.y, in.z, out.x, out.y, out.z, out.y);
+	mat_trans_single3_nodiv_nomod(in.x, in.y, in.z, out.x, out.y, out.z);
 #else
 	out = mat * in;
 #endif
@@ -72,7 +72,7 @@ __always_inline void TransformPoint(CVuVector &out, const CMatrix &mat, const Rw
 		": : "r" (&out) , "r" (&mat) ,"r" (&in): "memory");
 #elif defined(DC_SH4)
 	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
-	mat_trans_nodiv_nomod(in.x, in.y, in.z, out.x, out.y, out.z, out.y);
+	mat_trans_single3_nodiv_nomod(in.x, in.y, in.z, out.x, out.y, out.z);
 #else
 	out = mat * in;
 #endif
