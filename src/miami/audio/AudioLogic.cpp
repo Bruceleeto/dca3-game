@@ -5220,6 +5220,10 @@ cAudioManager::ProcessPedOneShots(cPedParams &params)
 						if (iSound > 60)
 							iSound = 21;
 					}
+					// In some cases the left and right channels have different loop points
+					// This looks like a data file issue where the left and right channels have different loop points
+					// This is a hot fix to always have the correct loop point for each channel individually
+					SET_LOOP_OFFSETS(m_sQueueSample.m_nSampleIndex)
 					AddSampleToRequestedQueue();
 				}
 			}
