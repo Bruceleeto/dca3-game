@@ -1481,6 +1481,7 @@ CCollision::ProcessLineOfSight(const CColLine &line,
 		                  point.normal.y,
 		                  point.normal.z);
 #endif
+		mindist = coldist;
 		return true;
 	}
 	return false;

@@ -18,7 +18,6 @@ public:
 	RwMatrix *m_attachment = nil;
 	bool m_hasRwMatrix = false;	// are we the owner?
 
-	CMatrix(void) = default;
 	CMatrix(CMatrix const &m);
 	CMatrix(RwMatrix *matrix, bool owner = false);
 	CMatrix(float scale){
