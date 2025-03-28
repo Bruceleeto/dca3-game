@@ -1093,8 +1093,27 @@ chunked_vector<move_only_function<void()>> opCallbacks;
 chunked_vector<move_only_function<void()>> blendCallbacks;
 chunked_vector<move_only_function<void()>> ptCallbacks;
 
+static const unsigned short VIDEO_MODES = 2;
+static unsigned short VIDEO_MODE = 0;
+static rw::VideoMode videoModes[VIDEO_MODES] = {
+	{ 640, 480, 16, VIDEOMODEEXCLUSIVE },
+	{ 640, 480, 24, VIDEOMODEEXCLUSIVE },
+};
+
+static pvr_init_params_t pvr_params = {
+	.opb_sizes = {
+				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
+				PVR_BINSIZE_8
+	},
+	.autosort_disabled = true
+};
+
 void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
-	
+	// not supported on 24 bpp
+	if (videoModes[VIDEO_MODE].depth == 24) {
+		return;
+	}
+
 	uint32_t col = (a << 24) | (r << 16) | (g << 8) | b;
 
 	blendCallbacks.emplace_back([=]() {
@@ -1204,6 +1223,11 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void dcMotionBlur_v3(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
+	// not supported on 24 bpp
+	if (videoModes[VIDEO_MODE].depth == 24) {
+		return;
+	}
+
 	uint32_t alpha = a;
 	uint32_t col = (alpha * r / 255 << 16) | (alpha * g / 255 << 8) | alpha * b / 255;
 	uint32_t mask_col = ((255 - a) << 16) | ((255 - a) << 8) | (255 - a);
@@ -4977,14 +5001,6 @@ rasterToImage(Raster*)
 	return nil;
 }
 
-static pvr_init_params_t pvr_params = {
-	.opb_sizes = {
-				PVR_BINSIZE_16, PVR_BINSIZE_0, PVR_BINSIZE_8, PVR_BINSIZE_0,
-				PVR_BINSIZE_8
-	},
-	.autosort_disabled = true
-};
-
 int
 deviceSystem(DeviceReq req, void *arg0, int32 n)
 {
@@ -5014,10 +5030,10 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 
 	case DEVICEGETVIDEOMODEINFO:{
 		auto rwmode = (VideoMode*)arg0;
-		rwmode->width = 640;
-		rwmode->height = 480;
-		rwmode->depth = 16;
-		rwmode->flags = VIDEOMODEEXCLUSIVE;
+		rwmode->width = videoModes[n].width;
+		rwmode->height = videoModes[n].height;
+		rwmode->depth = videoModes[n].depth;
+		rwmode->flags = videoModes[n].flags;
 		return 1;
 	}
 	case DEVICEGETMAXMULTISAMPLINGLEVELS:
@@ -5028,22 +5044,19 @@ deviceSystem(DeviceReq req, void *arg0, int32 n)
 		if (n == 1) {
 			VIDEO_MODE_SCALE_X = 1;
 			pvr_params.fsaa_enabled = 0;
-			pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
-			pvr_params.opb_overflow_count = 7; // 268800 bytes
 		} else {
 			VIDEO_MODE_SCALE_X = 2;
 			pvr_params.fsaa_enabled = 1;
-			pvr_params.vertex_buf_size = (1024 + 768) * 1024;
-			pvr_params.opb_overflow_count = 4; // 307200 bytes
 		}
 		return 1;
 	case DEVICESETSUBSYSTEM:
 		return 1;
 	case DEVICEGETNUMVIDEOMODES:
-		return 1;
+		return VIDEO_MODES;
 	case DEVICEGETCURRENTVIDEOMODE:
-		return 0;
+		return VIDEO_MODE;
 	case DEVICESETVIDEOMODE:
+		VIDEO_MODE = n;
 		return 1;
 	default:
 		assert(0 && "not implemented");
@@ -5132,6 +5145,20 @@ driverOpen(void *o, int32, int32)
 	dbglog(DBG_CRITICAL, "ptCallbacks: %d per %d allocation\n", decltype(ptCallbacks)::chunk::item_count, decltype(atomicContexts)::chunk_size);
 	#endif
 
+	if (pvr_params.fsaa_enabled) {
+		pvr_params.vertex_buf_size = (1024 + 768) * 1024;
+		pvr_params.opb_overflow_count = 4; // 307200 bytes
+	} else {
+		pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
+		pvr_params.opb_overflow_count = 7; // 268800 bytes
+	}
+
+	if (videoModes[VIDEO_MODE].depth == 24) {
+		pvr_params.vertex_buf_size -= 128 * 1024;
+		pvr_params.opb_overflow_count -= pvr_params.fsaa_enabled ? 1 : 2;
+	}
+
+	vid_set_mode(DM_640x480, videoModes[VIDEO_MODE].depth == 24 ? PM_RGB888P : PM_RGB565);
     pvr_init(&pvr_params);
 
 	fake_tex = pvr_mem_malloc(sizeof(fake_tex_data));
