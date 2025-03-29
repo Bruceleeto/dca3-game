@@ -118,6 +118,7 @@ OBJS_NO_FAST_MATH = \
 	../src/miami/core/Cam.o \
 	../src/miami/core/Camera.o \
 	../src/miami/vehicles/Bike.o \
+	../src/miami/vehicles/Boat.o \
 	../src/miami/renderer/Particle.o
 
 KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \

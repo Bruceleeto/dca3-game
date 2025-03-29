@@ -1,6 +1,6 @@
 #pragma once
 
-struct CColLine
+struct alignas(8) CColLine
 {
 	// NB: this has to be compatible with two CVuVectors
 	CVector p0;

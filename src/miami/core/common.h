@@ -7,6 +7,8 @@
 #pragma warning(disable: 4838)  // narrowing conversion
 #pragma warning(disable: 4996)  // POSIX names
 
+#include "src/common_defines.h"
+
 #ifdef __MWERKS__
 #define __STDC_LIMIT_MACROS // so we get UINT32_MAX etc
 #endif

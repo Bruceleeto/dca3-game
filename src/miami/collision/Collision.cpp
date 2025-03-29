@@ -24,6 +24,10 @@
 #include "Camera.h"
 #include "ColStore.h"
 
+#ifdef DC_SH4
+#include "VuCollision.h"
+#endif
+
 #ifdef VU_COLLISION
 #include "VuCollision.h"
 
@@ -572,7 +576,12 @@ CCollision::TestLineOfSight(const CColLine &line, const CMatrix &matrix, CColMod
 
 	// transform line to model space
 	Invert(matrix, matTransform);
-	CColLine newline(matTransform * line.p0, matTransform * line.p1);
+	CColLine newline;
+#ifndef DC_SH4
+	newline.Set(matTransform * line.p0, matTransform * line.p1);
+#else
+	TransformPoints(reinterpret_cast<CVuVector*>(&newline), 2, matTransform, &line.p0, sizeof(CColLine)/2);
+#endif
 
 	// If we don't intersect with the bounding box, no chance on the rest
 	if(!TestLineBox(newline, model.boundingBox))
@@ -1428,7 +1437,12 @@ CCollision::ProcessLineOfSight(const CColLine &line,
 
 	// transform line to model space
 	Invert(matrix, matTransform);
-	CColLine newline(matTransform * line.p0, matTransform * line.p1);
+	CColLine newline;
+#ifdef DC_SH4
+	TransformPoints(reinterpret_cast<CVuVector*>(&newline), 2, matTransform, &line.p0, sizeof(CColLine)/2);
+#else
+	newline.Set(matTransform * line.p0, matTransform * line.p1);
+#endif
 
 	// If we don't intersect with the bounding box, no chance on the rest
 	if(!TestLineBox(newline, model.boundingBox))
@@ -1455,8 +1469,18 @@ CCollision::ProcessLineOfSight(const CColLine &line,
 	}
 
 	if(coldist < mindist){
+#ifndef DC_SH4
 		point.point = matrix * point.point;
 		point.normal = Multiply3x3(matrix, point.normal);
+#else
+		mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&matrix)));
+		mat_trans_single3_nodiv(point.point.x,
+		                        point.point.y,
+		                        point.point.z);
+		mat_trans_normal3(point.normal.x,
+		                  point.normal.y,
+		                  point.normal.z);
+#endif
 		mindist = coldist;
 		return true;
 	}
@@ -1593,7 +1617,14 @@ CCollision::ProcessVerticalLine(const CColLine &line,
 
 	// transform line to model space
 	// Why does the game seem to do this differently than above?
-	CColLine newline(MultiplyInverse(matrix, line.p0), MultiplyInverse(matrix, line.p1));
+	CMatrix matTransform;
+	Invert(matrix, matTransform);
+	CColLine newline;
+#ifndef DC_SH4
+	newline.Set(matTransform * line.p0, matTransform * line.p1);
+#else
+	TransformPoints(reinterpret_cast<CVuVector*>(&newline), 2, matTransform, &line.p0, sizeof(CColLine)/2);
+#endif
 
 	if(!TestLineBox(newline, model.boundingBox))
 		return false;
@@ -1618,13 +1649,29 @@ CCollision::ProcessVerticalLine(const CColLine &line,
 	}
 
 	if(coldist < mindist){
+#ifndef DC_SH4
 		point.point = matrix * point.point;
 		point.normal = Multiply3x3(matrix, point.normal);
+#else
+		mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&matrix)));
+		mat_trans_single3_nodiv(point.point.x,
+		                        point.point.y,
+		                        point.point.z);
+		mat_trans_normal3(point.normal.x,
+		                  point.normal.y,
+		                  point.normal.z);
+#endif
 		if(TempStoredPoly.valid && poly){
 			*poly = TempStoredPoly;
+#ifndef DC_SH4
 			poly->verts[0] = matrix * poly->verts[0];
 			poly->verts[1] = matrix * poly->verts[1];
 			poly->verts[2] = matrix * poly->verts[2];
+#else
+			mat_trans_single3_nodiv(poly->verts[0].x, poly->verts[0].y, poly->verts[0].z);
+			mat_trans_single3_nodiv(poly->verts[1].x, poly->verts[1].y, poly->verts[1].z);
+			mat_trans_single3_nodiv(poly->verts[2].x, poly->verts[2].y, poly->verts[2].z);
+#endif
 		}
 		mindist = coldist;
 		return true;
@@ -1976,26 +2023,60 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	assert(modelA.numLines <= MAXNUMLINES);
 
 	// From model A space to model B space
-	matAB = Invert(matrixB, matAB);
+	Invert(matrixB, matAB);
+#ifndef DC_SH4
 	matAB *= matrixA;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(&matAB));
+	mat_apply(reinterpret_cast<const matrix_t*>(&matrixA));
+#endif
 
 	CColSphere bsphereAB;	// bounding sphere of A in B space
 	bsphereAB.radius = modelA.boundingSphere.radius;
+#ifndef DC_SH4
 	bsphereAB.center = matAB * modelA.boundingSphere.center;
+#else
+	mat_trans_single3_nodiv_nomod(modelA.boundingSphere.center.x,
+	                              modelA.boundingSphere.center.y,
+	                              modelA.boundingSphere.center.z,
+	                              bsphereAB.center.x,
+	                              bsphereAB.center.y,
+	                              bsphereAB.center.z);
+#endif
 	if(!TestSphereBox(bsphereAB, modelB.boundingBox))
 		return 0;
-	// B to A space
-	matBA = Invert(matrixA, matBA);
-	matBA *= matrixB;
 
 	// transform modelA's spheres and lines to B space
 	for(i = 0; i < modelA.numSpheres; i++){
 		CColSphere &s = modelA.spheres[i];
+#ifndef DC_SH4
 		aSpheresA[i].Set(s.radius, matAB * s.center, s.surface, s.piece);
+#else
+		auto &d = aSpheresA[i];
+		mat_trans_single3_nodiv_nomod(s.center.x, s.center.y, s.center.z,
+		                              d.center.x, d.center.y, d.center.z);
+		d.Set(s.radius, s.surface, s.piece);
+#endif
 	}
-	for(i = 0; i < modelA.numLines; i++)
-		aLinesA[i].Set(matAB * modelA.lines[i].p0, matAB * modelA.lines[i].p1);
 
+	for(i = 0; i < modelA.numLines; i++) {
+#ifndef DC_SH4
+		aLinesA[i].Set(matAB * modelA.lines[i].p0, matAB * modelA.lines[i].p1);
+#else
+		mat_trans_single3_nodiv_nomod(modelA.lines[i].p0.x,
+		                              modelA.lines[i].p0.y,
+		                              modelA.lines[i].p0.z,
+		                              aLinesA[i].p0.x,
+		                              aLinesA[i].p0.y,
+		                              aLinesA[i].p0.z);
+		mat_trans_single3_nodiv_nomod(modelA.lines[i].p1.x,
+		                              modelA.lines[i].p1.y,
+		                              modelA.lines[i].p1.z,
+		                              aLinesA[i].p1.x,
+		                              aLinesA[i].p1.y,
+		                              aLinesA[i].p1.z);
+#endif
+	}
 	// Test them against model B's bounding volumes
 	int numSpheresA = 0;
 	int numLinesA = 0;
@@ -2013,9 +2094,26 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	int numSpheresB = 0;
 	int numBoxesB = 0;
 	int numTrianglesB = 0;
+	// B to A space
+	Invert(matrixA, matBA);
+#ifndef DC_SH4
+	matBA *= matrixB;
+#else
+	mat_load(reinterpret_cast<const matrix_t*>(&matBA));
+	mat_apply(reinterpret_cast<const matrix_t*>(&matrixB));
+#endif
 	for(i = 0; i < modelB.numSpheres; i++){
 		s.radius = modelB.spheres[i].radius;
+#ifndef DC_SH4
 		s.center = matBA * modelB.spheres[i].center;
+#else
+		mat_trans_single3_nodiv_nomod(modelB.spheres[i].center.x,
+		                              modelB.spheres[i].center.y,
+		                              modelB.spheres[i].center.z,
+		                              s.center.x,
+		                              s.center.y,
+		                              s.center.z);
+#endif
 		if(TestSphereBox(s, modelA.boundingBox))
 			aSphereIndicesB[numSpheresB++] = i;
 	}
@@ -2062,9 +2160,22 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 		if(hasCollided)
 			numCollisions++;
 	}
+
+#ifdef DC_SH4
+	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&matrixB)));
+#endif
 	for(i = 0; i < numCollisions; i++){
+#ifndef DC_SH4
 		spherepoints[i].point = matrixB * spherepoints[i].point;
 		spherepoints[i].normal = Multiply3x3(matrixB, spherepoints[i].normal);
+#else
+		mat_trans_single3_nodiv(spherepoints[i].point.x,
+		                        spherepoints[i].point.y,
+		                        spherepoints[i].point.z);
+		mat_trans_normal3(spherepoints[i].normal.x,
+		                  spherepoints[i].normal.y,
+		                  spherepoints[i].normal.z);
+#endif
 	}
 
 	// And the same thing for the lines in A
@@ -2095,8 +2206,17 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	for(i = 0; i < numLinesA; i++)
 		if(aCollided[i]){
 			j = aLineIndicesA[i];
+#ifndef DC_SH4
 			linepoints[j].point = matrixB * linepoints[j].point;
 			linepoints[j].normal = Multiply3x3(matrixB, linepoints[j].normal);
+#else
+			mat_trans_single3_nodiv(linepoints[j].point.x,
+			                        linepoints[j].point.y,
+			                        linepoints[j].point.z);
+			mat_trans_normal3(linepoints[j].normal.x,
+			                  linepoints[j].normal.y,
+			                  linepoints[j].normal.z);
+#endif
 		}
 
 	return numCollisions;	// sphere collisions

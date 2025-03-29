@@ -1,11 +1,5 @@
 #include "common.h"
 
-CMatrix::CMatrix(void)
-{
-	m_attachment = nil;
-	m_hasRwMatrix = false;
-}
-
 CMatrix::CMatrix(CMatrix const &m)
 {
 	m_attachment = nil;
@@ -510,14 +504,9 @@ operator*(const CMatrix &m1, const CMatrix &m2)
 {
 	// TODO: VU0 code
 	CMatrix out;
-#if defined(RW_DC) && 0 // THIS IS BROKEN, 4th element shouldn't be processed
-#	ifdef DC_SH4
-	MATH_Load_Matrix_Product(reinterpret_cast<const matrix_t *>(&m1), reinterpret_cast<const matrix_t *>(&m2));
-
-#	elif defined(RW_DC)
-	mat_load(reinterpret_cast<const matrix_t *>(&m2));
-	mat_apply(reinterpret_cast<const matrix_t *>(&m1));
-#	endif
+#if defined(RW_DC)
+	mat_load(reinterpret_cast<const matrix_t *>(&m1));
+	mat_apply(reinterpret_cast<const matrix_t *>(&m2));
 	mat_store(reinterpret_cast<matrix_t *>(&out));
 #else
 	out.rx = m1.rx * m2.rx + m1.fx * m2.ry + m1.ux * m2.rz;

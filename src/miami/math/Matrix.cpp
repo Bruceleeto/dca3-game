@@ -1,11 +1,5 @@
 #include "common.h"
 
-CMatrix::CMatrix(void)
-{
-	m_attachment = nil;
-	m_hasRwMatrix = false;
-}
-
 CMatrix::CMatrix(CMatrix const &m)
 {
 	m_attachment = nil;
@@ -434,6 +428,11 @@ operator*(const CMatrix &m1, const CMatrix &m2)
 {
 	// TODO: VU0 code
 	CMatrix out;
+#if defined(RW_DC)
+	mat_load(reinterpret_cast<const matrix_t *>(&m1));
+	mat_apply(reinterpret_cast<const matrix_t *>(&m2));
+	mat_store(reinterpret_cast<matrix_t *>(&out));
+#else
 	out.rx = m1.rx * m2.rx + m1.fx * m2.ry + m1.ux * m2.rz;
 	out.ry = m1.ry * m2.rx + m1.fy * m2.ry + m1.uy * m2.rz;
 	out.rz = m1.rz * m2.rx + m1.fz * m2.ry + m1.uz * m2.rz;
@@ -446,6 +445,7 @@ operator*(const CMatrix &m1, const CMatrix &m2)
 	out.px = m1.rx * m2.px + m1.fx * m2.py + m1.ux * m2.pz + m1.px;
 	out.py = m1.ry * m2.px + m1.fy * m2.py + m1.uy * m2.pz + m1.py;
 	out.pz = m1.rz * m2.px + m1.fz * m2.py + m1.uz * m2.pz + m1.pz;
+#endif
 	return out;
 }
 
