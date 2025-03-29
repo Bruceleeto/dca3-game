@@ -11,6 +11,8 @@
 #include "crossplatform.h"
 
 #if !defined(AUDIO_OAL) &&  !defined(AUDIO_MSS)
+#define syncf(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
+#define streamf(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
 #define verbosef(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
 #define debugf(...) // dbglog(DBG_CRITICAL, __VA_ARGS__)
 
@@ -47,6 +49,8 @@
 /* Quick access to the AICA channels */
 #define AICA_CHANNEL(x)     (AICA_MEM_CHANNELS + (x) * sizeof(aica_channel_t))
 
+static uint32_t chn_version[64];
+
 int aica_play_chn(int chn, int size, uint32_t aica_buffer, int fmt, int vol, int pan, int loop, int freq) {
 	// assert(size <= 65534);
 	// We gotta fix this at some point
@@ -70,6 +74,7 @@ int aica_play_chn(int chn, int size, uint32_t aica_buffer, int fmt, int vol, int
     chan->freq = freq;
     chan->vol = vol;
     chan->pan = pan;
+	chan->version = ++chn_version[chn];
 	snd_sh4_to_aica(tmp, cmd->size);
     return chn;
 }
@@ -363,6 +368,13 @@ cSampleManager::Initialise(void)
 					if (channels[i].ch != -1) {
 						assert(channels[i].nSfx != -1);
 
+						uint32_t channel_version = g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, version));
+
+						if (chn_version[channels[i].ch] != channel_version) {
+							syncf("Stream version missmatch, skipping update. expected %d got %d\n", chn_version[channels[i].ch], channel_version);
+							continue;
+						}
+
 						uint16_t channel_pos = (g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, pos)) & 0xffff);
 						// verbosef("Channel %d pos: %d\n", i, channel_pos);
 						if (!channels[i].loop) {
@@ -389,21 +401,28 @@ cSampleManager::Initialise(void)
 				{
 					std::lock_guard<std::mutex> lk(streams[i].mtx);
 					if (streams[i].playing) {
+						uint32_t channel_version = g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(streams[i].mapped_ch[0]) + offsetof(aica_channel_t, version));
+
+						if (chn_version[streams[i].mapped_ch[0]] != channel_version) {
+							syncf("Stream version missmatch, skipping update. expected %d got %d\n", chn_version[streams[i].mapped_ch[0]], channel_version);
+							continue;
+						}
+
 						// get channel pos
 						uint32_t channel_pos = g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(streams[i].mapped_ch[0]) + offsetof(aica_channel_t, pos)) & 0xffff;
 						uint32_t logical_pos = channel_pos;
 						if (logical_pos > STREAM_CHANNEL_SAMPLE_COUNT/2) {
 							logical_pos -= STREAM_CHANNEL_SAMPLE_COUNT/2;
 						}
-						verbosef("Stream %d pos: %d, log: %d, rem: %d\n", i, channel_pos, logical_pos, streams[i].played_samples);
+						streamf("Stream %d pos: %d, log: %d, played: %d\n", i, channel_pos, logical_pos, streams[i].played_samples);
 			
-						bool can_refill = (streams[i].played_samples + STREAM_CHANNEL_SAMPLE_COUNT/2) < streams[i].total_samples;
-						bool can_fetch = (streams[i].played_samples + STREAM_CHANNEL_SAMPLE_COUNT/2 + STREAM_CHANNEL_SAMPLE_COUNT/2 + STREAM_CHANNEL_SAMPLE_COUNT/2) < streams[i].total_samples;
+						bool can_refill = (streams[i].played_samples + STREAM_CHANNEL_SAMPLE_COUNT/2 + (!streams[i].first_refill)*STREAM_CHANNEL_SAMPLE_COUNT/2) < streams[i].total_samples;
+						bool can_fetch = (streams[i].played_samples + STREAM_CHANNEL_SAMPLE_COUNT/2 + STREAM_CHANNEL_SAMPLE_COUNT/2 + (!streams[i].first_refill)*STREAM_CHANNEL_SAMPLE_COUNT/2) < streams[i].total_samples;
 						// copy over data if needed from staging
 						if (channel_pos >= STREAM_CHANNEL_SAMPLE_COUNT/2 && !streams[i].next_is_upper_half) {
 							streams[i].next_is_upper_half = true;
 							if (can_refill) { // could we need a refill?
-								verbosef("Filling channel %d with lower half\n", i);
+								streamf("Filling channel %d with lower half\n", i);
 								// fill lower half
 								spu_memload(streams[i].aica_buffers[0], streams[i].buffer, STREAM_CHANNEL_BUFFER_SIZE/2);
 								if (streams[i].stereo) {
@@ -419,7 +438,7 @@ cSampleManager::Initialise(void)
 						} else if (channel_pos < STREAM_CHANNEL_SAMPLE_COUNT/2 && streams[i].next_is_upper_half) {
 							streams[i].next_is_upper_half = false;
 							if (can_refill) { // could we need a refill?
-								verbosef("Filling channel %d with upper half\n", i);
+								streamf("Filling channel %d with upper half\n", i);
 								// fill upper half
 								spu_memload(streams[i].aica_buffers[0] + STREAM_CHANNEL_BUFFER_SIZE/2, streams[i].buffer, STREAM_CHANNEL_BUFFER_SIZE/2);
 								if (streams[i].stereo) {
@@ -439,7 +458,7 @@ cSampleManager::Initialise(void)
 						// if end of file, stop
 						if ((streams[i].played_samples + logical_pos) > streams[i].total_samples) {
 							// stop channel
-							debugf("Auto stopping stream: %d -> {%d, %d}, %d total\n", i, streams[i].mapped_ch[0], streams[i].mapped_ch[1], streams[i].total_samples);
+							streamf("Auto stopping stream: %d -> {%d, %d}, %d total\n", i, streams[i].mapped_ch[0], streams[i].mapped_ch[1], streams[i].total_samples);
 							aica_stop_chn(streams[i].mapped_ch[0]);
 							aica_stop_chn(streams[i].mapped_ch[1]);
 							streams[i].playing = false;
@@ -447,7 +466,7 @@ cSampleManager::Initialise(void)
 					}
 					
 					if (do_read) {
-						debugf("Queueing stream read: %d, file: %d, buffer: %p, size: %d, tell: %d\n", i, streams[i].fd, streams[i].buffer, do_read, fs_tell(streams[i].fd));
+						streamf("Queueing stream read: %d, file: %d, buffer: %p, size: %d, file_offset: %d\n", i, streams[i].fd, streams[i].buffer, do_read, streams[i].file_offset);
 						CdStreamQueueAudioRead(streams[i].fd, streams[i].buffer, do_read, streams[i].file_offset);
 						streams[i].file_offset += do_read;
 					}
@@ -487,6 +506,7 @@ cSampleManager::Initialise(void)
 void
 cSampleManager::Terminate(void)
 {
+	CdStreamDiscardAudioRead(fdPedSfx);
 	fs_close(fdPedSfx);
 }
 
@@ -737,9 +757,9 @@ cSampleManager::LoadPedComment(uint32 nComment)
 
 	assert(m_aSamples[nComment].nByteSize <= PED_BLOCKSIZE_ADPCM);
 
-	CdStreamQueueAudioRead(nComment, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
+	CdStreamQueueAudioRead(fdPedSfx, (void*)nPedSlotSfxAddr[nCurrentPedSlot], m_aSamples[nComment].nByteSize, m_aSamples[nComment].nFileOffset, [](AudioReadCmd* cmd) {
 		debugf("Loading ped comment %d, offset: %d, size: %d\n", nComment, m_aSamples[nComment].nFileOffset, m_aSamples[nComment].nByteSize);
-		fs_seek(fdPedSfx, cmd->seek, SEEK_SET);
+		assert(fs_seek(fdPedSfx, cmd->seek, SEEK_SET) == cmd->seek);
 
 
 		// TODO: When we can dma directly to AICA, we can use this instead
@@ -1027,7 +1047,7 @@ cSampleManager::PreloadStreamedFile(uint8 nFile, uint8 nStream, uint32_t seek_by
 {
 	ASSERT( nStream < MAX_STREAMS );
 	file_t f = fs_open(DCStreamedNameTable[nFile], O_RDONLY);
-	debugf("PreloadStreamedFile(%p, %d, %d) is %s\n", f, nFile, nStream, DCStreamedNameTable[nFile]);
+	streamf("PreloadStreamedFile(%p, %d, %d) is %s\n", f, nFile, nStream, DCStreamedNameTable[nFile]);
 	assert(f >= 0 );
 	WavHeader hdr;
 	assert(fs_read(f, &hdr, sizeof(hdr)) == sizeof(hdr));
@@ -1050,13 +1070,13 @@ cSampleManager::PreloadStreamedFile(uint8 nFile, uint8 nStream, uint32_t seek_by
 		streams[nStream].next_is_upper_half = true;
 		streams[nStream].first_refill = true;
 
-		debugf("PreloadStreamedFile: %s: stream: %d, freq: %d, chans: %d, byte size: %d, played samples: %d\n", DCStreamedNameTable[nFile], nStream, hdr.samplesPerSec, hdr.numOfChan, hdr.dataSize, streams[nStream].played_samples);
+		streamf("PreloadStreamedFile: %s: stream: %d, freq: %d, chans: %d, byte size: %d, played samples: %d\n", DCStreamedNameTable[nFile], nStream, hdr.samplesPerSec, hdr.numOfChan, hdr.dataSize, streams[nStream].played_samples);
 	
 
 		// How to avoid the lock?
 		if (seek_bytes_aligned) {
 			streams[nStream].played_samples = seek_bytes_aligned * (streams[nStream].stereo ? 1 : 2);
-			debugf("Seeking aligned to: %d, played_samples: %d\n", seek_bytes_aligned, streams[nStream].played_samples);
+			streamf("Seeking aligned to: %d, played_samples: %d\n", seek_bytes_aligned, streams[nStream].played_samples);
 			fs_seek(streams[nStream].fd, 2048 + seek_bytes_aligned, SEEK_SET);
 		} else {
 			fs_seek(f, 2048, SEEK_SET);
@@ -1085,7 +1105,7 @@ cSampleManager::PreloadStreamedFile(uint8 nFile, uint8 nStream, uint32_t seek_by
 		streams[nStream].file_offset = fs_tell(f);
 	}
 
-	verbosef("PreloadStreamedFile: %p %d - %s, %d, %d, \n", f, nFile, DCStreamedNameTable[nFile], streams[nStream].rate, streams[nStream].stereo);
+	streamf("PreloadStreamedFile: %p %d - %s, %d, %d, \n", f, nFile, DCStreamedNameTable[nFile], streams[nStream].rate, streams[nStream].stereo);
 }
 
 // we can't really pause a stream, so we just make it go very slow with zero volume
