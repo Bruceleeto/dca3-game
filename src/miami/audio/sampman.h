@@ -198,6 +198,7 @@ public:
 	char  GetCDAudioDriveLetter  (void);
 	
 	void UpdateEffectsVolume(void);
+	void UpdateStreamsVolume(void);
 
 #ifdef DC_SH4
 	void UpdateChannelVolume(uint32 nChannel);
