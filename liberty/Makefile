@@ -15,16 +15,16 @@ IS_MAC := $(shell uname -s | grep -i "darwin" > /dev/null && echo "yes" || echo 
 
 MOD_NAME?=
 
-GTA_DIR?=../../gta3
+GTA_DIR?=../../liberty
 GTA_GAMEFILES_LOOSE_DIR?=../gamefiles/liberty
-GTA_MOD_DIR?=../../gta3_mod$(MOD_NAME)
+GTA_MOD_DIR?=../../liberty_mod$(MOD_NAME)
 GTA_MOD_IMG_DIR?=$(GTA_MOD_DIR)/img
 GTA_MOD_CUTS_DIR=$(GTA_MOD_DIR)/cuts
 GTA_MOD_SFX_DIR?=$(GTA_MOD_DIR)/sfx
 GTA_MOD_LOOSE_DIR?=$(GTA_MOD_DIR)/loose
 
 REPACK_DIR?=repack-data
-REPACK_GTA_DIR?=$(REPACK_DIR)/gta3
+REPACK_GTA_DIR?=$(REPACK_DIR)/liberty
 REPACK_IMG_ORIG_DIR?=$(REPACK_DIR)/img-orig
 REPACK_IMG_DC_DIR?=$(REPACK_DIR)/img-dc
 REPACK_SFX_ORIG_DIR?=$(REPACK_DIR)/sfx-orig
