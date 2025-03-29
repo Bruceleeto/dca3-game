@@ -545,6 +545,7 @@ void
 cSampleManager::SetMusicMasterVolume(uint8 nVolume)
 {
 	m_nMusicVolume = nVolume;
+	UpdateStreamsVolume();
 }
 
 void
@@ -558,6 +559,7 @@ void
 cSampleManager::SetMusicFadeVolume(uint8 nVolume)
 {
 	m_nMusicFadeVolume = nVolume;
+	UpdateStreamsVolume();
 }
 
 void
@@ -1228,12 +1230,29 @@ cSampleManager::GetStreamedFilePosition(uint8 nStream)
 	return rv;
 }
 
+
+static uint8 nStreamVolumes[MAX_STREAMS];
+static uint8 nStreamPans[MAX_STREAMS];
+static uint8 nStreamEffect[MAX_STREAMS];
+void
+cSampleManager::UpdateStreamsVolume(void)
+{
+	if(_bSampmanInitialised) {
+		for (int nStream = 0; nStream < MAX_STREAMS; nStream++) {
+			SetStreamedVolumeAndPan(nStreamVolumes[nStream], nStreamPans[nStream], nStreamEffect[nStream], nStream);
+		}
+	}
+}
+
 void
 cSampleManager::SetStreamedVolumeAndPan(uint8 nVolume, uint8 nPan, uint8 nEffectFlag, uint8 nStream)
 {
 	ASSERT( nStream < MAX_STREAMS );
 	if (nVolume > MAX_VOLUME)
 		nVolume = MAX_VOLUME;
+	nStreamVolumes[nStream] = nVolume;
+	nStreamPans[nStream] = nPan;
+	nStreamEffect[nStream] = nEffectFlag;
 	nVolume = linearlize_volume(nVolume); //nVolume * 255 / MAX_VOLUME;
 	nVolume = m_nMusicFadeVolume * nVolume * m_nMusicVolume >> 14;
 	if (streams[nStream].vol != nVolume || streams[nStream].nPan != nPan) {
