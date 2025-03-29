@@ -58,7 +58,11 @@ public:
 };
 
 enum {
+#ifdef RW_DC
+	NUM_RAIN_STREAKS = 10
+#elif
 	NUM_RAIN_STREAKS = 35
+#endif
 };
 
 struct tRainStreak
