@@ -479,6 +479,7 @@ RemoveFirstInQueue(Queue *queue)
 }
 
 std::vector<AudioReadCmd> pendingAudioReads;
+volatile int pendingAudioRead_fd = -1;
 #if !defined(DC_SH4)
 std::mutex pendingAudioReadsMutex;
 #endif
@@ -487,8 +488,9 @@ void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek, st
 	AudioReadCmd cmd = { pBuffer, fd, bytes, seek};
 	if (!callback) {
 		cmd.callback = [](AudioReadCmd* cmd){
-			lseek(cmd->fd, cmd->seek, SEEK_SET);
-			read(cmd->fd, cmd->dest, cmd->size);
+			assert(pendingAudioRead_fd == cmd->fd);
+			assert(lseek(cmd->fd, cmd->seek, SEEK_SET) == cmd->seek);
+			assert(read(cmd->fd, cmd->dest, cmd->size) == cmd->size);
 		};
 	} else {
 		cmd.callback = callback;
@@ -500,7 +502,7 @@ void CdStreamQueueAudioRead(int fd, void* pBuffer, size_t bytes, size_t seek, st
 		auto mask = irq_disable();
 		#endif
 		for (auto it = pendingAudioReads.rbegin(); it != pendingAudioReads.rend(); ++it) {
-			if (it->fd == -1 || it->fd == fd) {
+			if (it->fd == -1) {
 				*it = cmd;
 				goto out;
 			}
@@ -532,6 +534,12 @@ void CdStreamDiscardAudioRead(int fd) {
 	#if defined(DC_SH4)
 	irq_restore(mask);
 	#endif
+
+	while (pendingAudioRead_fd == fd) {
+		#if defined(DC_SH4)
+		thd_pass();
+		#endif
+	}
 }
 
 AudioReadCmd CdStreamNextAudioRead() {
@@ -548,6 +556,8 @@ AudioReadCmd CdStreamNextAudioRead() {
 			break;
 		}
 	}
+	assert(pendingAudioRead_fd == -1);
+	pendingAudioRead_fd = cmd.fd;
 	#if defined(DC_SH4)
 	irq_restore(mask);
 	#endif
@@ -568,6 +578,7 @@ int read_loop(int fd, void* pBuffer, size_t bytes) {
 		auto cmd = CdStreamNextAudioRead();
 		while (cmd.fd != -1) {
 			cmd.callback(&cmd);
+			pendingAudioRead_fd = -1;
 			cmd = CdStreamNextAudioRead();
 		}
 	}
@@ -584,6 +595,7 @@ void *CdStreamThread(void *param)
 		auto cmd = CdStreamNextAudioRead();
 		while (cmd.fd != -1) {
 			cmd.callback(&cmd);
+			pendingAudioRead_fd = -1;
 			cmd = CdStreamNextAudioRead();
 		}
 
