@@ -94,6 +94,10 @@
 #include <sys/stat.h>
 #include <cctype>
 
+#ifdef DC_SH4
+#include <dc/vmu_pkg.h>
+#endif
+
 namespace mINI
 {
 	namespace INIStringUtil
@@ -335,6 +339,7 @@ namespace mINI
 	private:
 		std::ifstream fileReadStream;
 		T_LineDataPtr lineData;
+		std::size_t start_offt;
 
 		T_LineData readFile()
 		{
@@ -343,7 +348,7 @@ namespace mINI
 			fileContents.resize(fileReadStream.tellg());
 			fileReadStream.seekg(0, std::ios::beg);
 			std::size_t fileSize = fileContents.size();
-			fileReadStream.read(&fileContents[0], fileSize);
+			fileReadStream.read(const_cast<char *>(fileContents.c_str()), fileSize);
 			fileReadStream.close();
 			T_LineData output;
 			if (fileSize == 0)
@@ -352,7 +357,19 @@ namespace mINI
 			}
 			std::string buffer;
 			buffer.reserve(50);
-			for (std::size_t i = 0; i < fileSize; ++i)
+#ifdef DC_SH4
+			{
+				vmu_pkg_t vmu_pkg;
+				if(vmu_pkg_parse(reinterpret_cast<uint8*>(const_cast<int8*>(fileContents.c_str())), &vmu_pkg) != 0) {
+					// If we failed to parse, we assume it's raw with no VMS header.
+					start_offt = 0;
+				} else {
+					start_offt = reinterpret_cast<unsigned int>(vmu_pkg.data)
+							   - reinterpret_cast<unsigned int>(fileContents.c_str());
+				}
+			}
+#endif
+			for (std::size_t i = start_offt; i < fileSize; ++i)
 			{
 				char& c = fileContents[i];
 				if (c == '\n')
@@ -378,6 +395,8 @@ namespace mINI
 			{
 				lineData = std::make_shared<T_LineData>();
 			}
+
+			start_offt = 0;
 		}
 		~INIReader() { }
 
@@ -426,22 +445,71 @@ namespace mINI
 	{
 	private:
 		std::ofstream fileWriteStream;
-
+		std::stringstream memStream;
+		inline static std::ios_base::iostate lastError_;
 	public:
 		bool prettyPrint = false;
 
-		INIGenerator(std::string const& filename)
+		INIGenerator(std::string const& filename,  bool prettyPrint_=false)
+			: fileWriteStream(filename, std::ios::out | std::ios::binary),
+			  prettyPrint(prettyPrint_)
 		{
-			fileWriteStream.open(filename, std::ios::out | std::ios::binary);
+			lastError_ = fileWriteStream.rdstate();
 		}
-		~INIGenerator() { }
+
+		~INIGenerator()
+		{
+			if(!fileWriteStream.good()) {
+				return;
+			}
+
+			std::string str = memStream.str();
+			const char *buf = str.c_str();
+			int buf_size = memStream.tellp();
+
+#ifdef DC_SH4
+			uint8_t *data;
+			uint8_t icon_buf[512 * 1];
+			vmu_pkg_t vmu_pkg = {
+				.desc_short = "DCA-L Config",
+				.desc_long = "DCA-L Settings File",
+				.app_id = "The Gang",
+				.icon_cnt = 1,
+				.icon_anim_speed = 0,
+				.data_len = buf_size,
+				.icon_data = icon_buf,
+				.data = reinterpret_cast<const uint8_t*>(buf),
+			};
+
+			if (vmu_pkg_load_icon(&vmu_pkg, "settings.ico") < 0) {
+				vmu_pkg.icon_cnt = 0;
+			}
+
+			if(vmu_pkg_build(&vmu_pkg, &data, &buf_size) < 0) {
+				lastError_ = std::ios_base::badbit;
+				return;
+			}
+
+			buf = reinterpret_cast<char*>(data);
+#endif
+
+			fileWriteStream.write(buf, buf_size);
+			lastError_ = fileWriteStream.rdstate();
+
+#ifdef DC_SH4
+			// Must free the internal buffer allocated by vmu_pkg_build().
+			free(data);
+#endif
+		}
+
+		bool operator<<(const std::string& str)
+		{
+			memStream << str;
+			return true;
+		}
 
 		bool operator<<(INIStructure const& data)
 		{
-			if (!fileWriteStream.is_open())
-			{
-				return false;
-			}
 			if (!data.size())
 			{
 				return true;
@@ -451,13 +519,13 @@ namespace mINI
 			{
 				auto const& section = it->first;
 				auto const& collection = it->second;
-				fileWriteStream
+				memStream
 					<< "["
 					<< section
 					<< "]";
 				if (collection.size())
 				{
-					fileWriteStream << INIStringUtil::endl;
+					memStream << INIStringUtil::endl;
 					auto it2 = collection.begin();
 					for (;;)
 					{
@@ -465,7 +533,7 @@ namespace mINI
 						INIStringUtil::replace(key, "=", "\\=");
 						auto value = it2->second;
 						INIStringUtil::trim(value);
-						fileWriteStream
+						memStream
 							<< key
 							<< ((prettyPrint) ? " = " : "=")
 							<< value;
@@ -473,21 +541,29 @@ namespace mINI
 						{
 							break;
 						}
-						fileWriteStream << INIStringUtil::endl;
+						memStream << INIStringUtil::endl;
 					}
 				}
 				if (++it == data.end())
 				{
 					break;
 				}
-				fileWriteStream << INIStringUtil::endl;
+				memStream << INIStringUtil::endl;
 				if (prettyPrint)
 				{
-					fileWriteStream << INIStringUtil::endl;
+					memStream << INIStringUtil::endl;
 				}
 			}
 			return true;
 		}
+
+		operator bool() const
+		{
+			return fileWriteStream.rdstate() == fileWriteStream.goodbit;
+		}
+
+		static std::ios_base::iostate lastError() { return lastError_; }
+		static bool wasGood() { return lastError_ == std::ios_base::goodbit; }
 	};
 
 	class INIWriter
@@ -667,12 +743,15 @@ namespace mINI
 		{
 			struct stat buf;
 			bool fileExists = (stat(filename.c_str(), &buf) == 0);
+
 			if (!fileExists)
 			{
-				INIGenerator generator(filename);
-				generator.prettyPrint = prettyPrint;
-				return generator << data;
+				if(INIGenerator generator(filename, prettyPrint); generator) {
+					generator << data;
+				}
+				return INIGenerator::wasGood();
 			}
+
 			INIStructure originalData;
 			T_LineDataPtr lineData;
 			bool readSuccess = false;
@@ -688,23 +767,21 @@ namespace mINI
 				return false;
 			}
 			T_LineData output = getLazyOutput(lineData, data, originalData);
-			std::ofstream fileWriteStream(filename, std::ios::out | std::ios::binary);
-			if (fileWriteStream.is_open())
 			{
-				if (output.size())
+				if (INIGenerator generator(filename, prettyPrint); generator && output.size())
 				{
 					auto line = output.begin();
 					for (;;)
 					{
-						fileWriteStream << *line;
+						generator << *line;
 						if (++line == output.end())
 						{
 							break;
 						}
-						fileWriteStream << INIStringUtil::endl;
+						generator << INIStringUtil::endl;
 					}
 				}
-				return true;
+				return INIGenerator::wasGood();
 			}
 			return false;
 		}
@@ -741,9 +818,10 @@ namespace mINI
 			{
 				return false;
 			}
-			INIGenerator generator(filename);
-			generator.prettyPrint = pretty;
-			return generator << data;
+			if(INIGenerator generator(filename, pretty); generator) {
+				generator << data;
+			}
+			return INIGenerator::wasGood();
 		}
 		bool write(INIStructure& data, bool pretty = false) const
 		{
