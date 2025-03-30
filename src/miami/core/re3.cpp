@@ -201,7 +201,7 @@ mINI::INIFile ini(
 #ifdef DC_SIM
 	"reVC.ini"
 #else
-	"/vmu/" VMU_DEFAULT_PATH "reVCini"
+	"/vmu/" VMU_DEFAULT_PATH "/reVCini"
 #endif
 );
 mINI::INIStructure cfg;
@@ -492,7 +492,7 @@ void SaveINIControllerSettings()
 	StoreIni("Controller", "PadButtonsInited", ControlsManager.ms_padButtonsInited);
 
 	{
-		RAIIVmuBeep(VMU_DEFALT_PATH, 1.0f);
+		RAIIVmuBeep(VMU_DEFAULT_PATH, 1.0f);
 		ini.write(cfg);
 	}
 }
@@ -500,7 +500,7 @@ void SaveINIControllerSettings()
 bool LoadINISettings()
 {
 	{
-		RAIIVmuBeep(VMU_DEFALT_PATH, 1.0f);
+		RAIIVmuBeep(VMU_DEFAULT_PATH, 1.0f);
 		if (!ini.read(cfg))
 			return false;
 	}
