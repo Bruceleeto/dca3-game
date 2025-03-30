@@ -59,6 +59,8 @@
 
 #include <list>
 
+#include "vmu/vmu.h"
+
 #ifdef RWLIBS
 extern "C" int vsprintf(char* const _Buffer, char const* const _Format, va_list  _ArgList);
 #endif
@@ -195,7 +197,13 @@ CustomFrontendOptionsPopulate(void)
 #define MINI_CASE_SENSITIVE
 #include "ini.h"
 
-mINI::INIFile ini("reVC.ini");
+mINI::INIFile ini(
+#ifdef DC_SIM
+	"reVC.ini"
+#else
+	"/vmu/" VMU_DEFAULT_PATH "reVCini"
+#endif
+);
 mINI::INIStructure cfg;
 
 bool ReadIniIfExists(const char *cat, const char *key, uint32 *out)
@@ -483,13 +491,19 @@ void SaveINIControllerSettings()
 #endif
 	StoreIni("Controller", "PadButtonsInited", ControlsManager.ms_padButtonsInited);
 
-	ini.write(cfg);
+	{
+		RAIIVmuBeep(VMU_DEFALT_PATH, 1.0f);
+		ini.write(cfg);
+	}
 }
 
 bool LoadINISettings()
 {
-	if (!ini.read(cfg))
-		return false;
+	{
+		RAIIVmuBeep(VMU_DEFALT_PATH, 1.0f);
+		if (!ini.read(cfg))
+			return false;
+	}
 
 #ifdef IMPROVED_VIDEOMODE
 	ReadIniIfExists("VideoMode", "Width", &FrontEndMenuManager.m_nPrefsWidth);
