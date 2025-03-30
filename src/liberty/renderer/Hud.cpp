@@ -39,7 +39,11 @@
 #define AMMO_X 66.0f
 #define HEALTH_X 110.0f
 #define STARS_X 60.0f
+#ifdef RW_DC
+#define ZONE_Y 64.0f
+#else
 #define ZONE_Y 30.0f
+#endif
 #define VEHICLE_Y 55.0f
 #define CLOCK_X 111.0f
 #define SUBS_Y 68.0f
