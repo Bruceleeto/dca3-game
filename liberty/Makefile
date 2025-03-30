@@ -184,7 +184,8 @@ $(REPACK_GTA_DIR)/GTA3SF8.b: assets/GTA3SF8.b
 	cp $< $@
 
 $(REPACK_GTA_DIR)/0GDTEX.PVR: assets/0GDTEX.PVR
-$(REPACK_GTA_DIR)/%.ico: %.ico
+
+$(REPACK_GTA_DIR)/%.ico: assets/%.ico
 	mkdir -p $(@D)
 	cp $< $@
 

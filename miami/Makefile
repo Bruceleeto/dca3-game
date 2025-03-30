@@ -191,7 +191,7 @@ $(REPACK_GTA_DIR)/0GDTEX.PVR: assets/0GDTEX.PVR
 	mkdir -p $(@D)
 	cp $< $@
 
-$(REPACK_GTA_DIR)/%.ico: %.ico
+$(REPACK_GTA_DIR)/%.ico: assets/%.ico
 	mkdir -p $(@D)
 	cp $< $@
 

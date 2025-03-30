@@ -471,8 +471,8 @@ namespace mINI
 			uint8_t *data;
 			uint8_t icon_buf[512 * 1];
 			vmu_pkg_t vmu_pkg = {
-				.desc_short = "DCA VC Settings",
-				.desc_long = "DCA Miami Settings File",
+				.desc_short = "DCA-M Config",
+				.desc_long = "DCA-M Settings File",
 				.app_id = "The Gang",
 				.icon_cnt = 1,
 				.icon_anim_speed = 0,
