@@ -2121,14 +2121,14 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = Dreamcast_RightTrigger[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case VEHICLE_CHANGE_RADIO_STATION:
-					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Left[i]) != '\0' && i < iLimitCopy; i++);
+				case VEHICLE_CHANGE_RADIO_STATION: // D-Pad Right to switch RADIO on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_BRAKE:
 					for (int i = 0; (ActionText[i] = Dreamcast_LeftTrigger[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case TOGGLE_SUBMISSIONS:
-					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
+				case TOGGLE_SUBMISSIONS: // D-Pad Left to enable SUBMISSIONS on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Left[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case GO_LEFT:
 					for (int i = 0; (ActionText[i] = Dreamcast_Stick_Left[i]) != '\0' && i < iLimitCopy; i++);
@@ -2199,11 +2199,11 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 				case VEHICLE_TURRETRIGHT:
 					for (int i = 0; (ActionText[i] = Dreamcast_A[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case VEHICLE_TURRETUP:
-					for (int i = 0; (ActionText[i] = Dreamcast_A[i]) != '\0' && i < iLimitCopy; i++);
+				case VEHICLE_TURRETUP: // Remark: VEHICLE_TURRETUP and VEHICLE_TURRETDOWN are used to shift your weight on a bike in Vice City
+					for (int i = 0; (ActionText[i] = Dreamcast_Stick_Up[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case VEHICLE_TURRETDOWN:
-					for (int i = 0; (ActionText[i] = Dreamcast_A[i]) != '\0' && i < iLimitCopy; i++);
+				case VEHICLE_TURRETDOWN: // Remark: VEHICLE_TURRETUP and VEHICLE_TURRETDOWN are used to shift your weight on a bike in Vice City
+					for (int i = 0; (ActionText[i] = Dreamcast_Stick_Down[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case CAMERA_CHANGE_VIEW_ALL_SITUATIONS:
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Up[i]) != '\0' && i < iLimitCopy; i++);
@@ -2259,13 +2259,13 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = Dreamcast_RightTrigger[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case VEHICLE_CHANGE_RADIO_STATION:
+				case VEHICLE_CHANGE_RADIO_STATION: // D-Pad Right to switch RADIO on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_BRAKE:
 					for (int i = 0; (ActionText[i] = Dreamcast_LeftTrigger[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case TOGGLE_SUBMISSIONS:
+				case TOGGLE_SUBMISSIONS: // D-Pad Left to enable SUBMISSIONS on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Left[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case GO_LEFT:
@@ -2397,14 +2397,14 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = Dreamcast_A[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case VEHICLE_CHANGE_RADIO_STATION:
-					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Left[i]) != '\0' && i < iLimitCopy; i++);
+				case VEHICLE_CHANGE_RADIO_STATION: // D-Pad Right to switch RADIO on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_BRAKE:
 					for (int i = 0; (ActionText[i] = Dreamcast_X[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case TOGGLE_SUBMISSIONS:
-					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
+				case TOGGLE_SUBMISSIONS: // D-Pad Left to enable SUBMISSIONS on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Left[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case GO_LEFT:
 					for (int i = 0; (ActionText[i] = Dreamcast_Stick_Left[i]) != '\0' && i < iLimitCopy; i++);
@@ -2542,8 +2542,8 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 				case VEHICLE_BRAKE:
 					for (int i = 0; (ActionText[i] = PS2_Square[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-				case TOGGLE_SUBMISSIONS:
-					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
+				case TOGGLE_SUBMISSIONS: // D-Pad Left to enable SUBMISSIONS on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Left[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case GO_LEFT:
 					for (int i = 0; (ActionText[i] = LefAnalog_Left[i]) != '\0' && i < iLimitCopy; i++);
