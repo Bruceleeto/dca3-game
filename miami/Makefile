@@ -164,6 +164,7 @@ clean:
 	-rm -f IP.BIN
 	-rm -f $(PROJECT_NAME).iso
 	-rm -f $(PROJECT_NAME).ds.iso
+	-rm -f $(PROJECT_NAME)-prebuilt.ds.iso
 	-rm -f $(PROJECT_NAME).cdi
 	-rm -f $(DEPS)
 	-rm -rf $(REPACK_DIR)
@@ -234,6 +235,12 @@ $(PROJECT_NAME).ds.iso: IP.BIN 1ST_READ.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_
 	$(KOS_BASE)/utils/scramble/scramble $(TARGET)-prebuilt.bin 1ST_READ_PREBUILT.BIN
 	mkdir -p $(REPACK_GTA_DIR)
 
+$(PROJECT_NAME)-prebuilt.ds.iso: IP.BIN 1ST_READ_PREBUILT.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTAVCSF8.b $(REPACK_GTA_DIR)/0GDTEX.PVR $(REPACK_GTA_DIR)/settings.ico
+	rm -f $(PROJECT_NAME)-prebuilt.ds.iso
+	rm -f $(REPACK_GTA_DIR)/1ST_READ.BIN
+	cp 1ST_READ_PREBUILT.BIN $(REPACK_GTA_DIR)/1ST_READ.BIN
+	mkisofs -V $(PROJECT_NAME) -G IP.BIN -r -J -l -o $(PROJECT_NAME)-prebuilt.ds.iso $(REPACK_GTA_DIR)
+
 $(PROJECT_NAME)-prebuilt.iso: IP.BIN 1ST_READ_PREBUILT.BIN $(REPACK_DIR)/repacked $(REPACK_GTA_DIR)/GTAVCSF8.b $(REPACK_GTA_DIR)/0GDTEX.PVR $(REPACK_GTA_DIR)/settings.ico
 	rm -f $(REPACK_GTA_DIR)/1ST_READ.BIN
 	cp 1ST_READ_PREBUILT.BIN $(REPACK_GTA_DIR)/1ST_READ.BIN
@@ -271,6 +278,8 @@ cdi: $(PROJECT_NAME).cdi
 cdi-no-repack: $(PROJECT_NAME)-no-repack.cdi
 
 dsiso: $(PROJECT_NAME).ds.iso
+
+dsiso-prebuilt:  $(PROJECT_NAME)-prebuilt.ds.iso
 
 cdi-prebuilt: $(PROJECT_NAME)-prebuilt.cdi
 
