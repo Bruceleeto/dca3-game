@@ -14,8 +14,8 @@ else
 endif
 
 MYFLAGS=-Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -Ilibavutil -I. -DCONFIG_MEMORY_POISONING=0 -DHAVE_FAST_UNALIGNED=0
-MYCPPFLAGS=$(MYFLAGS)
-MYCFLAGS=$(MYFLAGS) -Wno-pointer-sign
+MYCPPFLAGS=$(MYFLAGS) -std=gnu++17
+MYCFLAGS=$(MYFLAGS) -Wno-pointer-sign -std=gnu17
 
 
 .PHONY: all clean
