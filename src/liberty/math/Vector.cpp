@@ -32,7 +32,7 @@ Multiply3x3(const CMatrix &mat, const CVector &vec)
     register float __y __asm__("fr13") = vec.y;
     register float __z __asm__("fr14") = vec.z;
     register float __w __asm__("fr15") = 0.0f;
-	
+
 	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
 
 	asm volatile( "ftrv  xmtrx, fv12\n"

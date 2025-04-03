@@ -19,22 +19,22 @@ public:
   }
   // (0,1,0) means no rotation. So get right vector and its atan
   __always_inline float Heading(void) const { return Atan2(-x, y); }
-  __always_inline float Magnitude(void) const { 
+  __always_inline float Magnitude(void) const {
 #ifdef DC_SH4
     float w;
     vec3f_length(x, y, z, w);
     return w;
 #else
-    return Sqrt(x*x + y*y + z*z); 
+    return Sqrt(x*x + y*y + z*z);
 #endif
 }
-  __always_inline float MagnitudeSqr(void) const { 
+  __always_inline float MagnitudeSqr(void) const {
 #ifdef DC_SH4
-    return fipr_magnitude_sqr(x, y,z, 0.0f); 
+    return fipr_magnitude_sqr(x, y,z, 0.0f);
 #else
     return x*x + y*y + z*z;
 #endif
-} 
+}
   __always_inline float Magnitude2D(void) const { return Sqrt(x*x + y*y); }
   float MagnitudeSqr2D(void) const { return x*x + y*y; }
   void Normalise(void);
