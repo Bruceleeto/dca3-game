@@ -2042,7 +2042,7 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 		// CONTROL_CLASSIC : more like GTA: Liberty City Stories on PlayStation Portable
 
 		//static wchar ActionText[50];
-		static wchar ActionText[24];
+		static wchar ActionText[32];
 		for (int32 i = 0; i < ARRAY_SIZE(ActionText); i++)
 			ActionText[i] = '\0';
 
@@ -2066,14 +2066,17 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
         static const char* Dreamcast_VehicleLookLeft = "A + Joystick Left";
         static const char* Dreamcast_VehicleLookRight = "A + Joystick Right";
         static const char* Dreamcast_CenterCamera = "Double click X";
-		static const char* Dreamcast_CameraUp = "X + Joystick Up";
-        static const char* Dreamcast_CameraDown = "X + Joystick Down";
-        static const char* Dreamcast_CameraLeft = "X + Joystick Left";
-        static const char* Dreamcast_CameraRight = "X + Joystick Right";
-        static const char* Dreamcast_LookBehind = "Right trigger + Left trigger";
+		//static const char* Dreamcast_CameraUp = "X + Joystick Up"; // Not used, commented to saving memory
+        //static const char* Dreamcast_CameraDown = "X + Joystick Down"; // Not used, commented to saving memory
+        //static const char* Dreamcast_CameraLeft = "X + Joystick Left"; // Not used, commented to saving memory
+        //static const char* Dreamcast_CameraRight = "X + Joystick Right"; // Not used, commented to saving memory
+
+        //static const char* Dreamcast_ReplaceMeleeWeapon = "A + D-Pad Down";
+        //static const char* Dreamcast_BothTriggers = "Right Trigger + Left Trigger";
+        static const char* Dreamcast_BothTriggers = "Two Triggers / A + D-Pad Down"; // Not a perfect fix but avoid problem with PED_ANSWER_PHONE
         static const char* Dreamcast_NotAssigned = "Not Assigned";
 
-        //Dual sticks
+        // Dual Sticks
         static const char* LefAnalog_Up = "Left Stick Up";
 		static const char* LefAnalog_Down = "Left Stick Down";
 		static const char* LefAnalog_Left = "Left Stick Left";
@@ -2084,14 +2087,13 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 		static const char* RightAnalog_Left = "Right Stick Left";
 		static const char* RightAnalog_Right = "Right Stick Right";
 
-        //Xbox Specific
+        // Xbox Specific
         static const char* Xbox_VehicleLookLeft = "LB";
         static const char* Xbox_VehicleLookRight = "RB";
         static const char* Xbox_VehicleLookBehind = "RB + LB";
         static const char* Xbox_Back = "Back";
         
-
-        //PS2 Specific
+        // PS2 Specific
         static const char* Dreamcast_PS2_VehicleLookLeft = "B + Joystick Left";
         static const char* Dreamcast_PS2_VehicleLookRight = "B + Joystick Right";
         static const char* PS2_L1 = "L1";
@@ -2124,6 +2126,9 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 					break;
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = Dreamcast_RightTrigger[i]) != '\0' && i < iLimitCopy; i++);
+					break;
+				case PED_ANSWER_PHONE: // Both Triggers to answer the Phone and switch the Melee Weapon on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_CHANGE_RADIO_STATION: // D-Pad Right to switch RADIO on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
@@ -2213,7 +2218,7 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Up[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_LOOKBEHIND:
-					for (int i = 0; (ActionText[i] = Dreamcast_LookBehind[i]) != '\0' && i < iLimitCopy; i++);
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case NETWORK_TALK: // Not Used on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_NotAssigned[i]) != '\0' && i < iLimitCopy; i++);
@@ -2262,6 +2267,9 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 					break;
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = Dreamcast_RightTrigger[i]) != '\0' && i < iLimitCopy; i++);
+					break;
+				case PED_ANSWER_PHONE: // Both Triggers to answer the Phone on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_CHANGE_RADIO_STATION: // D-Pad Right to switch RADIO on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
@@ -2401,7 +2409,9 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = Dreamcast_A[i]) != '\0' && i < iLimitCopy; i++);
 					break;
-
+				case PED_ANSWER_PHONE: // Both Triggers to answer the Phone on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
+					break;
 				case VEHICLE_CHANGE_RADIO_STATION: // D-Pad Right to switch RADIO on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Right[i]) != '\0' && i < iLimitCopy; i++);
 					break;
@@ -2490,7 +2500,7 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Up[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_LOOKBEHIND:
-					for (int i = 0; (ActionText[i] = Dreamcast_LookBehind[i]) != '\0' && i < iLimitCopy; i++);
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case NETWORK_TALK: // Not Used on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_NotAssigned[i]) != '\0' && i < iLimitCopy; i++);
@@ -2540,6 +2550,9 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 					break;
 				case VEHICLE_ACCELERATE:
 					for (int i = 0; (ActionText[i] = PS2_Cross[i]) != '\0' && i < iLimitCopy; i++);
+					break;
+				case PED_ANSWER_PHONE: // Both Triggers to answer the Phone on Dreamcast
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_CHANGE_RADIO_STATION:
 					for (int i = 0; (ActionText[i] = PS2_L1[i]) != '\0' && i < iLimitCopy; i++);
@@ -2629,7 +2642,7 @@ wchar *CControllerConfigManager::GetControllerSettingTextWithOrderNumber(e_Contr
 					for (int i = 0; (ActionText[i] = Dreamcast_DPad_Up[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case VEHICLE_LOOKBEHIND:
-					for (int i = 0; (ActionText[i] = Dreamcast_LookBehind[i]) != '\0' && i < iLimitCopy; i++);
+					for (int i = 0; (ActionText[i] = Dreamcast_BothTriggers[i]) != '\0' && i < iLimitCopy; i++);
 					break;
 				case NETWORK_TALK: // Not Used on Dreamcast
 					for (int i = 0; (ActionText[i] = Dreamcast_NotAssigned[i]) != '\0' && i < iLimitCopy; i++);
