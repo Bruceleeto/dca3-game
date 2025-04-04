@@ -253,11 +253,25 @@ inline V3d neg(const V3d &a) { return makeV3d(-a.x, -a.y, -a.z); }
 inline V3d add(const V3d &a, const V3d &b) { return makeV3d(a.x+b.x, a.y+b.y, a.z+b.z); }
 inline V3d sub(const V3d &a, const V3d &b) { return makeV3d(a.x-b.x, a.y-b.y, a.z-b.z); }
 inline V3d scale(const V3d &a, float32 r) { return makeV3d(a.x*r, a.y*r, a.z*r); }
-inline float32 length(const V3d &v) { return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z); }
+inline float32 length(const V3d &v) {
+#ifndef DC_SH4
+	return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
+#else
+	float len;
+	vec3f_length(v.x, v.y, v.z, len);
+	return len;
+#endif
+}
 inline V3d normalize(const V3d &v) { return scale(v, 1.0f/length(v)); }
 inline V3d setlength(const V3d &v, float32 l) { return scale(v, l/length(v)); }
 V3d cross(const V3d &a, const V3d &b);
-inline __attribute__((always_inline)) float32 dot(const V3d &a, const V3d &b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
+inline __attribute__((always_inline)) float32 dot(const V3d &a, const V3d &b) {
+#ifdef DC_SH4
+	return fipr(a.x, a.y, a.z, 0.0f, b.x, b.y, b.z, 0.0f);
+#else
+	return a.x*b.x + a.y*b.y + a.z*b.z;
+#endif
+}
 inline V3d lerp(const V3d &a, const V3d &b, float32 r){
 	return makeV3d(a.x + r*(b.x - a.x),
 	               a.y + r*(b.y - a.y),
@@ -300,7 +314,13 @@ inline Quat makeQuat(float32 w, const V3d &vec) { Quat q = { vec.x, vec.y, vec.z
 inline Quat add(const Quat &q, const Quat &p) { return makeQuat(q.w+p.w, q.x+p.x, q.y+p.y, q.z+p.z); }
 inline Quat sub(const Quat &q, const Quat &p) { return makeQuat(q.w-p.w, q.x-p.x, q.y-p.y, q.z-p.z); }
 inline Quat negate(const Quat &q) { return makeQuat(-q.w, -q.x, -q.y, -q.z); }
-inline float32 dot(const Quat &q, const Quat &p) { return q.w*p.w + q.x*p.x + q.y*p.y + q.z*p.z; }
+inline float32 dot(const Quat &q, const Quat &p) {
+#ifdef DC_SH4
+	return fipr(q.x, q.y, q.z, q.w, p.x, p.y, p.z, p.w);
+#else
+	return q.w*p.w + q.x*p.x + q.y*p.y + q.z*p.z;
+#endif
+}
 inline Quat scale(const Quat &q, float32 r) { return makeQuat(q.w*r, q.x*r, q.y*r, q.z*r); }
 inline float32 length(const Quat &q) { return sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z); }
 inline Quat normalize(const Quat &q) { return scale(q, 1.0f/length(q)); }

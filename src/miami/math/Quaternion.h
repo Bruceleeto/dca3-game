@@ -1,5 +1,7 @@
 #pragma once
 
+#include "src/common_defines.h"
+
 // TODO: actually implement this
 class CQuaternion
 {
@@ -8,8 +10,20 @@ public:
 	CQuaternion(void) {}
 	CQuaternion(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 
-	float Magnitude(void) const { return Sqrt(x*x + y*y + z*z + w*w); }
-	float MagnitudeSqr(void) const { return x*x + y*y + z*z + w*w; }
+	float Magnitude(void) const {
+#ifndef DC_SH4
+		return Sqrt(x*x + y*y + z*z + w*w);
+#else
+		return Sqrt(fipr_magnitude_sqr(x, y, z, w));
+#endif
+	}
+	float MagnitudeSqr(void) const {
+#ifndef DC_SH4
+		return x*x + y*y + z*z + w*w;
+#else
+		return fipr_magnitude_sqr(x, y, z, w);
+#endif
+	}
 	void Normalise(void);
 	void Multiply(const CQuaternion &q1, const CQuaternion &q2);
 	void Invert(void){	// Conjugate would have been a better name
@@ -66,7 +80,11 @@ public:
 inline float
 DotProduct(const CQuaternion &q1, const CQuaternion &q2)
 {
+#ifndef DC_SH4
 	return q1.x*q2.x + q1.y*q2.y + q1.z*q2.z + q1.w*q2.w;
+#else
+	return fipr(q1.x, q1.y, q1.z, q1.w, q2.x, q2.y, q2.z, q2.w);
+#endif
 }
 
 inline CQuaternion operator+(const CQuaternion &left, const CQuaternion &right)
