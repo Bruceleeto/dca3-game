@@ -68,7 +68,7 @@ public:
   }
 
   const CVector &operator/=(float right) {
-    right = Invert(right);
+    right = Invert<false>(right);
     x *= right;
     y *= right;
     z *= right;
@@ -112,7 +112,8 @@ inline CVector operator*(float left, const CVector &right)
 
 inline CVector operator/(const CVector &left, float right)
 {
-  return CVector(left.x / right, left.y / right, left.z / right);
+  right = Invert<false>(right);
+  return CVector(left.x * right, left.y * right, left.z * right);
 }
 
 __always_inline float

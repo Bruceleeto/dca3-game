@@ -63,7 +63,6 @@ public:
 	void SetScale(float s);
 	void Scale(float scale)
 	{
-#ifndef DC_SH4
 		for (int i = 0; i < 3; i++)
 #ifdef FIX_BUGS // BUGFIX from VC
 			for (int j = 0; j < 3; j++)
@@ -71,11 +70,6 @@ public:
 			for (int j = 0; j < 4; j++)
 #endif
 				f[i][j] *= scale;
-#else
-		mat_load(*this);
-		mat_scale(scale, scale, scale);
-		mat_store(*this);
-#endif
 	}
 
 
@@ -112,7 +106,7 @@ CMatrix Invert(const CMatrix &matrix);
 CMatrix operator*(const CMatrix &m1, const CMatrix &m2);
 inline CVector MultiplyInverse(const CMatrix &mat, const CVector &vec)
 {
-#ifndef DC_SH4
+#if 1
 	CVector v(vec.x - mat.px, vec.y - mat.py, vec.z - mat.pz);
 	return CVector(
 		mat.rx * v.x + mat.ry * v.y + mat.rz * v.z,

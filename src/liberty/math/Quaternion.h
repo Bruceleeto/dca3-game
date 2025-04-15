@@ -62,7 +62,7 @@ public:
 	}
 
 	const CQuaternion &operator/=(float right) {
-		right = dc::Invert(right);
+		right = dc::Invert<false>(right);
 		x *= right;
 		y *= right;
 		z *= right;
@@ -115,5 +115,6 @@ inline CQuaternion operator*(float left, const CQuaternion &right)
 
 inline CQuaternion operator/(const CQuaternion &left, float right)
 {
-	return CQuaternion(left.x / right, left.y / right, left.z / right, left.w / right);
+	right = Invert<false>(right);
+	return CQuaternion(left.x * right, left.y * right, left.z * right, left.w * right);
 }

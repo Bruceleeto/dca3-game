@@ -454,7 +454,7 @@ operator*(const CMatrix &m1, const CMatrix &m2)
 {
 	// TODO: VU0 code
 	CMatrix out;
-#if defined(RW_DC)
+#ifdef DC_SH4
 	mat_mult(out, m1, m2);
 #else
 	out.rx = m1.rx * m2.rx + m1.fx * m2.ry + m1.ux * m2.rz;
