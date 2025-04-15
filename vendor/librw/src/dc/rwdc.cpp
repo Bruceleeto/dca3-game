@@ -728,13 +728,6 @@ __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w,
 
 /* END TA Submission Functions*/
 
-
-
-
-#if defined(DC_TEXCONV)
-void malloc_stats() { }
-#endif
-
 #if 0
 #define UNIMPL_LOG() printf("TODO: Implement %s @ %s:%d\n", __func__, __FILE__, __LINE__);
 #define UNIMPL_LOGV(fmt, ...) printf("TODO: Implement %s @ %s:%d " fmt "\n", __func__, __FILE__, __LINE__, __VA_ARGS__);

@@ -50,9 +50,18 @@ Multiply3x3(const CMatrix &mat, const CVector &vec)
 CVector
 Multiply3x3(const CVector &vec, const CMatrix &mat)
 {
+#ifndef DC_SH4
 	return CVector(mat.rx * vec.x + mat.ry * vec.y + mat.rz * vec.z,
 	               mat.fx * vec.x + mat.fy * vec.y + mat.fz * vec.z,
 	               mat.ux * vec.x + mat.uy * vec.y + mat.uz * vec.z);
+#else
+	CVector out;
+	mat_load(mat);
+	mat_transpose();
+	mat_trans_vec3_nomod(vec.x, vec.y, vec.z,
+	                     out.x, out.y, out.z);
+	return out;
+#endif
 }
 
 CVector

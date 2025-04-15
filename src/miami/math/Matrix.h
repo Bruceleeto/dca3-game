@@ -43,6 +43,8 @@ public:
 		SetScale(scale);
 	}
 	~CMatrix(void);
+	operator matrix_t *() { return reinterpret_cast<matrix_t *>(this); }
+	operator const matrix_t *() const { return reinterpret_cast<const matrix_t *>(this); }
 	void Attach(RwMatrix *matrix, bool owner = false);
 	void AttachRW(RwMatrix *matrix, bool owner = false);
 	void Detach(void);
@@ -75,19 +77,30 @@ public:
 	void SetScale(float s);
 	void Scale(float scale)
 	{
+#if !defined(DC_SH4) || 1 /* TODO */
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 3; j++)
 				f[i][j] *= scale;
+#else 
+		mat_load(*this);
+		mat_scale(scale, scale, scale);
+		mat_store(*this);
+#endif
 	}
 	void Scale(float sx, float sy, float sz)
 	{
+#if !defined(DC_SH4) || 1 /* TODO */
 		for (int i = 0; i < 3; i++){
-			f[i][0] *= sx;
-			f[i][1] *= sy;
-			f[i][2] *= sz;
+				f[i][0] *= sx;
+				f[i][1] *= sy;
+				f[i][2] *= sz;
 		}
+#else
+		mat_load(*this);
+		mat_scale(sx, sy, sz);
+		mat_store(*this);
+#endif
 	}
-
 
 	void SetRotateXOnly(float angle);
 	void SetRotateYOnly(float angle);
@@ -125,11 +138,22 @@ CMatrix Invert(const CMatrix &matrix);
 CMatrix operator*(const CMatrix &m1, const CMatrix &m2);
 inline CVector MultiplyInverse(const CMatrix &mat, const CVector &vec)
 {
+#ifndef DC_SH4
 	CVector v(vec.x - mat.px, vec.y - mat.py, vec.z - mat.pz);
 	return CVector(
 		mat.rx * v.x + mat.ry * v.y + mat.rz * v.z,
 		mat.fx * v.x + mat.fy * v.y + mat.fz * v.z,
 		mat.ux * v.x + mat.uy * v.y + mat.uz * v.z);
+#else
+    register float x asm(KOS_FPARG(0)) = vec.x - mat.px;
+    register float y asm(KOS_FPARG(1)) = vec.y - mat.py;
+    register float z asm(KOS_FPARG(2)) = vec.z - mat.pz;
+	return CVector(
+		fipr(x, y, z, 0.0f, mat.rx, mat.ry, mat.rz, 0.0f),
+		fipr(x, y, z, 0.0f, mat.fx, mat.fy, mat.fz, 0.0f),
+		fipr(x, y, z, 0.0f, mat.ux, mat.uy, mat.uz, 0.0f)
+	);
+#endif
 }
 
 

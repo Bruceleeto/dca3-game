@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/common_defines.h"
+#include "rwdc_common.h"
 
 // TODO: actually implement this
 class CQuaternion
@@ -10,6 +11,10 @@ public:
 	CQuaternion(void) {}
 	CQuaternion(float x, float y, float z, float w) : x(x), y(y), z(z), w(w) {}
 
+	operator quaternion_t *() { return reinterpret_cast<quaternion_t *>(this); }
+	operator const quaternion_t *() const { return reinterpret_cast<const quaternion_t *>(this); }
+	operator quaternion_t &() { return *reinterpret_cast<quaternion_t *>(this); }
+	operator const quaternion_t &() const { return *reinterpret_cast<const quaternion_t *>(this); }
 	float Magnitude(void) const {
 #ifndef DC_SH4
 		return Sqrt(x*x + y*y + z*z + w*w);
@@ -57,10 +62,11 @@ public:
 	}
 
 	const CQuaternion &operator/=(float right) {
-		x /= right;
-		y /= right;
-		z /= right;
-		w /= right;
+		right = dc::Invert(right);
+		x *= right;
+		y *= right;
+		z *= right;
+		w *= right;
 		return *this;
 	}
 

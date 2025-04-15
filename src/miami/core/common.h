@@ -85,8 +85,6 @@
 
 #define rwVENDORID_ROCKSTAR 0x0253F2
 
-#define Max(a,b) ((a) > (b) ? (a) : (b))
-#define Min(a,b) ((a) < (b) ? (a) : (b))
 
 // Use this to add const that wasn't there in the original code
 #define Const const
@@ -303,12 +301,8 @@ extern int strncasecmp(const char *str1, const char *str2, size_t len);
 
 extern wchar *AllocUnicode(const char*src);
 
-#define Clamp(v, low, high) ((v)<(low) ? (low) : (v)>(high) ? (high) : (v))
-
-#define Clamp2(v, center, radius) ((v) > (center) ? Min(v, center + radius) : Max(v, center - radius))
-
-inline float sq(float x) { return x*x; }
 #define SQR(x) ((x) * (x))
+__always_inline auto sq(auto x) { return SQR(x); }
 
 #ifdef __MWERKS__
 #define M_E        2.71828182845904523536   // e
@@ -326,7 +320,10 @@ inline float sq(float x) { return x*x; }
 #define M_SQRT1_2  0.707106781186547524401  // 1/sqrt(2)
 #endif
 
-#define PI (float)M_PI
+#ifndef DC_SH4
+#define F_PI M_PI
+#endif
+#define PI (float)F_PI
 #define TWOPI (PI*2)
 #define HALFPI (PI/2)
 #define DEGTORAD(x) ((x) * PI / 180.0f)
@@ -380,7 +377,10 @@ __inline__ void TRACE(char *f, ...) { } // this is re3 only, and so the function
 #endif
 #endif
 
-#ifndef MASTER
+#ifdef assert
+#undef assert
+#endif
+#if !defined(MASTER)
 #define assert(_Expression) (void)( (!!(_Expression)) || (re3_assert(#_Expression, __FILE__, __LINE__, __FUNCTION__), 0) )
 #else
 #define assert(_Expression) (_Expression)
@@ -411,12 +411,7 @@ template<int s, int t> struct check_size {
 #endif
 #define BIT(num)                         (1<<(num))
 
-#define ABS(a)  (((a) < 0) ? (-(a)) : (a))
-#define norm(value, min, max) (((value) < (min)) ? 0 : (((value) > (max)) ? 1 : (((value) - (min)) / ((max) - (min)))))
-#define Lerp(norm, min, max) ( (norm) * ((max) - (min)) + (min) )
+#define ABS(a) Abs(a)
 
-#define STRINGIFY(x)                    #x
-#define STR(x)                          STRINGIFY(x)
-#define CONCAT_(x,y) x##y
-#define CONCAT(x,y) CONCAT_(x,y)
-
+// we use std::lerp now
+//#define lerp(norm, min, max) ( (norm) * ((max) - (min)) + (min) )

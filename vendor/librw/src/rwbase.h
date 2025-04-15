@@ -1,6 +1,9 @@
 #pragma once
 
 #include "common_defines.h"
+#ifdef RW_DC
+#include "rwdc_common.h"
+#endif
 
 #ifndef RW_PS2
 #include <stdint.h>
@@ -322,7 +325,13 @@ inline float32 dot(const Quat &q, const Quat &p) {
 #endif
 }
 inline Quat scale(const Quat &q, float32 r) { return makeQuat(q.w*r, q.x*r, q.y*r, q.z*r); }
-inline float32 length(const Quat &q) { return sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z); }
+inline float32 length(const Quat &q) {
+#ifndef DC_SH4
+	return sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
+#else
+	return dc::Sqrt(fipr_magnitude_sqr(q.x, q.y, q.z, q.w));
+#endif
+}
 inline Quat normalize(const Quat &q) { return scale(q, 1.0f/length(q)); }
 inline Quat conj(const Quat &q) { return makeQuat(q.w, -q.x, -q.y, -q.z); }
 Quat mult(const Quat &q, const Quat &p);
