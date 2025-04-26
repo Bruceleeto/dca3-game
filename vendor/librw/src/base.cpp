@@ -89,10 +89,18 @@ strncmp_ci(const char *s1, const char *s2, int n)
 Quat
 mult(const Quat &q, const Quat &p)
 {
+#ifndef DC_SH4
 	return makeQuat(q.w*p.w - q.x*p.x - q.y*p.y - q.z*p.z,
 	                q.w*p.x + q.x*p.w + q.y*p.z - q.z*p.y,
 	                q.w*p.y + q.y*p.w + q.z*p.x - q.x*p.z,
 	                q.w*p.z + q.z*p.w + q.x*p.y - q.y*p.x);
+#else
+	Quat o;
+	dc::quat_mult(reinterpret_cast<dc::quaternion_t *>(&o),
+	              reinterpret_cast<const dc::quaternion_t &>(q),
+				  reinterpret_cast<const dc::quaternion_t &>(p));
+	return o;
+#endif
 }
 
 

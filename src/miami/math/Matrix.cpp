@@ -4,7 +4,7 @@ CMatrix::CMatrix(CMatrix const &m)
 {
 	m_attachment = nil;
 	m_hasRwMatrix = false;
-	*this = m;
+	mat_copy(*this, m);
 }
 
 CMatrix::CMatrix(RwMatrix *matrix, bool owner)
@@ -75,7 +75,7 @@ CMatrix::UpdateRW(void)
 void
 CMatrix::operator=(CMatrix const &rhs)
 {
-	memcpy(this, &rhs, sizeof(f));
+	mat_copy(*this, rhs);
 	if (m_attachment)
 		UpdateRW();
 }
@@ -83,7 +83,7 @@ CMatrix::operator=(CMatrix const &rhs)
 void
 CMatrix::CopyOnlyMatrix(const CMatrix &other)
 {
-	memcpy(this, &other, sizeof(f));
+	mat_copy(*this, other);
 }
 
 CMatrix &
@@ -358,12 +358,14 @@ CMatrix::RotateZ(float z)
 void
 CMatrix::Rotate(float x, float y, float z)
 {
-	float cX = Cos(x);
-	float sX = Sin(x);
-	float cY = Cos(y);
-	float sY = Sin(y);
-	float cZ = Cos(z);
-	float sZ = Sin(z);
+#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
+       dc::mat_load2(reinterpret_cast<matrix_t *>(this));
+       mat_rotate(x, y, z);
+       dc::mat_store2(reinterpret_cast<matrix_t *>(this));
+#else
+	auto [sX, cX] = SinCos(x);
+	auto [sY, cY] = SinCos(y);
+	auto [sZ, cZ] = SinCos(z);
 	
 	float rx = this->rx;
 	float ry = this->ry;
@@ -388,6 +390,20 @@ CMatrix::Rotate(float x, float y, float z)
 	float z2 = sZ * sY - (cZ * sX) * cY;
 	float z3 = cX * cY;
 
+	#if !defined(DC_TEXCONV) && !defined(DC_SIM)
+	this->rx = fipr(x1, y1, z1, 0,  rx, ry, rz, 0);
+	this->ry = fipr(x2, y2, z2, 0,  rx, ry, rz, 0);
+	this->rz = fipr(x3, y3, z3, 0,  rx, ry, rz, 0);
+	this->fx = fipr(x1, y1, z1, 0,  ux, uy, uz, 0);
+	this->fy = fipr(x2, y2, z2, 0,  ux, uy, uz, 0);
+	this->fz = fipr(x3, y3, z3, 0,  ux, uy, uz, 0);
+	this->ux = fipr(x1, y1, z1, 0,  ax, ay, az, 0);
+	this->uy = fipr(x2, y2, z2, 0,  ax, ay, az, 0);
+	this->uz = fipr(x3, y3, z3, 0,  ax, ay, az, 0);
+	this->px = fipr(x1, y1, z1, 0,  px, py, pz, 0);
+	this->py = fipr(x2, y2, z2, 0,  px, py, pz, 0);
+	this->pz = fipr(x3, y3, z3, 0,  px, py, pz, 0);
+	#else
 	this->rx = x1 * rx + y1 * ry + z1 * rz;
 	this->ry = x2 * rx + y2 * ry + z2 * rz;
 	this->rz = x3 * rx + y3 * ry + z3 * rz;
@@ -400,6 +416,8 @@ CMatrix::Rotate(float x, float y, float z)
 	this->px = x1 * px + y1 * py + z1 * pz;
 	this->py = x2 * px + y2 * py + z2 * pz;
 	this->pz = x3 * px + y3 * py + z3 * pz;
+	#endif
+#endif
 }
 
 CMatrix &
@@ -429,9 +447,7 @@ operator*(const CMatrix &m1, const CMatrix &m2)
 	// TODO: VU0 code
 	CMatrix out;
 #if defined(RW_DC)
-	mat_load(reinterpret_cast<const matrix_t *>(&m1));
-	mat_apply(reinterpret_cast<const matrix_t *>(&m2));
-	mat_store(reinterpret_cast<matrix_t *>(&out));
+	mat_mult(out, m1, m2);
 #else
 	out.rx = m1.rx * m2.rx + m1.fx * m2.ry + m1.ux * m2.rz;
 	out.ry = m1.ry * m2.rx + m1.fy * m2.ry + m1.uy * m2.rz;

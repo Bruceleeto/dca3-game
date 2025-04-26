@@ -1619,7 +1619,7 @@ CCollision::ProcessLineOfSight(const CColLine &line,
 		point.point = matrix * point.point;
 		point.normal = Multiply3x3(matrix, point.normal);
 #else
-		mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&matrix)));
+		dc::mat_load2(matrix);
 		mat_trans_single3_nodiv(point.point.x,
 		                        point.point.y,
 		                        point.point.z);
@@ -1798,7 +1798,7 @@ CCollision::ProcessVerticalLine(const CColLine &line,
 		point.point = matrix * point.point;
 		point.normal = Multiply3x3(matrix, point.normal);
 #else
-		mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&matrix)));
+		dc::mat_load2(matrix);
 		mat_trans_single3_nodiv(point.point.x,
 		                        point.point.y,
 		                        point.point.z);
@@ -2173,8 +2173,7 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 #ifndef DC_SH4
 	matAB *= matrixA;
 #else
-	mat_load(reinterpret_cast<const matrix_t*>(&matAB));
-	mat_apply(reinterpret_cast<const matrix_t*>(&matrixA));
+	dc::mat_load_apply(matAB, matrixA);
 #endif
 
 	CColSphere bsphereAB;	// bounding sphere of A in B space
@@ -2246,8 +2245,7 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 #ifndef DC_SH4
 	matBA *= matrixB;
 #else
-	mat_load(reinterpret_cast<const matrix_t*>(&matBA));
-	mat_apply(reinterpret_cast<const matrix_t*>(&matrixB));
+	dc::mat_load_apply(matBA, matrixB);
 #endif
 	for(i = 0; i < modelB.numSpheres; i++){
 		s.radius = modelB.spheres[i].radius;
@@ -2309,7 +2307,7 @@ CCollision::ProcessColModels(const CMatrix &matrixA, CColModel &modelA,
 	}
 
 #ifdef DC_SH4
-	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&matrixB)));
+	dc::mat_load2(matrixB);
 #endif
 	for(i = 0; i < numCollisions; i++){
 #ifndef DC_SH4

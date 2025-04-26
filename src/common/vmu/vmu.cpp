@@ -94,23 +94,26 @@ void VmuProfiler::run() {
             pvr_stats_t pvrStats;   pvr_get_stats(&pvrStats);
             uint32_t    sramStats = snd_mem_available();
             size_t      pvrAvail  = pvr_mem_available();
-            float       fps       = std::accumulate(std::begin(fps_), std::end(fps_), 0.0f) 
-                                    / static_cast<float>(fpsSamples);
 
             float sh4Mem = heapUtilization();
             float pvrMem = (8_MB - pvrAvail ) / 8_MB * 100.0f;
             float armMem = (2_MB - sramStats) / 2_MB * 100.0f;
-            float vtxBuf = vertBuffUse_;
-            {
-                std::shared_lock lk(mtx_);
 
-                vmu_printf("FPS :%6.2f\n"
-                           "SH4 :%6.2f%%\n"
-                           "PVR :%6.2f%%\n"
-                           "ARM :%6.2f%%\n"
-                           "VTX :%6.2f%%",
-                           fps, sh4Mem, pvrMem, armMem, vtxBuf);
+            float vtxBuf;
+            float fps;
+            { /* Critical section with main thread. */
+                std::shared_lock lk(mtx_);
+                vtxBuf = vertBuffUse_;
+                fps    = std::accumulate(std::begin(fps_), std::end(fps_), 0.0f)
+                       / static_cast<float>(fpsSamples);
             }
+
+            vmu_printf(" FPS:%6.2f\n"
+                       " RAM:%6.2f%%\n"
+                       "VRAM:%6.2f%%\n"
+                       "SRAM:%6.2f%%\n"
+                       " VTX:%6.2f%%",
+                       fps, sh4Mem, pvrMem, armMem, vtxBuf);
         }
 #endif
 
@@ -119,15 +122,21 @@ void VmuProfiler::run() {
 }
 
 void VmuProfiler::updateVertexBufferUsage() {
+#ifndef DC_SH4
     std::unique_lock lk(mtx_);
     updated_ = true;
 
-#ifdef DC_SH4
-    vertBuffUse_ = vertexBufferUtilization();
+#else
+    pvr_stats_t pvrStats;
+    pvr_get_stats(&pvrStats);
+    float vtxUtil  = vertexBufferUtilization();
 
-    pvr_stats_t pvrStats; 
-    pvr_get_stats(&pvrStats);       
-    fps_[fpsFrame_++] = pvrStats.frame_rate;
+    { /* Critical section with VMU thread. */
+        std::unique_lock lk(mtx_);
+        vertBuffUse_ = vtxUtil;
+        updated_ = true;
+        fps_[fpsFrame_++] = pvrStats.frame_rate;
+    }
 
     if(fpsFrame_ >= fpsSamples)
         fpsFrame_ = 0;

@@ -381,6 +381,7 @@ INCLUDE = \
 -I../src/liberty/skel/win \
 \
 -I../vendor/librw \
+-I../vendor/librw/src/dc \
 \
 -I../vendor/miniLZO \
 \
