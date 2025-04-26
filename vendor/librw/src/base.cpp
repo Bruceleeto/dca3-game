@@ -97,8 +97,8 @@ mult(const Quat &q, const Quat &p)
 #else
 	Quat o;
 	dc::quat_mult(reinterpret_cast<dc::quaternion_t *>(&o),
-	              reinterpret_cast<const dc::quaternion_t&>(q),
-				  reinterpret_cast<const dc::quaternion_t&>(p));
+	              reinterpret_cast<const dc::quaternion_t &>(q),
+				  reinterpret_cast<const dc::quaternion_t &>(p));
 	return o;
 #endif
 }

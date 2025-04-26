@@ -359,9 +359,9 @@ void
 CMatrix::Rotate(float x, float y, float z)
 {
 #if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
-       mat_load(reinterpret_cast<matrix_t *>(this));
+       dc::mat_load2(reinterpret_cast<matrix_t *>(this));
        mat_rotate(x, y, z);
-       mat_store(reinterpret_cast<matrix_t *>(this));
+       dc::mat_store2(reinterpret_cast<matrix_t *>(this));
 #else
 	auto [sX, cX] = SinCos(x);
 	auto [sY, cY] = SinCos(y);

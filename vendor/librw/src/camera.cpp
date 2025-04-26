@@ -429,6 +429,7 @@ Camera::frustumTestSphere(const Sphere *s) const
 {
 	int32 res = SPHEREINSIDE;
 	const FrustumPlane *p = this->frustumPlanes;
+#ifndef DC_SH4
 	for(int32 i = 0; i < 6; i++){
 		float32 dist = dot(p->plane.normal, s->center) - p->plane.distance;
 		if(s->radius < dist)
@@ -437,6 +438,114 @@ Camera::frustumTestSphere(const Sphere *s) const
 			res = SPHEREBOUNDARY;
 		p++;
 	}
+#else
+	__builtin_prefetch(p);
+
+	register float sx asm("fr0") = s->center.x;
+	register float sy asm("fr1") = s->center.y;
+	register float sz asm("fr2") = s->center.z;
+	register float sw asm("fr3") = -1.0f;
+
+	// far
+	register float px asm("fr4") = p->plane.normal.x;
+	register float py asm("fr5") = p->plane.normal.y;
+	register float pz asm("fr6") = p->plane.normal.z;
+	register float pw asm("fr7") = p->plane.distance;
+
+	asm volatile("fipr fv0, fv4"
+				: "+f" (pw)
+				: "f" (sx), "f" (sy), "f" (sz), "f" (sw),
+				"f" (px), "f" (py), "f" (pz));
+	if(s->radius < pw)
+		return SPHEREOUTSIDE;
+	else if(s->radius > -pw)
+		res = SPHEREBOUNDARY;
+	p++;
+
+	// near
+	px = p->plane.normal.x;
+	py = p->plane.normal.y;
+	pz = p->plane.normal.z;
+	pw = p->plane.distance;
+	asm volatile("fipr fv0, fv4"
+				: "+f" (pw)
+				: "f" (sx), "f" (sy), "f" (sz), "f" (sw),
+				"f" (px), "f" (py), "f" (pz));
+	if(s->radius < pw)
+		return SPHEREOUTSIDE;
+	if(s->radius > -pw)
+		res = SPHEREBOUNDARY_NEAR;
+	p++;
+
+	const float* base_ptr0 = &p[0].plane.normal.x;
+	const float* base_ptr1 = &p[1].plane.normal.x;
+	const float* base_ptr2 = &p[2].plane.normal.x;
+	const float* base_ptr3 = &p[3].plane.normal.x;
+
+	__builtin_prefetch(base_ptr0);
+
+	static_assert(offsetof (decltype (p[0].plane.normal), y)
+				 -offsetof (decltype (p[0].plane.normal), x) == sizeof (float));
+
+	static_assert(offsetof (decltype (p[0].plane.normal), z)
+				  -offsetof (decltype (p[0].plane.normal), y) == sizeof (float));
+
+	static_assert(offsetof (decltype (p[0].plane), distance)
+				 -offsetof (decltype (p[0].plane.normal), z) == sizeof (float));
+
+	asm volatile (R"(
+		frchg
+
+		fmov.s  @%0+,fr0
+		fmov.s  @%1+,fr1
+		fmov.s  @%2+,fr2
+		fmov.s  @%3+,fr3
+
+		fmov.s  @%0+,fr4
+		fmov.s  @%1+,fr5
+		fmov.s  @%2+,fr6
+		fmov.s  @%3+,fr7
+
+		fmov.s  @%0+,fr8
+		fmov.s  @%1+,fr9
+		fmov.s  @%2+,fr10
+		fmov.s  @%3+,fr11
+
+		fmov.s  @%0,fr12
+		fmov.s  @%1,fr13
+		fmov.s  @%2,fr14
+		fmov.s  @%3,fr15
+
+		frchg
+	)" : "+&r" (base_ptr0), "+&r" (base_ptr1), "+&r" (base_ptr2), "+&r" (base_ptr3)
+	:
+	: );
+
+	float dists[4];
+	mat_trans_vec4_nodiv_nomod(sx, sy, sz, sw,
+	                           dists[0], dists[1], dists[2], dists[3]);
+
+	if(s->radius < dists[0])
+		return SPHEREOUTSIDE;
+	else if(s->radius > -dists[0])
+		res = SPHEREBOUNDARY;
+
+	if(s->radius < dists[1])
+		return SPHEREOUTSIDE;
+	else if(s->radius > -dists[1])
+		res = SPHEREBOUNDARY;
+
+	if(s->radius < dists[2])
+		return SPHEREOUTSIDE;
+	else if(s->radius > -dists[2])
+		res = SPHEREBOUNDARY;
+
+	if(s->radius < dists[3])
+		return SPHEREOUTSIDE;
+	else if(s->radius > -dists[3])
+		res = SPHEREBOUNDARY;
+
+#endif
 	return res;
 }
 
@@ -445,7 +554,7 @@ Camera::frustumTestSphereNear(const Sphere *s) const
 {
 	int32 res = SPHEREINSIDE;
 	const FrustumPlane *p = this->frustumPlanes;
-
+#ifndef DC_SH4
 	// far
 	float32 dist = dot(p->plane.normal, s->center) - p->plane.distance;
 	if(s->radius < dist)
@@ -481,6 +590,101 @@ Camera::frustumTestSphereNear(const Sphere *s) const
 		return SPHEREOUTSIDE;
 	p++;
 
+#else
+	__builtin_prefetch(p);
+
+	register float sx asm("fr0") = s->center.x;
+	register float sy asm("fr1") = s->center.y;
+	register float sz asm("fr2") = s->center.z;
+	register float sw asm("fr3") = -1.0f;
+
+	// far
+	register float px asm("fr4") = p->plane.normal.x;
+	register float py asm("fr5") = p->plane.normal.y;
+	register float pz asm("fr6") = p->plane.normal.z;
+	register float pw asm("fr7") = p->plane.distance;
+
+	asm volatile("fipr fv0, fv4"
+				 : "+f" (pw)
+				 : "f" (sx), "f" (sy), "f" (sz), "f" (sw),
+				   "f" (px), "f" (py), "f" (pz));
+	if(s->radius < pw)
+		return SPHEREOUTSIDE;
+	p++;
+
+	// near
+	px = p->plane.normal.x;
+	py = p->plane.normal.y;
+	pz = p->plane.normal.z;
+	pw = p->plane.distance;
+	asm volatile("fipr fv0, fv4"
+				 : "+f" (pw)
+				 : "f" (sx), "f" (sy), "f" (sz), "f" (sw),
+				   "f" (px), "f" (py), "f" (pz));
+	if(s->radius < pw)
+		return SPHEREOUTSIDE;
+	if(s->radius > -pw)
+		res = SPHEREBOUNDARY_NEAR;
+	p++;
+
+	const float* base_ptr0 = &p[0].plane.normal.x;
+	const float* base_ptr1 = &p[1].plane.normal.x;
+	const float* base_ptr2 = &p[2].plane.normal.x;
+	const float* base_ptr3 = &p[3].plane.normal.x;
+
+	__builtin_prefetch(base_ptr0);
+
+	static_assert(offsetof (decltype (p[0].plane.normal), y)
+				 -offsetof (decltype (p[0].plane.normal), x) == sizeof (float));
+
+	static_assert(offsetof (decltype (p[0].plane.normal), z)
+				  -offsetof (decltype (p[0].plane.normal), y) == sizeof (float));
+
+	static_assert(offsetof (decltype (p[0].plane), distance)
+				 -offsetof (decltype (p[0].plane.normal), z) == sizeof (float));
+
+	asm volatile (R"(
+		frchg
+
+		fmov.s  @%0+,fr0
+		fmov.s  @%1+,fr1
+		fmov.s  @%2+,fr2
+		fmov.s  @%3+,fr3
+
+		fmov.s  @%0+,fr4
+		fmov.s  @%1+,fr5
+		fmov.s  @%2+,fr6
+		fmov.s  @%3+,fr7
+
+		fmov.s  @%0+,fr8
+		fmov.s  @%1+,fr9
+		fmov.s  @%2+,fr10
+		fmov.s  @%3+,fr11
+
+		fmov.s  @%0,fr12
+		fmov.s  @%1,fr13
+		fmov.s  @%2,fr14
+		fmov.s  @%3,fr15
+
+		frchg
+	)" : "+&r" (base_ptr0), "+&r" (base_ptr1), "+&r" (base_ptr2), "+&r" (base_ptr3)
+	:
+	: );
+
+	float dists[4];
+	mat_trans_vec4_nodiv_nomod(sx, sy, sz, sw,
+	                           dists[0], dists[1], dists[2], dists[3]);
+
+	if(s->radius < dists[0])
+		return SPHEREOUTSIDE;
+	else if(s->radius < dists[1])
+		return SPHEREOUTSIDE;
+	else if(s->radius < dists[2])
+		return SPHEREOUTSIDE;
+	else if(s->radius < dists[3])
+		return SPHEREOUTSIDE;
+
+#endif
 	return res;
 }
 

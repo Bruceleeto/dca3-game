@@ -30,6 +30,7 @@
 #       define VIDEO_MODE_WIDTH     640.0f
 #       define VIDEO_MODE_HEIGHT    480.0f
 #       define memcpy4              memcpy
+#       define frsqrt(a)            (1.0f/sqrtf(a))
 #       define dcache_pref_block(a)	__builtin_prefetch(a)
 #       define F_PI                 M_PI
 #       ifndef __always_inline 
@@ -44,14 +45,16 @@
                   "PVR_TXRFMT_STRIDE is bugged in your KOS version");
 #endif
 
-#define F_PI_2          (F_PI * 0.5f)
-#define __hot           __attribute__((hot))
-#define __cold          __attribute__((cold))
+#define F_PI_2              (F_PI * 0.5f)
+#define __hot               __attribute__((hot))
+#define __cold              __attribute__((cold))
+#define __icache_aligned    __attribute__((aligned(32)))
 
-#define STRINGIFY(x)    #x
-#define STR(x)          STRINGIFY(x)
-#define CONCAT_(x,y)    x##y
-#define CONCAT(x,y)     CONCAT_(x,y)
+#define STRINGIFY(x)        #x
+#define STR(x)              STRINGIFY(x)
+#define CONCAT_(x,y)        x##y
+#define CONCAT(x,y)         CONCAT_(x,y)
+#define ARRAY_SIZE(array)   (sizeof(array) / sizeof(array[0]))
 
 namespace rw {
     class Matrix;
@@ -66,6 +69,11 @@ struct quaternion_t {
 __always_inline __hot constexpr float Sin(float x) { return sinf(x); }
 __always_inline __hot constexpr float Cos(float x) { return cosf(x); }
 __always_inline __hot constexpr auto  SinCos(float x) { return std::pair { Sin(x), Cos(x) }; }
+__always_inline __hot constexpr float Tan(float x) { return tanf(x); }
+__always_inline __hot constexpr float Atan(float x) { return atanf(x); }
+__always_inline __hot constexpr float Atan2(float y, float x) { return atan2f(y, x); }
+__always_inline __hot constexpr float Asin(float x) { return asinf(x);  }
+__always_inline __hot constexpr float Acos(float x) { return acosf(x); }
 __always_inline __hot constexpr float Abs(float x) { return fabsf(x); }
 __always_inline __hot constexpr float Sqrt(float x) { return sqrtf(x); }
 __always_inline __hot constexpr float RecipSqrt(float x, float y) { return x / Sqrt(y); }
@@ -130,80 +138,6 @@ __always_inline __hot constexpr auto Norm(auto value, auto min, auto max) {
         return numerator / denominator;
 }
 
-template<bool FAST_APPROX=false, bool FAST_DIV=false, bool DIV_COPY_SIGN=false>
-__always_inline __hot constexpr float Tan(float x) { 
-    if(!std::is_constant_evaluated() && FAST_APPROX) {
-        constexpr float pisqby4 = 2.4674011002723397f;
-        constexpr float adjpisqby4 = 2.471688400562703f;
-        constexpr float adj1minus8bypisq = 0.189759681063053f;
-        float xsq = x * x;
-        
-        return x * Div<FAST_DIV, DIV_COPY_SIGN>(adjpisqby4 - adj1minus8bypisq * xsq, 
-                                                pisqby4 - xsq);
-    } else
-        return tanf(x); 
-}
-
-template<bool FAST_APPROX=false>
-__always_inline __hot constexpr float Atan(float x) { 
-    if(FAST_APPROX && !std::is_constant_evaluated()) {
-        constexpr float a[3] = { // 
-            0.998418889819911f, -2.9993501171084700E-01f, 0.0869142852883849f};
-        float xx = x * x;
-        return ((a[2] * xx + a[1]) * xx + a[0]) * x;
-    } else return atanf(x); 
-}
-
-template<bool FAST_APPROX=false>
-__hot constexpr float Atan2(float y, float x) {
-    if(FAST_APPROX && !std::is_constant_evaluated()) {
-#if 0
-        constexpr float halfpi_i754 = M_PI * 0.5f;
-        constexpr float quarterpi_i754 = M_PI * 0.25f;
-        // kludge to prevent 0/0 condition
-        float abs_y = Abs(y) + std::numeric_limits<float>::epsilon();
-        float absy_plus_absx = abs_y + Abs(x);
-        float inv_absy_plus_absx = Invert<true, true>(absy_plus_absx);
-        float angle = halfpi_i754 - copysignf(quarterpi_i754, x);
-        float r = (x - copysignf(abs_y, x)) * inv_absy_plus_absx;
-        angle += (0.1963f * r * r - 0.9817f) * r;
-        return copysignf(angle, y);
-#else
-    // Ensure input is in [-1, +1]
-    bool swap = fabs(x) < fabs(y);
-    float atan_input = (swap ? x : y) / (swap ? y : x);
-
-    // Approximate atan
-    float res = Atan<true>(atan_input);
-
-    // If swapped, adjust atan output
-    res = swap ? (atan_input >= 0.0f ? F_PI_2 : -F_PI_2) - res : res;
-    // Adjust quadrants
-    if      (x >= 0.0f && y >= 0.0f) {}                     // 1st quadrant
-    else if (x <  0.0f && y >= 0.0f) { res =  F_PI + res; } // 2nd quadrant
-    else if (x <  0.0f && y <  0.0f) { res = -F_PI + res; } // 3rd quadrant
-    else if (x >= 0.0f && y <  0.0f) {}                     // 4th quadrant
-
-    // Store result
-    return res;
-#endif
-    } else return atan2f(y, x);
-}
-
-template<bool FAST_APPROX=false>
-__always_inline __hot constexpr float Asin(float x) { 
-    if(FAST_APPROX && !std::is_constant_evaluated()) {
-        Atan(Div<true, false>(x, Sqrt(1.0f-(x*x))));
-    } else return asinf(x); 
-}
-
-template<bool FAST_APPROX=false>
-__always_inline __hot constexpr float Acos(float x) {
-    if(FAST_APPROX && !std::is_constant_evaluated()) {
-         return (-0.69813170079773212f * x * x - 0.87266462599716477f) * x + 1.5707963267948966f;
-    } else return acosf(x); 
-}
-
 #ifdef RW_DC
 #   ifdef DC_SH4
 
@@ -240,43 +174,134 @@ __always_inline __hot constexpr float Acos(float x) {
         w = __w; \
     } while(false)
 
-#define mat_trans_vec3_nomod(x, y, z, x2, y2, z2) { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        __asm__ __volatile__( \
-                              "fldi0 fr15\n" \
-                              "ftrv  xmtrx, fv8\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z) \
-                              : "0" (__x), "1" (__y), "2" (__z) \
-                              : "fr15" ); \
-        x2 = __x; y2 = __y; z2 = __z; \
-    }
+#define mat_trans_vec4_nodiv_nomod(x, y, z, w, x2, y2, z2, w2) { \
+        register float __x __asm__("fr0") = (x); \
+        register float __y __asm__("fr1") = (y); \
+        register float __z __asm__("fr2") = (z); \
+        register float __w __asm__("fr3") = (w); \
+        __asm__ __volatile__( "ftrv  xmtrx, fv0\n" \
+                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
+                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
+        x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
+    } while(false)
+
+inline __hot __icache_aligned void mat_load2(const matrix_t* mtx) {
+    asm volatile(
+        R"(
+            fschg
+            fmov.d	@%[mtx],xd0
+            add	    #32,%[mtx]
+            pref	@%[mtx]
+            add	    #-(32-8),%[mtx]
+            fmov.d	@%[mtx]+,xd2
+            fmov.d	@%[mtx]+,xd4
+            fmov.d	@%[mtx]+,xd6
+            fmov.d	@%[mtx]+,xd8
+            fmov.d	@%[mtx]+,xd10
+            fmov.d	@%[mtx]+,xd12
+            fmov.d	@%[mtx]+,xd14
+            fschg
+        )"
+        : [mtx] "+r" (mtx)
+        :
+        :
+    );
+}
+
+inline __hot __icache_aligned void mat_store2(matrix_t *mtx) {
+    asm volatile(
+        R"(
+            fschg
+            add	    #64-8,%[mtx]
+            fmov.d	xd14,@%[mtx]
+            add	    #-32,%[mtx]
+            pref	@%[mtx]
+            add	    #32,%[mtx]
+            fmov.d	xd12,@-%[mtx]
+            fmov.d	xd10,@-%[mtx]
+            fmov.d	xd8,@-%[mtx]
+            fmov.d	xd6,@-%[mtx]
+            fmov.d	xd4,@-%[mtx]
+            fmov.d	xd2,@-%[mtx]
+            fmov.d	xd0,@-%[mtx]
+            fschg
+        )"
+        : [mtx] "+&r" (mtx), "=m" (*mtx)
+        :
+        :
+    );
+}
+
+inline __hot __icache_aligned void mat_identity2(void) {
+    asm volatile(
+        R"(
+            frchg
+            fldi1	fr0
+            fschg
+            fldi0	fr1
+            fldi0	fr2
+            fldi0	fr3
+            fldi0	fr4
+            fldi1	fr5
+            fmov	dr2,dr6
+            fmov	dr2,dr8
+            fmov	dr0,dr10
+            fmov	dr2,dr12
+            fmov	dr4,dr14
+            fschg
+            frchg
+        )"
+    );
+}
+
+inline __hot __icache_aligned void mat_set_scale(float x, float y, float z) {
+    asm volatile(
+        R"(
+            frchg
+            fldi0	fr1
+            fschg
+            fldi0	fr2
+            fldi0	fr3
+            fldi0	fr4
+            fmov	dr2, dr6
+            fmov	dr2, dr8
+            fldi0	fr11
+            fmov	dr2, dr12
+            fldi0	fr14
+            fschg
+            frchg
+            fmov    %[x], xf0
+            fmov    %[y], xf5
+            fmov    %[z], xf10
+        )"
+        :
+        : [x] "r" (x), [y] "r" (y), [z] "r" (z)
+        :
+    );
+}
 
 // no declspec naked, so can't do rts / fschg. instead compiler pads with nop?
-inline __hot void mat_load_3x3(const matrix_t* mtx) {
+inline __hot void mat_load_3x3(const rw::Matrix* mtx) {
     __asm__ __volatile__ (
         R"(
             fschg
             frchg
 
             fmov        @%[mtx]+, dr0
-            fldi0 		fr12
 
-            fmov        @%[mtx]+, dr2
+            fldi0 		fr12
             fldi0 		fr13
 
+            fmov        @%[mtx]+, dr2
             fmov        @%[mtx]+, dr4
-            fldi0	    fr3
-
             fmov        @%[mtx]+, dr6
-            fmov        dr12, dr14
-
             fmov        @%[mtx]+, dr8
-            fldi0	    fr7
-
             fmov        @%[mtx]+, dr10
+
+            fldi0	    fr3
+            fldi0	    fr7
             fldi0	    fr11
+            fmov        dr12, dr14
 
             fschg
             frchg
@@ -286,28 +311,28 @@ inline __hot void mat_load_3x3(const matrix_t* mtx) {
 }
 
 // sets pos.w to 1
-inline __hot void rw_mat_load_4x4(const rw::Matrix* mtx) {
-    __asm__ __volatile__ (
-        R"(
-            fschg
-            frchg
-            fmov        @%[mtx]+, dr0
+inline __hot void mat_load_4x4(const rw::Matrix* mtx) {
+		__asm__ __volatile__ (
+			R"(
+				fschg
+				frchg
+				fmov        @%[mtx]+, dr0
 
-            fmov        @%[mtx]+, dr2
-            fmov        @%[mtx]+, dr4
-            fmov        @%[mtx]+, dr6
-            fmov        @%[mtx]+, dr8
-            fmov        @%[mtx]+, dr10
-            fmov        @%[mtx]+, dr12
-            fmov        @%[mtx]+, dr14
-            fldi1 	 	fr15
+				fmov        @%[mtx]+, dr2
+				fmov        @%[mtx]+, dr4
+				fmov        @%[mtx]+, dr6
+				fmov        @%[mtx]+, dr8
+				fmov        @%[mtx]+, dr10
+				fmov        @%[mtx]+, dr12
+				fmov        @%[mtx]+, dr14
+				fldi1 	 	fr15
 
-            fschg
-            frchg
-        )"
-        : [mtx] "+r" (mtx)
-    );
-}
+				fschg
+				frchg
+			)"
+			: [mtx] "+r" (mtx)
+		);
+	}
 
 __hot inline void mat_transpose(void) {
     asm volatile (
@@ -345,8 +370,7 @@ __hot inline void mat_transpose(void) {
     );
 }
 
-__attribute__((optimize("align-functions=32")))
-__hot inline void mat_copy(matrix_t *dst, const matrix_t *src) {  
+__hot __icache_aligned inline void mat_copy(matrix_t *dst, const matrix_t *src) {
     asm volatile(R"(
         fschg
 
@@ -367,7 +391,7 @@ __hot inline void mat_copy(matrix_t *dst, const matrix_t *src) {
         fmov.d  xd0, @-%[dst]
 
         add     #32, %[dst]
-        pref @%[dst]
+        pref    @%[dst]
 
         fmov.d  @%[src]+, xd0
         fmov.d  @%[src]+, xd2
@@ -382,12 +406,13 @@ __hot inline void mat_copy(matrix_t *dst, const matrix_t *src) {
         fmov.d  xd0, @-%[dst]
 
         fschg
-    )": [dst] "+&r" (dst), [src] "+&r" (src)
+    )": [dst] "+&r" (dst), [src] "+&r" (src), "=m" (*dst)
       :
-      : "memory");
+      :);
 }
 
-template<bool FAST_APPROX=true>
+//TODO: FIXME FOR VC (AND USE FTRV)
+template<bool FAST_APPROX=false>
 __hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, const quaternion_t &q2) {
     if(FAST_APPROX && !std::is_constant_evaluated()) {
     /*
@@ -477,9 +502,9 @@ __hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, c
         r->w = q2w;
     } else {
         r->x = (q2.z * q1.y) - (q1.z * q2.y) + (q1.x * q2.w) + (q2.x * q1.w);
-	    r->y = (q2.x * q1.z) - (q1.x * q2.z) + (q1.y * q2.w) + (q2.y * q1.w);
-	    r->z = (q2.y * q1.x) - (q1.y * q2.x) + (q1.z * q2.w) + (q2.z * q1.w);
-	    r->w = (q2.w * q1.w) - (q2.x * q1.x) - (q2.y * q1.y) - (q2.z * q1.z);
+        r->y = (q2.x * q1.z) - (q1.x * q2.z) + (q1.y * q2.w) + (q2.y * q1.w);
+        r->z = (q2.y * q1.x) - (q1.y * q2.x) + (q1.z * q2.w) + (q2.z * q1.w);
+        r->w = (q2.w * q1.w) - (q2.x * q1.x) - (q2.y * q1.y) - (q2.z * q1.z);
     }
 }
 
@@ -608,70 +633,64 @@ __hot inline void mat_apply_rotate_z(float z) {
 
 #   else
 #       ifdef DC_TEXCONV
-#           define mat_transform(a, b, c, d)
 #           define mat_apply(a)
-#           define mat_load(a)
-#           define mat_store(a)
-#           define mat_identity(a)
+#           define mat_load2(a)
+#           define mat_store2(a)
+#           define mat_identity2()
+#           define mat_transform(a, b, c, d)
 #           define pvr_fog_table_color(a,r,g,b)
 #           define pvr_fog_table_linear(s,e)
 #       endif
 
-#define mat_trans_vec3_nomod(x_, y_, z_, x2, y2, z2) do { \
-        vector_t tmp = { x_, y_, z_, 0.0f }; \
+#define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
+        vector_t tmp = { x_, y_, z_, 1.0f }; \
         mat_transform(&tmp, &tmp, 1, 0); \
-        x2 = tmp.x; y2 = tmp.y; z2 = tmp.z; \
+        z2 = 1.0f / tmp.w; \
+        x2 = tmp.x * z2; \
+        y2 = tmp.y * z2; \
     } while(false)
 
-#define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
-		vector_t tmp = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp, &tmp, 1, 0); \
-		z2 = 1.0f / tmp.w; \
-		x2 = tmp.x * z2; \
-		y2 = tmp.y * z2; \
-	} while(false)
-
 #define mat_trans_single3_nodiv_nomod(x_, y_, z_, x2, y2, z2) do { \
-		vector_t tmp = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp, &tmp, 1, 0); \
-		z2 = tmp.z; \
-		x2 = tmp.x; \
-		y2 = tmp.y; \
-	} while(false)
+        vector_t tmp = { x_, y_, z_, 1.0f }; \
+        mat_transform(&tmp, &tmp, 1, 0); \
+        z2 = tmp.z; \
+        x2 = tmp.x; \
+        y2 = tmp.y; \
+    } while(false)
 
 #define mat_trans_nodiv_nomod(x_, y_, z_, x2, y2, z2, w2) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
-	} while(false)
+        vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
+        mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
+        x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
+    } while(false)
 
 #define mat_trans_nodiv_nomod_zerow(x_, y_, z_, x2, y2, z2, w2) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 0.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
-	} while(false)
+        vector_t tmp1233123 = { x_, y_, z_, 0.0f }; \
+        mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
+        x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
+    } while(false)
 
 #define mat_trans_w_nodiv_nomod(x_, y_, z_, w_) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		w_ = tmp1233123.w; \
-	} while(false)
+        vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
+        mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
+        w_ = tmp1233123.w; \
+    } while(false)
 
-inline void mat_load_3x3(const matrix_t* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[0][3] = 0.0f;
-	XMTRX[1][3] = 0.0f;
-	XMTRX[2][3] = 0.0f;
+inline void mat_load_3x3(const rw::Matrix* mtx) {
+    memcpy(XMTRX, mtx, sizeof(matrix_t));
+    XMTRX[0][3] = 0.0f;
+    XMTRX[1][3] = 0.0f;
+    XMTRX[2][3] = 0.0f;
 
-	XMTRX[3][0] = 0.0f;
-	XMTRX[3][1] = 0.0f;
-	XMTRX[3][2] = 0.0f;
-	XMTRX[3][3] = 0.0f;
+    XMTRX[3][0] = 0.0f;
+    XMTRX[3][1] = 0.0f;
+    XMTRX[3][2] = 0.0f;
+    XMTRX[3][3] = 0.0f;
 }
 
-inline void rw_mat_load_4x4(const rw::Matrix* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[3][3] = 1.0f;
+inline void mat_load_4x4(const rw::Matrix* mtx) {
+    memcpy(XMTRX, mtx, sizeof(matrix_t));
+    XMTRX[3][3] = 1.0f;
 }
 
 inline void mat_transpose(void) {
@@ -706,31 +725,8 @@ __always_inline __hot void mat_copy(matrix_t *dst, const matrix_t *src) {
 
 __hot inline void mat_mult(matrix_t *out, const matrix_t* matrix1, const matrix_t* matrix2) {
     mat_load_apply(matrix1, matrix2);
-    mat_store(out);
+    mat_store2(out);
 }
-
-#if 0
-template<std::size_t N>
-__always_inline __hot
-auto vec3_dot_prod(const vec3_t &v1, vec3_t const (&v2)[N]) {
-    std::array<float, N> result;
-
-#ifdef DC_SH4
-    register float x asm(KOS_FPARG(0)) = v1.x;
-    register float y asm(KOS_FPARG(1)) = v1.y;
-    register float z asm(KOS_FPARG(2)) = v1.z;
-#else
-    float x = v1.x;
-    float y = v1.y;
-    float z = v1.z;
-#endif
-
-    for(std::size_t v = 0; v < N; ++v)
-        result[v] = fipr(x, y, z, 0.0f, v2[v].x, v2[v].y, v2[v].z, 0.0f);
-
-    return result;
-}
-#endif
 
 #endif
 

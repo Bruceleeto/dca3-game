@@ -37,8 +37,6 @@ extern const char* currentFile;
 #include <functional>
 #include <fstream>
 
-#define ARRAY_SIZE(array)                (sizeof(array) / sizeof(array[0]))
-
 #define errorf(...) dbglog(DBG_CRITICAL, __VA_ARGS__)
 #define logf(...) // printf(__VA_ARGS__)
 bool re3RemoveLeastUsedModel();
@@ -47,20 +45,12 @@ void* re3StreamingAlloc(size_t size);
 
 // #include "rwdcimpl.h"
 
-#include <dc/pvr.h>
-#include <dc/matrix.h>
 #include "alloc.h"
 
-#undef PVR_TXRFMT_STRIDE
-#define PVR_TXRFMT_STRIDE       (1 << 25)
-
-static_assert(PVR_TXRFMT_STRIDE == (1 << 25), "PVR_TXRFMT_STRIDE is bugged in your KOS version");
+using namespace dc;
 
 // TODO: probably needs a better place to be
 bool doEnvironmentMaps = true;
-
-#define fclamp0_1(n) ((n) > 1.0f ? 1.0f : n < 0.0f ? 0.0f : n)
-#define fclamp1(n) ((n) > 1.0f ? 1.0f : n)
 
 struct alignas(32) pvr_vertex16_t {
 	uint32_t flags;			/**< \brief TA command (vertex flags) */
@@ -170,176 +160,9 @@ struct alignas(32) pvr_vertex32_ut {
 static_assert(sizeof(pvr_vertex16_t) == 32, "pvr_vertex16_t size mismatch");
 static_assert(alignof(pvr_vertex16_t) == 32, "pvr_vertex16_t alignof mismatch");
 
-
-#define MATH_Fast_Invert(x) ({ (((x) < 0.0f)? -1.0f : 1.0f) * frsqrt((x) * (x)); }) 
-
 static pvr_dr_state_t drState;
 
-#include <kos/dbglog.h>
-
 float VIDEO_MODE_SCALE_X;
-
-#if !defined(DC_TEXCONV) && !defined(DC_SIM)
-#include <kos.h>
-
-#define mat_trans_nodiv_nomod(x, y, z, x2, y2, z2, w2) do { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        register float __w __asm__("fr15") = 1.0f; \
-        __asm__ __volatile__( "ftrv  xmtrx, fv12\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
-                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
-        x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
-    } while(false)
-
-#define mat_trans_nodiv_nomod_zerow(x, y, z, x2, y2, z2, w2) do { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        register float __w __asm__("fr15") = 0.0f; \
-        __asm__ __volatile__( "ftrv  xmtrx, fv12\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
-                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
-        x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
-    } while(false)
-
-#define mat_trans_w_nodiv_nomod(x, y, z, w) do { \
-        register float __x __asm__("fr12") = (x); \
-        register float __y __asm__("fr13") = (y); \
-        register float __z __asm__("fr14") = (z); \
-        register float __w __asm__("fr15") = 1.0f; \
-        __asm__ __volatile__( "ftrv  xmtrx, fv12\n" \
-                              : "=f" (__x), "=f" (__y), "=f" (__z), "=f" (__w) \
-                              : "0" (__x), "1" (__y), "2" (__z), "3" (__w) ); \
-        w = __w; \
-    } while(false)
-
-	// no declspec naked, so can't do rts / fschg. instead compiler pads with nop?
-
-	inline void rw_mat_load_3x3(const rw::Matrix* mtx) {
-		__asm__ __volatile__ (
-			R"(
-				fschg
-				frchg
-
-				fmov        @%[mtx]+, dr0
-
-				fldi0 		fr12
-				fldi0 		fr13
-
-				fmov        @%[mtx]+, dr2
-				fmov        @%[mtx]+, dr4
-				fmov        @%[mtx]+, dr6
-				fmov        @%[mtx]+, dr8
-				fmov        @%[mtx]+, dr10
-
-				fldi0	    fr3
-				fldi0	    fr7
-				fldi0	    fr11
-				fmov        dr12, dr14
-
-				fschg
-				frchg
-			)"
-			: [mtx] "+r" (mtx)
-		);
-	}
-
-	// sets pos.w to 1
-	inline void rw_mat_load_4x4(const rw::Matrix* mtx) {
-		__asm__ __volatile__ (
-			R"(
-				fschg
-				frchg
-				fmov        @%[mtx]+, dr0
-
-				fmov        @%[mtx]+, dr2
-				fmov        @%[mtx]+, dr4
-				fmov        @%[mtx]+, dr6
-				fmov        @%[mtx]+, dr8
-				fmov        @%[mtx]+, dr10
-				fmov        @%[mtx]+, dr12
-				fmov        @%[mtx]+, dr14
-				fldi1 	 	fr15
-
-				fschg
-				frchg
-			)"
-			: [mtx] "+r" (mtx)
-		);
-	}
-
-#else
-extern matrix_t XMTRX;
-
-void rw_mat_load_3x3(rw::Matrix* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[0][3] = 0.0f;
-	XMTRX[1][3] = 0.0f;
-	XMTRX[2][3] = 0.0f;
-
-	XMTRX[3][0] = 0.0f;
-	XMTRX[3][1] = 0.0f;
-	XMTRX[3][2] = 0.0f;
-	XMTRX[3][3] = 0.0f;
-}
-
-void rw_mat_load_4x4(rw::Matrix* mtx) {
-	memcpy(XMTRX, mtx, sizeof(matrix_t));
-	XMTRX[3][3] = 1.0f;
-}
-
-#include <dc/matrix.h>
-#define frsqrt(a) 				(1.0f/sqrt(a))
-#define dcache_pref_block(a)	__builtin_prefetch(a)
-
-#ifndef __always_inline
-#define __always_inline 		__attribute__((always_inline)) inline
-#endif
-
-#ifdef DC_TEXCONV
-#define mat_transform(a, b, c, d)
-#define mat_apply(a)
-#define mat_load(a)
-#define mat_store(a)
-#define mat_identity(a)
-#define pvr_fog_table_color(a,r,g,b)
-#define pvr_fog_table_linear(s,e)
-#define pvr_fog_table_exp(d)
-#define pvr_fog_table_custom(d)
-#endif
-
-#define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
-		vector_t tmp = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp, &tmp, 1, 0); \
-		z2 = 1.0f / tmp.w; \
-		x2 = tmp.x * z2; \
-		y2 = tmp.y * z2; \
-	} while(false)
-
-#define mat_trans_nodiv_nomod(x_, y_, z_, x2, y2, z2, w2) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
-	} while(false)
-
-#define mat_trans_nodiv_nomod_zerow(x_, y_, z_, x2, y2, z2, w2) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 0.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		x2 = tmp1233123.x; y2 = tmp1233123.y; z2 = tmp1233123.z; w2 = tmp1233123.w; \
-	} while(false)
-
-#define mat_trans_w_nodiv_nomod(x_, y_, z_, w_) do { \
-		vector_t tmp1233123 = { x_, y_, z_, 1.0f }; \
-		mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
-		w_ = tmp1233123.w; \
-	} while(false)
-
-#define memcpy4 memcpy
-
-// END STUBS
-#endif
 
 static pvr_ptr_t fake_tex;
 
@@ -551,9 +374,9 @@ void DCE_MatrixViewport(float x, float y, float width, float height) {
 
 void DCE_InitMatrices() {
 	// Setup the screenview matrix.  Only need to do once since this matrix does not need to change for single player viewpoint.
-	mat_identity();
+	mat_identity2();
 	
-	mat_store(&DCE_MAT_SCREENVIEW);
+	mat_store2(&DCE_MAT_SCREENVIEW);
 }
 
 }
@@ -684,7 +507,7 @@ struct atomic_context_t {
 __always_inline void DCE_RenderSubmitVertex(const pvr_vertex_t *v, uint32_t flags) {
     auto *sq  = reinterpret_cast<uint32_t *>(pvr_dr_target(drState));
     auto *src = reinterpret_cast<const uint32_t *>(v);
-    float sz  = MATH_Fast_Invert(v->z);
+    float sz  = Invert<true, false>(v->z);
     float sx  = v->x * sz;
     float sy  = v->y * sz;
     
@@ -711,7 +534,7 @@ __always_inline void DCE_RenderSubmitVertexIM3D(float x, float y, float w,
 {
     auto *sq   = reinterpret_cast<uint32_t *>(pvr_dr_target(drState));
     auto *uv32 = reinterpret_cast<const uint32_t *>(uv);
-    float sz   = MATH_Fast_Invert(w);
+    float sz   = Invert<true, false>(w);
     float sx   = x * sz;
     float sy   = y * sz;
 
@@ -801,9 +624,8 @@ void beginUpdate(Camera* cam)  {
 	
 	DCE_MatrixViewport(0, 0, cam->frameBuffer->width * VIDEO_MODE_SCALE_X, cam->frameBuffer->height);
 	
-	mat_load((matrix_t*)&DCE_MAT_SCREENVIEW);
-	mat_apply((matrix_t*)&cam->devProj);
-	mat_store((matrix_t*)&cam->devProjScreen);
+	mat_load_apply((matrix_t*)&DCE_MAT_SCREENVIEW, (matrix_t*)&cam->devProj);
+	mat_store2((matrix_t*)&cam->devProjScreen);
 
 }
 
@@ -1831,7 +1653,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
 			pvrVert->y	   = gtaVert.y;
-			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->z 	   = Invert<true, false>(gtaVert.w); // this is perfect for almost every case...
 			pvrVert->u 	   = gtaVert.u;
 			pvrVert->v 	   = gtaVert.v;
 			pvrVert->argb  = (gtaVert.a << 24) |
@@ -1952,7 +1774,7 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
 			pvrVert->y	   = gtaVert.y;
-			pvrVert->z 	   = MATH_Fast_Invert(gtaVert.w); // this is perfect for almost every case...
+			pvrVert->z 	   = Invert<true, false>(gtaVert.w); // this is perfect for almost every case...
 			pvrVert->u 	   = gtaVert.u;
 			pvrVert->v 	   = gtaVert.v;
 			pvrVert->argb  = (gtaVert.a << 24) |
@@ -2015,8 +1837,8 @@ void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 f
 	rw::RawMatrix::mult(&worldview, &world, &cam->devView);
 	rw::RawMatrix::mult(&proj, &worldview, &cam->devProj);
 	rw::RawMatrix::mult(&mtx, &proj, (RawMatrix*)&DCE_MAT_SCREENVIEW);
-	// mat_load(&DCE_MAT_SCREENVIEW);     // ~11 cycles.
-	mat_load(( matrix_t*)&mtx.right);  // Number of cycles: ~32.
+	// mat_load2(&DCE_MAT_SCREENVIEW);     // ~11 cycles.
+	mat_load2(( matrix_t*)&mtx.right);  // Number of cycles: ~32.
     if (im3dVertices) {
 		free(im3dVertices);
 	}
@@ -2110,7 +1932,7 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 
 			// assuming near plane is 0.0f
 			// gv1 is visible (posi), and gv2 is behind the plane (negative)
-			float t = (1.0f - gv1.position.z) * MATH_Fast_Invert(gv2.position.z - gv1.position.z);
+			float t = (1.0f - gv1.position.z) * Invert<true, true>(gv2.position.z - gv1.position.z);
 
 			pvr_vertex_t pvrVert; 
 
@@ -3388,13 +3210,13 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		auto skinningWeightData = (uint8_t*)skinWeights;
 
 		if (!matrix0Identity) {
-			rw_mat_load_4x4(&skinMatrices[0]);
+			mat_load_4x4(&skinMatrices[0]);
 			if (small_xyz) {
 				mat_apply(&DCE_MESHLET_MAT_DECODE);
 			}
 		} else {
 			if (small_xyz) {
-				mat_load(&DCE_MESHLET_MAT_DECODE);
+				mat_load2(&DCE_MESHLET_MAT_DECODE);
 			}
 		}
 
@@ -3458,7 +3280,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				break;
 			}
 
-			rw_mat_load_4x4(currentMatrix);
+			mat_load_4x4(currentMatrix);
 			if (small_xyz){
 				mat_apply(&DCE_MESHLET_MAT_DECODE);
 			}
@@ -3491,7 +3313,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		auto skinningWeightData = (uint8_t*)skinWeights;
 
 		if (!matrix0Identity) {
-			rw_mat_load_3x3(&skinMatrices[0]);
+			mat_load_3x3(&skinMatrices[0]);
 		}
 
 		for(;;) {
@@ -3549,7 +3371,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				break;
 			}
 
-			rw_mat_load_3x3(currentMatrix);
+			mat_load_3x3(currentMatrix);
 
 			do {
 				auto srcOffset = *skinningIndexData++;
@@ -3574,7 +3396,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 __attribute__((noinline))
 void tnlMeshletEnvMap(uint8_t* OCR, uint8_t* normal, int vertexCount, int vertexSize, matrix_t* matfxMatrix, float matfxCoefficient) {
 
-	mat_load(matfxMatrix);
+	mat_load2(matfxMatrix);
 
 	do {
 		pvr_vertex64_t* v = (pvr_vertex64_t*)OCR;
@@ -3991,15 +3813,12 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 	lightingCB(atomic, ac->uniform);
 
-
 	rw::RawMatrix world;
 	rw::convMatrix(&world, atomic->getFrame()->getLTM());
 	
-
-	mat_load((matrix_t*)&cam->devProjScreen);
-	mat_apply((matrix_t*)&cam->devView);
+	mat_load_apply((matrix_t*)&cam->devProjScreen, (matrix_t*)&cam->devView);
 	mat_apply((matrix_t*)&world);
-	mat_store((matrix_t*)&atomicContexts.back().mtx);
+	mat_store2((matrix_t*)&atomicContexts.back().mtx);
 
 	auto meshes = geo->meshHeader->getMeshes();
 
@@ -4238,15 +4057,14 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 						unsigned skinSelector = small_xyz + acp->skinMatrix0Identity*2;
 						tnlMeshletSkinVerticesSelector[skinSelector](OCR_SPACE, normalDst, &dcModel->data[meshlet->vertexOffset],  normalSrc, &dcModel->data[meshlet->skinWeightOffset], &dcModel->data[meshlet->skinIndexOffset], meshlet->vertexCount, meshlet->vertexSize, &acp->skinContextPointer->mtx);
 						
-						mat_load(&mtx);
+						mat_load2(&mtx);
 						tnlMeshletTransformSelector[clippingRequired * 2](OCR_SPACE, OCR_SPACE + 4, meshlet->vertexCount, 64);
 					} else {
 						
 						if (selector & 8) {
-							mat_load(&mtx);
-							mat_apply(&DCE_MESHLET_MAT_DECODE);
+							mat_load_apply(&mtx, &DCE_MESHLET_MAT_DECODE);
 						} else {
-							mat_load(&mtx);
+							mat_load2(&mtx);
 						}
 						tnlMeshletTransformSelector[smallSelector](OCR_SPACE, &dcModel->data[meshlet->vertexOffset], meshlet->vertexCount, meshlet->vertexSize);
 					}
@@ -4273,7 +4091,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 						unsigned dstColOffset = textured ? offsetof(pvr_vertex64_t, a) : offsetof(pvr_vertex32_ut, a);
 						dce_set_mat_vertex_color(&residual, &material);
-						mat_load(&DCE_MESHLET_MAT_VERTEX_COLOR);
+						mat_load2(&DCE_MESHLET_MAT_VERTEX_COLOR);
 						tnlMeshletVertexColorSelector[0](OCR_SPACE + dstColOffset, (int8_t*)&dcModel->data[meshlet->vertexOffset] + colOffset, meshlet->vertexCount, meshlet->vertexSize);
 					} else {
 						unsigned dstColOffset = textured ? offsetof(pvr_vertex64_t, a) : offsetof(pvr_vertex32_ut, a);
@@ -4295,7 +4113,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 
 						
 						unsigned normalSelector = (pass1 - 1) + (skin != 0) * 4;
-						mat_load((matrix_t*)&uniformObject.dir[0][0][0]);
+						mat_load2((matrix_t*)&uniformObject.dir[0][0][0]);
 						auto normalPointer = &dcModel->data[meshlet->vertexOffset] + normalOffset;
 						auto vtxSize = meshlet->vertexSize;
 						if (skin) {
@@ -4310,7 +4128,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					
 						if (pass2) {
 							unsigned normalSelector = (pass2 - 1) + (skin != 0) * 4;
-							mat_load((matrix_t*)&uniformObject.dir[1][0][0]);
+							mat_load2((matrix_t*)&uniformObject.dir[1][0][0]);
 							tnlMeshletDiffuseColorSelector[normalSelector](OCR_SPACE + dstColOffset, normalPointer, meshlet->vertexCount, vtxSize, &lightDiffuseColors[4]);
 						}
 					}
@@ -4373,7 +4191,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 					indices.back() |= 0x80;
 
 					pvr_vertex64_t *vd = (pvr_vertex64_t *)OCR_SPACE;
-					mat_load(&mtx);  // Number of cycles: ~11
+					mat_load2(&mtx);  // Number of cycles: ~11
 
 					for (int idx = 0; idx < geo->numVertices; idx++) {
 						auto& vert = vertices[idx];

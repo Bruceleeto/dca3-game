@@ -77,29 +77,17 @@ public:
 	void SetScale(float s);
 	void Scale(float scale)
 	{
-#if !defined(DC_SH4) || 1 /* TODO */
 		for (int i = 0; i < 3; i++)
 			for (int j = 0; j < 3; j++)
 				f[i][j] *= scale;
-#else 
-		mat_load(*this);
-		mat_scale(scale, scale, scale);
-		mat_store(*this);
-#endif
 	}
 	void Scale(float sx, float sy, float sz)
 	{
-#if !defined(DC_SH4) || 1 /* TODO */
 		for (int i = 0; i < 3; i++){
 				f[i][0] *= sx;
 				f[i][1] *= sy;
 				f[i][2] *= sz;
 		}
-#else
-		mat_load(*this);
-		mat_scale(sx, sy, sz);
-		mat_store(*this);
-#endif
 	}
 
 	void SetRotateXOnly(float angle);

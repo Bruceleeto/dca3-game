@@ -106,7 +106,7 @@ CMatrix Invert(const CMatrix &matrix);
 CMatrix operator*(const CMatrix &m1, const CMatrix &m2);
 inline CVector MultiplyInverse(const CMatrix &mat, const CVector &vec)
 {
-#if 1
+#ifndef DC_SH4
 	CVector v(vec.x - mat.px, vec.y - mat.py, vec.z - mat.pz);
 	return CVector(
 		mat.rx * v.x + mat.ry * v.y + mat.rz * v.z,
@@ -123,8 +123,6 @@ inline CVector MultiplyInverse(const CMatrix &mat, const CVector &vec)
 	);
 #endif
 }
-
-
 
 class CCompressedMatrixNotAligned
 {

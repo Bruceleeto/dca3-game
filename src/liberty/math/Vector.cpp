@@ -34,7 +34,7 @@ Multiply3x3(const CMatrix &mat, const CVector &vec)
 	               mat.rz * vec.x + mat.fz * vec.y + mat.uz * vec.z);
 #else
 	CVector out;
-	mat_load(mat);
+	dc::mat_load2(mat);
 	mat_trans_normal3_nomod(vec.x, vec.y, vec.z,
 	                        out.x, out.y, out.z);
     return out;
@@ -50,7 +50,7 @@ Multiply3x3(const CVector &vec, const CMatrix &mat)
 	               mat.ux * vec.x + mat.uy * vec.y + mat.uz * vec.z);
 #else
 	CVector out;
-	mat_load(mat);
+	dc::mat_load2(mat);
 	mat_transpose();
 	mat_trans_normal3_nomod(vec.x, vec.y, vec.z,
 	                        out.x, out.y, out.z);
@@ -63,7 +63,7 @@ operator*(const CMatrix &mat, const CVector &vec)
 {
 #ifdef DC_SH4
 	CVector out;
-	mat_load(reinterpret_cast<matrix_t *>(const_cast<CMatrix *>(&mat)));
+	dc::mat_load2(mat);
 	mat_trans_single3_nodiv_nomod(vec.x, vec.y, vec.z, out.x, out.y, out.z);
 	return out;
 #else
