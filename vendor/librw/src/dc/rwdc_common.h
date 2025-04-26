@@ -642,7 +642,7 @@ __hot inline void mat_apply_rotate_z(float z) {
 #           define pvr_fog_table_linear(s,e)
 #       else
 #           define mat_load2(a)    mat_load(a)
-#           define mat_store2(a)   mat_store2(a)
+#           define mat_store2(a)   mat_store(a)
 #           define mat_identity2() mat_identity()
 #       endif
 
