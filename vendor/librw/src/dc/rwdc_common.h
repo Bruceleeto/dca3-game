@@ -640,6 +640,10 @@ __hot inline void mat_apply_rotate_z(float z) {
 #           define mat_transform(a, b, c, d)
 #           define pvr_fog_table_color(a,r,g,b)
 #           define pvr_fog_table_linear(s,e)
+#       else
+#           define mat_load2(a)    mat_load(a)
+#           define mat_store2(a)   mat_store2(a)
+#           define mat_identity2() mat_identity()
 #       endif
 
 #define mat_trans_single3_nomod(x_, y_, z_, x2, y2, z2) do { \
