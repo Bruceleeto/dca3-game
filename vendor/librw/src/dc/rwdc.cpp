@@ -3530,12 +3530,12 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 	return skinMatrices[0].identityError() < 0.01f;
 }
 
-static RawMatrix normal2texcoord = {
+static RawMatrix normal2texcoord = {{
 	{ 0.5f / 127,  0.0f, 0.0f }, 0.0f,
 	{ 0.0f, -0.5f / 127, 0.0f }, 0.0f,
 	{ 0.0f,  0.0f, 1.0f }, 0.0f,
 	{ 0.5f,  0.5f, 0.0f }, 1.0f
-};
+}};
 
 void
 uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)

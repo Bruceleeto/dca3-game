@@ -339,9 +339,9 @@ inline V3d rotate(const V3d &v, const Quat &q) { return mult(mult(q, makeQuat(0.
 Quat lerp(const Quat &q, const Quat &p, float32 r);
 Quat slerp(const Quat &q, const Quat &p, float32 a);
 
-struct __attribute__((aligned(8))) RawMatrix 
+struct alignas(8) RawMatrixBase
 {
-	V3d right;
+    V3d right;
 	float32 rightw;
 	V3d up;
 	float32 upw;
@@ -349,6 +349,32 @@ struct __attribute__((aligned(8))) RawMatrix
 	float32 atw;
 	V3d pos;
 	float32 posw;
+};
+
+struct RawMatrix: public RawMatrixBase
+{
+    RawMatrix() {}
+
+    RawMatrix(RawMatrixBase &&aggregate):
+	    RawMatrixBase{aggregate}
+    {}
+
+    RawMatrix(const RawMatrix &rhs) {
+        *this = rhs;
+    }
+
+    operator matrix_t *() {
+        return reinterpret_cast<matrix_t *>(this);
+    }
+
+    operator const matrix_t *() const {
+        return reinterpret_cast<const matrix_t *>(this);
+    }
+
+    RawMatrix &operator=(const RawMatrix &rhs) {
+        dc::mat_copy(*this, rhs);
+        return *this;
+    }
 
 	// NB: this is dst = src2*src1, i.e. src1 is applied first, then src2
 	static void mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2);
@@ -356,7 +382,7 @@ struct __attribute__((aligned(8))) RawMatrix
 	static void setIdentity(RawMatrix *dst);
 };
 
-struct Matrix
+struct alignas(8) Matrix
 {
 	enum Type {
 		TYPENORMAL	= 1,

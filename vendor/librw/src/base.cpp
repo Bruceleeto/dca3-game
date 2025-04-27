@@ -151,8 +151,9 @@ slerp(const Quat &q, const Quat &p, float32 a)
 	float32 phi = acosf(c);
 	if(phi > 0.00001f){
 		float32 s = sinf(phi);
-		return add(scale(q1, sinf((1.0f-a)*phi)/s),
-		           scale(p,  sinf(a*phi)/s));
+        float invS = dc::Invert<true, false>(s);
+		return add(scale(q1, sinf((1.0f-a)*phi) * invS),
+		           scale(p,  sinf(a*phi) * invS));
 	}
 	return q1;
 }
@@ -202,6 +203,7 @@ V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 void
 RawMatrix::mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2)
 {
+#ifndef DC_SH4
 	dst->right.x = src1->right.x*src2->right.x + src1->right.y*src2->up.x + src1->right.z*src2->at.x + src1->rightw*src2->pos.x;
 	dst->right.y = src1->right.x*src2->right.y + src1->right.y*src2->up.y + src1->right.z*src2->at.y + src1->rightw*src2->pos.y;
 	dst->right.z = src1->right.x*src2->right.z + src1->right.y*src2->up.z + src1->right.z*src2->at.z + src1->rightw*src2->pos.z;
@@ -218,11 +220,15 @@ RawMatrix::mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2)
 	dst->pos.y   = src1->pos.x*src2->right.y   + src1->pos.y*src2->up.y   + src1->pos.z*src2->at.y + src1->posw*src2->pos.y;
 	dst->pos.z   = src1->pos.x*src2->right.z   + src1->pos.y*src2->up.z   + src1->pos.z*src2->at.z + src1->posw*src2->pos.z;
 	dst->posw    = src1->pos.x*src2->rightw    + src1->pos.y*src2->upw    + src1->pos.z*src2->atw  + src1->posw*src2->posw;
+#else
+    dc::mat_mult(*dst, *src2, *src1);
+#endif
 }
 
 void
 RawMatrix::transpose(RawMatrix *dst, RawMatrix *src)
 {
+#ifndef DC_SH4
 	dst->right.x = src->right.x;
 	dst->up.x = src->right.y;
 	dst->at.x = src->right.z;
@@ -239,18 +245,27 @@ RawMatrix::transpose(RawMatrix *dst, RawMatrix *src)
 	dst->upw = src->pos.y;
 	dst->atw = src->pos.z;
 	dst->posw = src->posw;
+#else
+    dc::mat_load_transpose(*src);
+    dc::mat_store2(*dst);
+#endif
 }
 
 void
 RawMatrix::setIdentity(RawMatrix *dst)
 {
-	static RawMatrix identity = {
+#ifndef DC_SH4
+	static RawMatrix identity = {{
 		{ 1.0f, 0.0f, 0.0f }, 0.0f,
 		{ 0.0f, 1.0f, 0.0f }, 0.0f,
 		{ 0.0f, 0.0f, 1.0f }, 0.0f,
 		{ 0.0f, 0.0f, 0.0f }, 1.0f
-	};
+	}};
 	*dst = identity;
+#else
+    dc::mat_identity2();
+    dc::mat_store2(*dst);
+#endif
 }
 
 //
