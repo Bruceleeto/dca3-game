@@ -382,7 +382,7 @@ struct RawMatrix: public RawMatrixBase
 	static void setIdentity(RawMatrix *dst);
 };
 
-struct alignas(8) Matrix
+struct alignas(8) MatrixBase
 {
 	enum Type {
 		TYPENORMAL	= 1,
@@ -391,22 +391,60 @@ struct alignas(8) Matrix
 		TYPEMASK = 3
 	};
 	enum Flags {
-		IDENTITY = 0x20000
+		IDENTITY = 0x4,
+        IDENTITY_OLD = 0x20000
 	};
+
+	V3d right;
+	union {
+		struct {
+			uint32_t flags: 3 = TYPEORTHONORMAL|IDENTITY;
+			uint32_t pad0: 29 = 0;
+		};
+		float rightw;
+	};
+	V3d up;
+	union {
+		uint32 pad1;
+		float  upw = 0.0f;
+	};
+	V3d at;
+	union {
+		uint32 pad2;
+		float  atw = 0.0f;
+	};
+	V3d pos;
+	union {
+		uint32 pad3;
+		float  posw = 1.0f;
+	};
+};
+
+struct Matrix: public MatrixBase
+{
 	struct Tolerance {
 		float32 normal;
 		float32 orthogonal;
 		float32 identity;
 	};
 
-	V3d right;
-	uint32 flags;
-	V3d up;
-	uint32 pad1;
-	V3d at;
-	uint32 pad2;
-	V3d pos;
-	uint32 pad3;
+    Matrix() {}
+
+    Matrix(MatrixBase &&aggregate):
+	    MatrixBase{aggregate}
+    {}
+
+    Matrix(const Matrix &rhs) {
+        *this = rhs;
+    }
+
+    Matrix &operator=(const RawMatrix &rhs) {
+        dc::mat_copy(*this, rhs);
+        return *this;
+    }
+
+    operator matrix_t *() { return reinterpret_cast<matrix_t *>(this); }
+    operator const matrix_t *() const { return reinterpret_cast<const matrix_t *>(this); }
 
 	static Matrix *create(void);
 	void destroy(void);

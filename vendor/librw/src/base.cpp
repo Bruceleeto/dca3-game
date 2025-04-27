@@ -45,12 +45,17 @@ int32 build = 0xFFFF;
 bool32 streamAppendFrames = 0;
 char *debugFile = nil;
 
-static Matrix identMat = {
-	{ 1.0f, 0.0f, 0.0f }, Matrix::IDENTITY|Matrix::TYPEORTHONORMAL,
-	{ 0.0f, 1.0f, 0.0f }, 0,
-	{ 0.0f, 0.0f, 1.0f }, 0,
-	{ 0.0f, 0.0f, 0.0f }, 0
-};
+static Matrix identMat = {{
+    .right 	= { 1.0f, 0.0f, 0.0f }, 
+    .flags 	= Matrix::IDENTITY|Matrix::TYPEORTHONORMAL,
+	.pad0   = 0,
+    .up 	= { 0.0f, 1.0f, 0.0f }, 
+    .upw 	= 0.0f,
+    .at 	= { 0.0f, 0.0f, 1.0f }, 
+    .atw 	= 0.0f,
+    .pos 	= { 0.0f, 0.0f, 0.0f }, 
+    .posw 	= 1.0f
+}};
 
 // lazy implementation
 int
@@ -174,19 +179,27 @@ void
 V3d::transformPoints(V3d *out, const V3d *in, int32 n, const Matrix *m)
 {
 	int32 i;
-	V3d tmp;
-	for(i = 0; i < n; i++){
+#ifndef DC_SH4
+    V3d tmp;
+    for(i = 0; i < n; i++){
 		tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x + m->pos.x;
 		tmp.y = in[i].x*m->right.y + in[i].y*m->up.y + in[i].z*m->at.y + m->pos.y;
 		tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z + m->pos.z;
 		out[i] = tmp;
 	}
+#else
+    dc::mat_load2(*m);
+    for(i = 0; i < n; i++)
+        mat_trans_single3_nodiv_nomod(in[i].x, in[i].y, in[i].z,
+                                      out[i].x, out[i].y, out[i].z);
+#endif
 }
 
 void
 V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 {
 	int32 i;
+#ifndef DC_SH4
 	V3d tmp;
 	for(i = 0; i < n; i++){
 		tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x;
@@ -194,6 +207,12 @@ V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
 		tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z;
 		out[i] = tmp;
 	}
+#else
+    dc::mat_load2(*m);
+    for(i = 0; i < n; i++)
+        mat_trans_normal3_nomod(in[i].x, in[i].y, in[i].z,
+                                out[i].x, out[i].y, out[i].z);
+#endif
 }
 
 //

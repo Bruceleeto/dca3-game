@@ -6247,6 +6247,18 @@ writeNativeSkin(Stream *stream, int32 len, void *object, int32 offset)
 
 	stream->write8(&skin->numBones, 4);
 
+	for(int32 i = 0; i < skin->numBones; i++){
+		Matrix &m = *reinterpret_cast<Matrix *>(
+			&skin->inverseMatrices[i * 16]);
+
+		if(m.flags & MatrixBase::IDENTITY_OLD)
+			m.flags |= MatrixBase::IDENTITY;
+		m.pad0 = 0;
+		m.upw = 0.0f;
+		m.atw = 0.0f;
+		m.posw = 1.0f;
+	}
+
 	stream->write32(skin->inverseMatrices, skin->numBones*64);
 	return stream;
 }
