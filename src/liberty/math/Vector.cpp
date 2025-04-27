@@ -50,8 +50,7 @@ Multiply3x3(const CVector &vec, const CMatrix &mat)
 	               mat.ux * vec.x + mat.uy * vec.y + mat.uz * vec.z);
 #else
 	CVector out;
-	dc::mat_load2(mat);
-	mat_transpose();
+	dc::mat_load_transpose(mat);
 	mat_trans_normal3_nomod(vec.x, vec.y, vec.z,
 	                        out.x, out.y, out.z);
 	return out;

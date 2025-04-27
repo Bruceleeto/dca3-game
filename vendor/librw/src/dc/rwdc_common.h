@@ -185,7 +185,7 @@ __always_inline __hot constexpr auto Norm(auto value, auto min, auto max) {
         x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
     } while(false)
 
-inline __hot __icache_aligned void mat_load2(const matrix_t* mtx) {
+inline __hot __icache_aligned void mat_load2(const matrix_t *mtx) {
     asm volatile(
         R"(
             fschg
@@ -201,6 +201,44 @@ inline __hot __icache_aligned void mat_load2(const matrix_t* mtx) {
             fmov.d	@%[mtx]+,xd12
             fmov.d	@%[mtx]+,xd14
             fschg
+        )"
+        : [mtx] "+r" (mtx)
+        :
+        :
+    );
+}
+
+inline __hot __icache_aligned void mat_load_transpose(const matrix_t *mtx) {
+    asm volatile(
+        R"(
+            frchg
+
+            fmov.s  @%[mtx]+, fr0
+
+            add     #32, %[mtx]
+            pref    @%[mtx]
+            add     #-(32 - 4), %[mtx]
+
+            fmov.s  @%[mtx]+, fr4
+            fmov.s  @%[mtx]+, fr8
+            fmov.s  @%[mtx]+, fr12
+
+            fmov.s  @%[mtx]+, fr1
+            fmov.s  @%[mtx]+, fr5
+            fmov.s  @%[mtx]+, fr9
+            fmov.s  @%[mtx]+, fr13
+
+            fmov.s  @%[mtx]+, fr2
+            fmov.s  @%[mtx]+, fr6
+            fmov.s  @%[mtx]+, fr10
+            fmov.s  @%[mtx]+, fr14
+
+            fmov.s  @%[mtx]+, fr3
+            fmov.s  @%[mtx]+, fr7
+            fmov.s  @%[mtx]+, fr11
+            fmov.s  @%[mtx]+, fr15
+
+            frchg
         )"
         : [mtx] "+r" (mtx)
         :
