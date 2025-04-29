@@ -238,8 +238,8 @@ inline V2d neg(const V2d &a) { return makeV2d(-a.x, -a.y); }
 inline V2d add(const V2d &a, const V2d &b) { return makeV2d(a.x+b.x, a.y+b.y); }
 inline V2d sub(const V2d &a, const V2d &b) { return makeV2d(a.x-b.x, a.y-b.y); }
 inline V2d scale(const V2d &a, float32 r) { return makeV2d(a.x*r, a.y*r); }
-inline float32 length(const V2d &v) { return sqrtf(v.x*v.x + v.y*v.y); }
-inline V2d normalize(const V2d &v) { return scale(v, 1.0f/length(v)); }
+inline float32 length(const V2d &v) { return dc::Sqrt(v.x*v.x + v.y*v.y); }
+inline V2d normalize(const V2d &v) { return scale(v, dc::RecipSqrt(v.x*v.x + v.y*v.y)); }
 
 struct V3d
 {
@@ -265,10 +265,22 @@ inline float32 length(const V3d &v) {
 	return len;
 #endif
 }
-inline V3d normalize(const V3d &v) { return scale(v, 1.0f/length(v)); }
-inline V3d setlength(const V3d &v, float32 l) { return scale(v, l/length(v)); }
-V3d cross(const V3d &a, const V3d &b);
-inline __attribute__((always_inline)) float32 dot(const V3d &a, const V3d &b) {
+inline V3d normalize(const V3d &v) {
+    float invLen; 
+#ifndef DC_SH4
+    invLen = 1.0f / length(v);
+#else
+    invLen = dc::RecipSqrt(fipr_magnitude_sqr(v.x, v.y, v.z, 0.0f));
+#endif
+    return scale(v, invLen); 
+}
+inline V3d setlength(const V3d &v, float32 l) { return scale(v, dc::Div<true, false>(l, length(v))); }
+inline V3d cross(const V3d &a, const V3d &b) {
+    return makeV3d(a.y*b.z - a.z*b.y,
+        a.z*b.x - a.x*b.z,
+        a.x*b.y - a.y*b.x);
+}
+inline float32 dot(const V3d &a, const V3d &b) {
 #ifdef DC_SH4
 	return fipr(a.x, a.y, a.z, 0.0f, b.x, b.y, b.z, 0.0f);
 #else
@@ -329,12 +341,33 @@ inline float32 length(const Quat &q) {
 #ifndef DC_SH4
 	return sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
 #else
-	return dc::Sqrt(fipr_magnitude_sqr(q.x, q.y, q.z, q.w));
+	return dc::Sqrt(fipr_magnitude_sqr(q.x, q.y, q.z, 0.0f));
 #endif
 }
-inline Quat normalize(const Quat &q) { return scale(q, 1.0f/length(q)); }
+inline Quat normalize(const Quat &q) {
+    float invLen; 
+#ifndef DC_SH4
+    invLen = 1.0f / length(q);
+#else
+    invLen = dc::RecipSqrt(fipr_magnitude_sqr(q.x, q.y, q.z, 0.0f));
+#endif
+    return scale(q, invLen);
+}
 inline Quat conj(const Quat &q) { return makeQuat(q.w, -q.x, -q.y, -q.z); }
-Quat mult(const Quat &q, const Quat &p);
+inline Quat mult(const Quat &q, const Quat &p) {
+#ifndef DC_SH4
+	return makeQuat(q.w*p.w - q.x*p.x - q.y*p.y - q.z*p.z,
+	                q.w*p.x + q.x*p.w + q.y*p.z - q.z*p.y,
+	                q.w*p.y + q.y*p.w + q.z*p.x - q.x*p.z,
+	                q.w*p.z + q.z*p.w + q.x*p.y - q.y*p.x);
+#else
+    Quat o;
+    dc::quat_mult(reinterpret_cast<dc::quaternion_t *>(&o),
+	              reinterpret_cast<const dc::quaternion_t &>(q),
+                  reinterpret_cast<const dc::quaternion_t &>(p));
+	return o;
+#endif
+}
 inline V3d rotate(const V3d &v, const Quat &q) { return mult(mult(q, makeQuat(0.0f, v)), conj(q)).vec(); }
 Quat lerp(const Quat &q, const Quat &p, float32 r);
 Quat slerp(const Quat &q, const Quat &p, float32 a);

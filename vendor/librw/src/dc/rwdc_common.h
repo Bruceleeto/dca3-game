@@ -246,6 +246,83 @@ inline __hot __icache_aligned void mat_load_transpose(const matrix_t *mtx) {
     );
 }
 
+inline __hot __icache_aligned void mat_load_3x3_transpose(const matrix_t *mtx) {
+    asm volatile(
+        R"(
+            frchg
+
+            fmov.s  @%[mtx]+, fr0
+
+            add     #32, %[mtx]
+            pref    @%[mtx]
+            add     #-(32 - 4), %[mtx]
+
+            fmov.s  @%[mtx]+, fr4
+            fmov.s  @%[mtx]+, fr8
+            fldi0   fr12
+            add     #4, %[mtx]
+
+            fmov.s  @%[mtx]+, fr1
+            fmov.s  @%[mtx]+, fr5
+            fmov.s  @%[mtx]+, fr9
+            fldi0   fr13
+            add     #4, %[mtx]
+
+            fmov.s  @%[mtx]+, fr2
+            fmov.s  @%[mtx]+, fr6
+            fmov.s  @%[mtx]+, fr10
+            fldi0   fr14
+
+            fldi0  fr3
+            fldi0  fr7
+            fmov   fr3, fr11
+            fldi1  fr15
+
+            frchg
+        )"
+        : [mtx] "+r" (mtx)
+        :
+        :
+    );
+}
+
+inline __hot __icache_aligned void mat_invert_tranpose() {
+	asm volatile(
+		"frchg\n\t"
+		"fneg	fr12\n\t"
+		"fneg	fr13\n\t"
+		"fneg	fr14\n\t"
+		"fldi0	fr15\n\t"
+		"fldi0	fr3\n\t"
+		"fipr	fv12, fv0\n\t"
+		"fldi0	fr7\n\t"
+		"fipr	fv12, fv4\n\t"
+		"fldi0	fr11\n\t"
+		"fipr	fv12, fv8\n\t"
+
+		"fmov	fr3, fr12\n\t"
+		"fmov	fr7, fr13\n\t"
+		"fmov	fr11, fr14\n\t"
+		"fmov	fr1, fr15\n\t"
+		"fmov	fr4, fr1\n\t"
+		"fmov	fr15, fr4\n\t"
+		"fmov	fr2, fr15\n\t"
+		"fmov	fr8, fr2\n\t"
+		"fmov	fr15, fr2\n\t"
+		"fmov	fr6, fr15\n\t"
+		"fmov	fr9, fr6\n\t"
+		"fmov	fr15, fr9\n\t"
+
+		"fldi0	fr3\n\t"
+		"fldi0	fr7\n\t"
+		"fldi0	fr11\n\t"
+		"fldi1	fr15\n\t"
+		"frchg\n"
+		:
+		:
+		:);
+}
+
 inline __hot __icache_aligned void mat_store2(matrix_t *mtx) {
     asm volatile(
         R"(
@@ -449,103 +526,6 @@ __hot __icache_aligned inline void mat_copy(matrix_t *dst, const matrix_t *src) 
       :);
 }
 
-//TODO: FIXME FOR VC (AND USE FTRV)
-template<bool FAST_APPROX=false>
-__hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, const quaternion_t &q2) {
-    if(FAST_APPROX && !std::is_constant_evaluated()) {
-    /*
-        // reorder the coefficients so that q1 stays in constant order {x,y,z,w}
-        // q2 then needs to be rotated after each inner product
-        x =  (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y) + (q1.w * q2.x);
-        y = -(q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x) + (q1.w * q2.y);
-        z =  (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w) + (q1.w * q2.z);
-        w = -(q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z) + (q1.w * q2.w);
-    */
-        // keep q1 in fv4
-        register float q1x __asm__ ("fr4") = (q1.x);
-        register float q1y __asm__ ("fr5") = (q1.y);
-        register float q1z __asm__ ("fr6") = (q1.z);
-        register float q1w __asm__ ("fr7") = (q1.w);
-
-        // load q2 into fv8, use it to get the shuffled reorder into fv0
-        register float q2x __asm__ ("fr8")  = (q2.x);
-        register float q2y __asm__ ("fr9")  = (q2.y);
-        register float q2z __asm__ ("fr10") = (q2.z);
-        register float q2w __asm__ ("fr11") = (q2.w);
-
-        // temporary operand / result in fv0
-        register float t1x __asm__ ("fr0");
-        register float t1y __asm__ ("fr1");
-        register float t1z __asm__ ("fr2");
-        register float t1w __asm__ ("fr3");
-
-        // x =  (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y) + (q1.w * q2.x);
-        t1x = q2w;
-        t1y = q2z;
-        t1z = -q2y;
-        t1w = q2w;
-        __asm__ ("\n"
-            " fipr	fv4,fv0\n"
-            : "+f" (t1w)
-            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
-              "f" (t1x), "f" (t1y), "f" (t1z)
-        );
-        // x = t1w;  try to avoid the stall by not reading the fipr result immediately
-
-        // y = -(q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x) + (q1.w * q2.y);
-        t1x = -q2z;
-        t1y = q2w;
-        t1z = q2x;
-        __atomic_thread_fence(1);
-        r->x = t1w;   // get previous result
-        t1w = q2y;
-        __asm__ ("\n"
-            "	fipr	fv4,fv0\n"
-            : "+f" (t1w)
-            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
-              "f" (t1x), "f" (t1y), "f" (t1z)
-        );
-        //y = t1w;
-
-        // z =  (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w) + (q1.w * q2.z);
-        t1x = q2y;
-        t1y = -q2x;
-        t1z = q2w;
-        __atomic_thread_fence(1);
-        r->y = t1w;   // get previous result
-        t1w = q2z;
-        __asm__ ("\n"
-            "	fipr	fv4,fv0\n"
-            : "+f" (t1w)
-            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
-              "f" (t1x), "f" (t1y), "f" (t1z)
-        );
-        //z = t1w;
-        __atomic_thread_fence(1);
-
-        // w = -(q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z) + (q1.w * q2.w);
-        q2x = -q2x;
-        q2y = -q2y;
-        q2z = -q2z;
-        __asm__ ("\n"
-            "	fipr	fv4,fv8\n"
-            : "+f" (q2w)
-            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
-              "f" (q2x), "f" (q2y), "f" (q2z)
-        );
-
-        __atomic_thread_fence(1);
-        r->z = t1w;
-        __atomic_thread_fence(1);
-        r->w = q2w;
-    } else {
-        r->x = (q2.z * q1.y) - (q1.z * q2.y) + (q1.x * q2.w) + (q2.x * q1.w);
-        r->y = (q2.x * q1.z) - (q1.x * q2.z) + (q1.y * q2.w) + (q2.y * q1.w);
-        r->z = (q2.y * q1.x) - (q1.y * q2.x) + (q1.z * q2.w) + (q2.z * q1.w);
-        r->w = (q2.w * q1.w) - (q2.x * q1.x) - (q2.y * q1.y) - (q2.z * q1.z);
-    }
-}
-
 __hot inline void mat_load_apply(const matrix_t* matrix1, const matrix_t* matrix2) {
     unsigned int prefetch_scratch;
 
@@ -667,6 +647,104 @@ __hot inline void mat_apply_rotate_z(float z) {
         :
         : [a] "f"(z)
         : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+}
+
+
+//TODO: FIXME FOR VC (AND USE FTRV)
+template<bool FAST_APPROX=false>
+__hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, const quaternion_t &q2) {
+    if(FAST_APPROX && !std::is_constant_evaluated()) {
+    /*
+        // reorder the coefficients so that q1 stays in constant order {x,y,z,w}
+        // q2 then needs to be rotated after each inner product
+        x =  (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y) + (q1.w * q2.x);
+        y = -(q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x) + (q1.w * q2.y);
+        z =  (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w) + (q1.w * q2.z);
+        w = -(q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z) + (q1.w * q2.w);
+    */
+        // keep q1 in fv4
+        register float q1x __asm__ ("fr4") = (q1.x);
+        register float q1y __asm__ ("fr5") = (q1.y);
+        register float q1z __asm__ ("fr6") = (q1.z);
+        register float q1w __asm__ ("fr7") = (q1.w);
+
+        // load q2 into fv8, use it to get the shuffled reorder into fv0
+        register float q2x __asm__ ("fr8")  = (q2.x);
+        register float q2y __asm__ ("fr9")  = (q2.y);
+        register float q2z __asm__ ("fr10") = (q2.z);
+        register float q2w __asm__ ("fr11") = (q2.w);
+
+        // temporary operand / result in fv0
+        register float t1x __asm__ ("fr0");
+        register float t1y __asm__ ("fr1");
+        register float t1z __asm__ ("fr2");
+        register float t1w __asm__ ("fr3");
+
+        // x =  (q1.x * q2.w) + (q1.y * q2.z) - (q1.z * q2.y) + (q1.w * q2.x);
+        t1x = q2w;
+        t1y = q2z;
+        t1z = -q2y;
+        t1w = q2w;
+        __asm__ ("\n"
+            " fipr	fv4,fv0\n"
+            : "+f" (t1w)
+            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
+              "f" (t1x), "f" (t1y), "f" (t1z)
+        );
+        // x = t1w;  try to avoid the stall by not reading the fipr result immediately
+
+        // y = -(q1.x * q2.z) + (q1.y * q2.w) + (q1.z * q2.x) + (q1.w * q2.y);
+        t1x = -q2z;
+        t1y = q2w;
+        t1z = q2x;
+        __atomic_thread_fence(1);
+        r->x = t1w;   // get previous result
+        t1w = q2y;
+        __asm__ ("\n"
+            "	fipr	fv4,fv0\n"
+            : "+f" (t1w)
+            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
+              "f" (t1x), "f" (t1y), "f" (t1z)
+        );
+        //y = t1w;
+
+        // z =  (q1.x * q2.y) - (q1.y * q2.x) + (q1.z * q2.w) + (q1.w * q2.z);
+        t1x = q2y;
+        t1y = -q2x;
+        t1z = q2w;
+        __atomic_thread_fence(1);
+        r->y = t1w;   // get previous result
+        t1w = q2z;
+        __asm__ ("\n"
+            "	fipr	fv4,fv0\n"
+            : "+f" (t1w)
+            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
+              "f" (t1x), "f" (t1y), "f" (t1z)
+        );
+        //z = t1w;
+        __atomic_thread_fence(1);
+
+        // w = -(q1.x * q2.x) - (q1.y * q2.y) - (q1.z * q2.z) + (q1.w * q2.w);
+        q2x = -q2x;
+        q2y = -q2y;
+        q2z = -q2z;
+        __asm__ ("\n"
+            "	fipr	fv4,fv8\n"
+            : "+f" (q2w)
+            : "f" (q1x), "f" (q1y), "f" (q1z), "f" (q1w),
+              "f" (q2x), "f" (q2y), "f" (q2z)
+        );
+
+        __atomic_thread_fence(1);
+        r->z = t1w;
+        __atomic_thread_fence(1);
+        r->w = q2w;
+    } else {
+        r->x = (q2.z * q1.y) - (q1.z * q2.y) + (q1.x * q2.w) + (q2.x * q1.w);
+        r->y = (q2.x * q1.z) - (q1.x * q2.z) + (q1.y * q2.w) + (q2.y * q1.w);
+        r->z = (q2.y * q1.x) - (q1.y * q2.x) + (q1.z * q2.w) + (q2.z * q1.w);
+        r->w = (q2.w * q1.w) - (q2.x * q1.x) - (q2.y * q1.y) - (q2.z * q1.z);
+    }
 }
 
 #   else

@@ -91,24 +91,6 @@ strncmp_ci(const char *s1, const char *s2, int n)
 	return 0;
 }
 
-Quat
-mult(const Quat &q, const Quat &p)
-{
-#ifndef DC_SH4
-	return makeQuat(q.w*p.w - q.x*p.x - q.y*p.y - q.z*p.z,
-	                q.w*p.x + q.x*p.w + q.y*p.z - q.z*p.y,
-	                q.w*p.y + q.y*p.w + q.z*p.x - q.x*p.z,
-	                q.w*p.z + q.z*p.w + q.x*p.y - q.y*p.x);
-#else
-	Quat o;
-	dc::quat_mult(reinterpret_cast<dc::quaternion_t *>(&o),
-	              reinterpret_cast<const dc::quaternion_t &>(q),
-				  reinterpret_cast<const dc::quaternion_t &>(p));
-	return o;
-#endif
-}
-
-
 Quat*
 Quat::rotate(const V3d *axis, float32 angle, CombineOp op)
 {
@@ -166,53 +148,39 @@ slerp(const Quat &q, const Quat &p, float32 a)
 //
 // V3d
 //
-
-V3d
-cross(const V3d &a, const V3d &b)
-{
-	return makeV3d(a.y*b.z - a.z*b.y,
-	               a.z*b.x - a.x*b.z,
-	               a.x*b.y - a.y*b.x);
+void V3d::transformPoints(V3d *out, const V3d *in, int32 n, const Matrix *m) {
+    int32 i;
+    #ifndef DC_SH4
+        V3d tmp;
+        for(i = 0; i < n; i++){
+            tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x + m->pos.x;
+            tmp.y = in[i].x*m->right.y + in[i].y*m->up.y + in[i].z*m->at.y + m->pos.y;
+            tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z + m->pos.z;
+            out[i] = tmp;
+        }
+    #else
+        dc::mat_load2(*m);
+        for(i = 0; i < n; i++)
+            mat_trans_single3_nodiv_nomod(in[i].x, in[i].y, in[i].z,
+                                          out[i].x, out[i].y, out[i].z);
+    #endif
 }
-
-void
-V3d::transformPoints(V3d *out, const V3d *in, int32 n, const Matrix *m)
-{
-	int32 i;
-#ifndef DC_SH4
-    V3d tmp;
-    for(i = 0; i < n; i++){
-		tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x + m->pos.x;
-		tmp.y = in[i].x*m->right.y + in[i].y*m->up.y + in[i].z*m->at.y + m->pos.y;
-		tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z + m->pos.z;
-		out[i] = tmp;
-	}
-#else
-    dc::mat_load2(*m);
-    for(i = 0; i < n; i++)
-        mat_trans_single3_nodiv_nomod(in[i].x, in[i].y, in[i].z,
-                                      out[i].x, out[i].y, out[i].z);
-#endif
-}
-
-void
-V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m)
-{
-	int32 i;
-#ifndef DC_SH4
-	V3d tmp;
-	for(i = 0; i < n; i++){
-		tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x;
-		tmp.y = in[i].x*m->right.y + in[i].y*m->up.y + in[i].z*m->at.y;
-		tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z;
-		out[i] = tmp;
-	}
-#else
-    dc::mat_load2(*m);
-    for(i = 0; i < n; i++)
-        mat_trans_normal3_nomod(in[i].x, in[i].y, in[i].z,
-                                out[i].x, out[i].y, out[i].z);
-#endif
+void V3d::transformVectors(V3d *out, const V3d *in, int32 n, const Matrix *m) {
+    int32 i;
+    #ifndef DC_SH4
+        V3d tmp;
+        for(i = 0; i < n; i++){
+            tmp.x = in[i].x*m->right.x + in[i].y*m->up.x + in[i].z*m->at.x;
+            tmp.y = in[i].x*m->right.y + in[i].y*m->up.y + in[i].z*m->at.y;
+            tmp.z = in[i].x*m->right.z + in[i].y*m->up.z + in[i].z*m->at.z;
+            out[i] = tmp;
+        }
+    #else
+        dc::mat_load2(*m);
+        for(i = 0; i < n; i++)
+            mat_trans_normal3_nomod(in[i].x, in[i].y, in[i].z,
+                                    out[i].x, out[i].y, out[i].z);
+    #endif
 }
 
 //
@@ -343,9 +311,10 @@ Matrix::mult(Matrix *dst, const Matrix *src1, const Matrix *src2)
 		*dst = *src2;
 	else if(src2->flags & IDENTITY)
 		*dst = *src1;
-	else{
+	else {
+        uint8_t flags = src1->flags & src2->flags;
 		mult_(dst, src1, src2);
-		dst->flags = src1->flags & src2->flags;
+		dst->flags = flags;
 	}
 	return dst;
 }
@@ -366,7 +335,8 @@ Matrix::invert(Matrix *dst, const Matrix *src)
 Matrix*
 Matrix::transpose(Matrix *dst, const Matrix *src)
 {
-	if(src->flags & IDENTITY)
+#ifndef DC_SH4
+	if(src->flags & IDENTITY) 
 		*dst = *src;
 	dst->right.x = src->right.x;
 	dst->up.x = src->right.y;
@@ -380,25 +350,31 @@ Matrix::transpose(Matrix *dst, const Matrix *src)
 	dst->pos.x = 0.0;
 	dst->pos.y = 0.0;
 	dst->pos.z = 0.0;
+#else
+    if(src->flags & IDENTITY)
+        *dst = *src;
+    else {
+        dc::mat_load_transpose(*src);
+        dc::mat_store2(*dst);
+    }
+#endif
 	return dst;
 }
 
 Matrix*
 Matrix::rotate(const V3d *axis, float32 angle, CombineOp op)
 {
-	Matrix tmp, rot;
-	makeRotation(&rot, axis, angle);
+	Matrix rot;
+    makeRotation(&rot, axis, angle);
 	switch(op){
 	case COMBINEREPLACE:
 		*this = rot;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &rot, this);
-		*this = tmp;
+		mult(this, &rot, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &rot);
-		*this = tmp;
+        mult(this, this, &rot);
 		break;
 	}
 	return this;
@@ -407,27 +383,25 @@ Matrix::rotate(const V3d *axis, float32 angle, CombineOp op)
 Matrix*
 Matrix::rotate(const Quat &q, CombineOp op)
 {
-	Matrix tmp, rot;
-	makeRotation(&rot, q);
+	Matrix rot;
+    makeRotation(&rot, q);
 	switch(op){
 	case COMBINEREPLACE:
 		*this = rot;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &rot, this);
-		*this = tmp;
+        mult(this, &rot, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &rot);
-		*this = tmp;
+        mult(this, this, &rot);
 		break;
 	}
 	return this;
 }
+
 Matrix*
 Matrix::translate(const V3d *translation, CombineOp op)
 {
-	Matrix tmp;
 	Matrix trans = identMat;
 	trans.pos = *translation;
 	trans.flags &= ~IDENTITY;
@@ -436,12 +410,10 @@ Matrix::translate(const V3d *translation, CombineOp op)
 		*this = trans;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &trans, this);
-		*this = tmp;
+		mult(this, &trans, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &trans);
-		*this = tmp;
+		mult(this, this, &trans);
 		break;
 	}
 	return this;
@@ -450,7 +422,6 @@ Matrix::translate(const V3d *translation, CombineOp op)
 Matrix*
 Matrix::scale(const V3d *scale, CombineOp op)
 {
-	Matrix tmp;
 	Matrix scl = identMat;
 	scl.right.x = scale->x;
 	scl.up.y = scale->y;
@@ -461,12 +432,10 @@ Matrix::scale(const V3d *scale, CombineOp op)
 		*this = scl;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, &scl, this);
-		*this = tmp;
+		mult(this, &scl, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, &scl);
-		*this = tmp;
+		mult(this, this, &scl);
 		break;
 	}
 	return this;
@@ -475,18 +444,15 @@ Matrix::scale(const V3d *scale, CombineOp op)
 Matrix*
 Matrix::transform(const Matrix *mat, CombineOp op)
 {
-	Matrix tmp;
 	switch(op){
 	case COMBINEREPLACE:
 		*this = *mat;
 		break;
 	case COMBINEPRECONCAT:
-		mult(&tmp, mat, this);
-		*this = tmp;
+		mult(this, mat, this);
 		break;
 	case COMBINEPOSTCONCAT:
-		mult(&tmp, this, mat);
-		*this = tmp;
+		mult(this, this, mat);
 		break;
 	}
 	return this;
@@ -501,27 +467,31 @@ Matrix::getRotation(void)
 	if(tr > 0.0f){
 		s = sqrtf(1.0f + tr) * 2.0f;
 		q.w = s / 4.0f;
-		q.x = (up.z - at.y) / s;
-		q.y = (at.x - right.z) / s;
-		q.z = (right.y - up.x) / s;
+        float invS = dc::Invert<true, false>(s);
+		q.x = (up.z - at.y) * invS;
+		q.y = (at.x - right.z) * invS;
+		q.z = (right.y - up.x) * invS;
 	}else if(right.x > up.y && right.x > at.z){
 		s = sqrtf(1.0f + right.x - up.y - at.z) * 2.0f;
-		q.w = (up.z - at.y) / s;
-		q.x = s / 4.0f;
-		q.y = (up.x + right.y) / s;
-		q.z = (at.x + right.z) / s;
+        q.x = s / 4.0f;
+        float invS = dc::Invert<true, false>(s);
+        q.w = (up.z - at.y) * invS;
+		q.y = (up.x + right.y) * invS;
+		q.z = (at.x + right.z) * invS;
 	}else if(up.y > at.z){
 		s = sqrtf(1.0f + up.y - right.x - at.z) * 2.0f;
-		q.w = (at.x - right.z) / s;
-		q.x = (up.x + right.y) / s;
-		q.y = s / 4.0f;
-		q.z = (at.y + up.z) / s;
+        q.y = s / 4.0f;
+        float invS = dc::Invert<true, false>(s);
+        q.w = (at.x - right.z) * invS;
+		q.x = (up.x + right.y) * invS;
+		q.z = (at.y + up.z) * invS;
 	}else{
 		s = sqrtf(1.0f + at.z - right.x - up.y) * 2.0f;
-		q.w = (right.y - up.x) / s;
-		q.x = (at.x + right.z) / s;
-		q.y = (at.y + up.z) / s;
-		q.z = s / 4.0f;
+        q.z = s / 4.0f;
+        float invS = dc::Invert<true, false>(s);
+        q.w = (right.y - up.x) * invS;
+		q.x = (at.x + right.z) * invS;
+		q.y = (at.y + up.z) * invS;
 	}
 	return q;
 }
@@ -543,20 +513,7 @@ Matrix::lookAt(const V3d &dir, const V3d &up)
 void
 Matrix::mult_(Matrix *__restrict__ dst, const Matrix *__restrict__ src1, const Matrix *__restrict__ src2)
 {
-	#if !defined(DC_TEXCONV) && !defined(DC_SIM)
-	dst->right.x = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.x, src2->up.x, src2->at.x, 0);
-	dst->right.y = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.y, src2->up.y, src2->at.y, 0);
-	dst->right.z = fipr(src1->right.x, src1->right.y,  src1->right.z, 0, 		  src2->right.z, src2->up.z, src2->at.z, 0);
-	dst->up.x    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.x, src2->up.x, src2->at.x, 0);
-	dst->up.y    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.y, src2->up.y, src2->at.y, 0);
-	dst->up.z    = fipr(src1->up.x,    src1->up.y,  src1->up.z, 0, 				  src2->right.z, src2->up.z, src2->at.z, 0);
-	dst->at.x    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.x, src2->up.x, src2->at.x, 0);
-	dst->at.y    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.y, src2->up.y, src2->at.y, 0);
-	dst->at.z    = fipr(src1->at.x,    src1->at.y,  src1->at.z, 0, 				  src2->right.z, src2->up.z, src2->at.z, 0);
-	dst->pos.x   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  		  src2->right.x, src2->up.x, src2->at.x, src2->pos.x);
-	dst->pos.y   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  	 	  src2->right.y, src2->up.y, src2->at.y, src2->pos.y);
-	dst->pos.z   = fipr(src1->pos.x,   src1->pos.y,  src1->pos.z, 1, 	  		  src2->right.z, src2->up.z, src2->at.z, src2->pos.z);
-	#else
+#ifndef DC_SH4
 	dst->right.x = src1->right.x*src2->right.x + src1->right.y*src2->up.x + src1->right.z*src2->at.x;
 	dst->right.y = src1->right.x*src2->right.y + src1->right.y*src2->up.y + src1->right.z*src2->at.y;
 	dst->right.z = src1->right.x*src2->right.z + src1->right.y*src2->up.z + src1->right.z*src2->at.z;
@@ -569,12 +526,15 @@ Matrix::mult_(Matrix *__restrict__ dst, const Matrix *__restrict__ src1, const M
 	dst->pos.x   = src1->pos.x*src2->right.x   + src1->pos.y*src2->up.x   + src1->pos.z*src2->at.x + src2->pos.x;
 	dst->pos.y   = src1->pos.x*src2->right.y   + src1->pos.y*src2->up.y   + src1->pos.z*src2->at.y + src2->pos.y;
 	dst->pos.z   = src1->pos.x*src2->right.z   + src1->pos.y*src2->up.z   + src1->pos.z*src2->at.z + src2->pos.z;
-	#endif
+#else
+    dc::mat_mult(*dst, *src2, *src1);
+#endif
 }
 
 void
 Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 {
+#if 1
 	dst->right.x = src->right.x;
 	dst->right.y = src->up.x;
 	dst->right.z = src->at.x;
@@ -593,7 +553,12 @@ Matrix::invertOrthonormal(Matrix *dst, const Matrix *src)
 	dst->pos.z = -(src->pos.x*src->at.x +
 	               src->pos.y*src->at.y +
 	               src->pos.z*src->at.z);
-	dst->flags = TYPEORTHONORMAL;
+#else
+    dc::mat_load_transpose(*src);
+    dc::mat_invert_tranpose();
+    dc::mat_store2(*dst);
+#endif
+    dst->flags = TYPEORTHONORMAL;
 }
 
 Matrix*
@@ -688,7 +653,11 @@ Matrix::normalError(void)
 	x = dot(right, right) - 1.0f;
 	y = dot(up, up) - 1.0f;
 	z = dot(at, at) - 1.0f;
+#ifndef DC_SH4
 	return x*x + y*y + z*z;
+#else
+    return fipr_magnitude_sqr(x, y, z, 0.0f);
+#endif
 }
 
 float32
@@ -698,16 +667,27 @@ Matrix::orthogonalError(void)
 	x = dot(at, up);
 	y = dot(at, right);
 	z = dot(up, right);
+#ifndef DC_SH4
 	return x*x + y*y + z*z;
+#else
+    return fipr_magnitude_sqr(x, y, z, 0.0f);
+#endif
 }
 
 float32
 Matrix::identityError(void)
 {
-	V3d r = { right.x-1.0f, right.y, right.z };
+    V3d r = { right.x-1.0f, right.y, right.z };
 	V3d u = { up.x, up.y-1.0f, up.z };
 	V3d a = { at.x, at.y, at.z-1.0f };
+#ifndef DC_SH4
 	return dot(r,r) + dot(u,u) + dot(a,a) + dot(pos,pos);
+#else
+    return fipr_magnitude_sqr(r.x, r.y, r.z, 0.0f)    +
+           fipr_magnitude_sqr(u.x, u.y, u.z, 0.0f)    +
+           fipr_magnitude_sqr(at.x, at.y, at.z, 0.0f) +
+           fipr_magnitude_sqr(pos.x, pos.y, pos.z, 0.0f);
+#endif
 }
 
 void
