@@ -402,9 +402,16 @@ Matrix::rotate(const Quat &q, CombineOp op)
 Matrix*
 Matrix::translate(const V3d *translation, CombineOp op)
 {
+#if 1
 	Matrix trans = identMat;
 	trans.pos = *translation;
 	trans.flags &= ~IDENTITY;
+#else
+    Matrix trans;
+    dc::mat_set_translation(translation->x, translation->y, translation->z);
+    dc::mat_store2(trans);
+    trans.flags = Matrix::TYPEORTHONORMAL;
+#endif
 	switch(op){
 	case COMBINEREPLACE:
 		*this = trans;
@@ -422,11 +429,18 @@ Matrix::translate(const V3d *translation, CombineOp op)
 Matrix*
 Matrix::scale(const V3d *scale, CombineOp op)
 {
+#ifndef DC_SH4
 	Matrix scl = identMat;
 	scl.right.x = scale->x;
 	scl.up.y = scale->y;
 	scl.at.z = scale->z;
 	scl.flags &= ~IDENTITY;
+#else
+    Matrix scl;
+    dc::mat_set_scale(scale->x, scale->y, scale->z);
+    dc::mat_store2(scl);
+    scl.flags = Matrix::TYPEORTHONORMAL;
+#endif
 	switch(op){
 	case COMBINEREPLACE:
 		*this = scl;
@@ -594,8 +608,13 @@ void
 Matrix::makeRotation(Matrix *dst, const V3d *axis, float32 angle)
 {
 //	V3d v = normalize(*axis);
+#ifndef DC_SH4
 	float32 len = dot(*axis, *axis);
 	if(len != 0.0f) len = 1.0f/sqrtf(len);
+#else
+    float len = fipr_magnitude_sqr(axis->x, axis->y, axis->z, 0.0f);
+    if(len != 0.0f) len = dc::RecipSqrt(len);
+#endif
 	V3d v = rw::scale(*axis, len);
 	angle = angle*(float)M_PI/180.0f;
 	float32 s = sinf(angle);

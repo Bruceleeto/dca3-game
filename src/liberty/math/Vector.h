@@ -1,5 +1,7 @@
 #pragma once 
 
+#include "maths.h"
+
 class CVector : public RwV3d
 {
 public:
@@ -30,7 +32,7 @@ public:
 }
   __always_inline float MagnitudeSqr(void) const {
 #ifdef DC_SH4
-    return fipr_magnitude_sqr(x, y,z, 0.0f);
+    return fipr_magnitude_sqr(x, y, z, 0.0f);
 #else
     return x*x + y*y + z*z;
 #endif
@@ -68,7 +70,7 @@ public:
   }
 
   const CVector &operator/=(float right) {
-    right = Invert<false>(right);
+    right = Invert<true, true>(right);
     x *= right;
     y *= right;
     z *= right;
@@ -112,7 +114,7 @@ inline CVector operator*(float left, const CVector &right)
 
 inline CVector operator/(const CVector &left, float right)
 {
-  right = Invert<false>(right);
+  right = Invert<true, true>(right);
   return CVector(left.x * right, left.y * right, left.z * right);
 }
 

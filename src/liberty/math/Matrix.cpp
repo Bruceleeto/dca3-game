@@ -54,20 +54,28 @@ CMatrix::Detach(void)
 void
 CMatrix::Update(void)
 {
+#if 1
 	GetRight() = m_attachment->right;
 	GetForward() = m_attachment->up;
 	GetUp() = m_attachment->at;
 	GetPosition() = m_attachment->pos;
+#else
+    mat_copy(*this, *m_attachment);
+#endif
 }
 
 void
 CMatrix::UpdateRW(void)
 {
 	if (m_attachment) {
+#if 1
 		m_attachment->right = GetRight();
 		m_attachment->up = GetForward();
 		m_attachment->at = GetUp();
 		m_attachment->pos = GetPosition();
+#else
+        mat_copy(*m_attachment, *this);
+#endif
 		RwMatrixUpdate(m_attachment);
 	}
 }
@@ -99,6 +107,7 @@ CMatrix::operator+=(CMatrix const &rhs)
 void
 CMatrix::SetUnity(void)
 {
+#ifndef DC_SH4
 	rx = 1.0f;
 	ry = 0.0f;
 	rz = 0.0f;
@@ -111,6 +120,10 @@ CMatrix::SetUnity(void)
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    dc::mat_identity2();
+    dc::mat_store2(*this);
+#endif
 }
 
 void
@@ -130,6 +143,7 @@ CMatrix::ResetOrientation(void)
 void
 CMatrix::SetScale(float s)
 {
+#ifndef DC_SH4
 	rx = s;
 	ry = 0.0f;
 	rz = 0.0f;
@@ -145,11 +159,16 @@ CMatrix::SetScale(float s)
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    mat_set_scale(s);
+    mat_store2(*this);
+#endif
 }
 
 void
 CMatrix::SetTranslate(float x, float y, float z)
 {
+#if 1
 	rx = 1.0f;
 	ry = 0.0f;
 	rz = 0.0f;
@@ -165,6 +184,10 @@ CMatrix::SetTranslate(float x, float y, float z)
 	px = x;
 	py = y;
 	pz = z;
+#else
+    mat_set_translation(x, y, z);
+    mat_store2(*this);
+#endif
 }
 
 void

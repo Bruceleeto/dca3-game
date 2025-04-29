@@ -384,14 +384,68 @@ inline __hot __icache_aligned void mat_set_scale(float x, float y, float z) {
             fmov	dr2, dr12
             fldi0	fr14
             fschg
+            fmov.s	@%[x], fr0
+            fmov.s	@%[y], fr5
+            fmov.s	@%[z], fr10
+            fldi1   fr15
             frchg
-            fmov    %[x], xf0
-            fmov    %[y], xf5
-            fmov    %[z], xf10
         )"
         :
-        : [x] "r" (x), [y] "r" (y), [z] "r" (z)
+        : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z)
         :
+    );
+}
+
+inline __hot __icache_aligned void mat_set_scale(float s) {
+    asm volatile(
+        R"(
+            frchg
+            fldi0	fr1
+            fschg
+            fldi0	fr2
+            fldi0	fr3
+            fldi0	fr4
+            fmov	dr2, dr6
+            fmov	dr2, dr8
+            fldi0	fr11
+            fmov	dr2, dr12
+            fldi0	fr14
+            fschg
+            fmov.s	@%[s], fr0
+            fmov    fr0, fr5
+            fmov	fr0, fr10
+            fldi1   fr15
+            frchg
+        )"
+        :
+        : [s] "r" (&s)
+        :
+    );
+}
+
+inline __hot __icache_aligned void mat_set_translation(float x, float y, float z) {
+    asm volatile(
+        R"(
+            frchg
+            fldi1	fr0
+            fschg
+            fldi0	fr1
+            fldi0	fr2
+            fldi0	fr3
+            fldi0	fr4
+            fldi1	fr5
+            fmov	dr2,dr6
+            fmov	dr2,dr8
+            fmov	dr0,dr10
+            fschg
+            fmov.s  @%[x], fr12
+            fmov.s  @%[y], fr13
+            fmov.s  @%[z], fr14
+            fldi1   fr15
+            frchg
+        )"
+        :
+        : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z)
     );
 }
 
@@ -747,6 +801,30 @@ __hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, c
     }
 }
 
+template<bool FAST_APPROX=true>
+__always_inline constexpr float fipr2D(float x1, float y1, float x2, float y2) {
+    if(FAST_APPROX && !std::is_constant_evaluated()) {
+        register float v1x asm("fr0") = x1;
+        register float v1y asm("fr1") = y1;
+        register float res asm("fr3");
+
+        register float v2x asm("fr4") = x2;
+        register float v2y asm("fr5") = y2;
+
+        asm volatile(R"(
+                fldi0   fr2
+                fldi0   fr3
+                fipr    fv4, fv0
+            )"
+            : "=f" (res)
+            : "f" (v1x), "f" (v1y), "f" (v2x), "f" (v2y));
+
+        return res;
+    } else {
+        return (x1 * x2 + y1 * y2);
+    }
+}
+
 #   else
 #       ifdef DC_TEXCONV
 #           define mat_apply(a)
@@ -776,6 +854,12 @@ __hot constexpr inline void quat_mult(quaternion_t *r, const quaternion_t &q1, c
         z2 = tmp.z; \
         x2 = tmp.x; \
         y2 = tmp.y; \
+    } while(false)
+
+#define mat_trans_normal3_nomod(x_, y_, z_, x2, y2, z2) do { \
+        vector_t tmp = { x_, y_, z_, 0.0f }; \
+        mat_transform(&tmp, &tmp, 1, 0); \
+        x2 = tmp.x; y2 = tmp.y; z2 = tmp.z; \
     } while(false)
 
 #define mat_trans_nodiv_nomod(x_, y_, z_, x2, y2, z2, w2) do { \
