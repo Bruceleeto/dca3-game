@@ -4957,17 +4957,17 @@ driverOpen(void *o, int32, int32)
 	#endif
 
 	if (pvr_params.fsaa_enabled) {
-		pvr_params.vertex_buf_size = (1024 + 768) * 1024;
-		pvr_params.opb_overflow_count = 4; // 307200 bytes
-	} else {
-		pvr_params.vertex_buf_size = (1024 + 1024) * 1024;
-		pvr_params.opb_overflow_count = 7; // 268800 bytes
-	}
+	pvr_params.vertex_buf_size = (1024 + 768) * 1024;  // ≈ 1.75 MB
+	pvr_params.opb_overflow_count = 4; // 307200 bytes
+} else {
+	pvr_params.vertex_buf_size = (int)(2.5f * 1024 * 1024);  // 2.5 MB
+	pvr_params.opb_overflow_count = 7; // 268800 bytes
+}
 
-	if (videoModes[VIDEO_MODE].depth == 24) {
-		pvr_params.vertex_buf_size -= 128 * 1024;
-		pvr_params.opb_overflow_count -= pvr_params.fsaa_enabled ? 1 : 2;
-	}
+if (videoModes[VIDEO_MODE].depth == 24) {
+	pvr_params.vertex_buf_size -= 128 * 1024;
+	pvr_params.opb_overflow_count -= pvr_params.fsaa_enabled ? 1 : 2;
+}
 
 	#if !defined(DC_SIM)
 	vid_set_mode(DM_640x480, videoModes[VIDEO_MODE].depth == 24 ? PM_RGB888P : PM_RGB565);
