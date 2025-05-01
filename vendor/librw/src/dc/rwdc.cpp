@@ -1327,9 +1327,9 @@ static uint32 cullModePvr;
 
 static inline unsigned pvrCullMode(uint32_t cullMode) {
 	switch(cullMode) {
-		case CULLNONE: return PVR_CULLING_SMALL;
-		case CULLBACK: return PVR_CULLING_CW;
-		default:       return PVR_CULLING_CCW;
+		case CULLNONE: return PVR_CULLING_NONE;  // No descartar nada
+		case CULLBACK: return PVR_CULLING_NONE;  // No descartar nada
+		default:       return PVR_CULLING_NONE;  // No descartar nada
 	}
 }
 
