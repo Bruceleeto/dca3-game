@@ -3267,24 +3267,24 @@ CCam::Process_BehindBoat(const CVector &CameraTarget, float TargetOrientation, f
 	if(m_bCollisionChecksOn || ResetStatics){
 		CVector TestPoint;
 		// Weird calculations here, also casting bool to float...
-		c = Cos(TargetOrientation);
-		s = Sin(TargetOrientation);
+		c = Cos<false>(TargetOrientation);
+		s = Sin<false>(TargetOrientation);
 		TestPoint = TheCamera.CarZoomValueSmooth * CVector(-c, -s, 0.0f) +
 			(TheCamera.CarZoomValueSmooth+7.0f) * CVector(-c, -s, 0.0f) +
 			TargetCoors;
 		TestPoint.z = WaterLevel + TheCamera.CarZoomValueSmooth;
 		float Test1 = CWorld::GetIsLineOfSightClear(TestPoint, TargetCoors, true, false, false, true, false, true, true);
 
-		c = Cos(TargetOrientation + 0.8f);
-		s = Sin(TargetOrientation + DEGTORAD(40.0f));
+		c = Cos<false>(TargetOrientation + 0.8f);
+		s = Sin<false>(TargetOrientation + DEGTORAD(40.0f));
 		TestPoint = TheCamera.CarZoomValueSmooth * CVector(-c, -s, 0.0f) +
 			(TheCamera.CarZoomValueSmooth+7.0f) * CVector(-c, -s, 0.0f) +
 			TargetCoors;
 		TestPoint.z = WaterLevel + TheCamera.CarZoomValueSmooth;
 		float Test2 = CWorld::GetIsLineOfSightClear(TestPoint, TargetCoors, true, false, false, true, false, true, true);
 
-		c = Cos(TargetOrientation - 0.8);
-		s = Sin(TargetOrientation - DEGTORAD(40.0f));
+		c = Cos<false>(TargetOrientation - 0.8);
+		s = Sin<false>(TargetOrientation - DEGTORAD(40.0f));
 		TestPoint = TheCamera.CarZoomValueSmooth * CVector(-c, -s, 0.0f) +
 			(TheCamera.CarZoomValueSmooth+7.0f) * CVector(-c, -s, 0.0f) +
 			TargetCoors;
@@ -3307,8 +3307,7 @@ CCam::Process_BehindBoat(const CVector &CameraTarget, float TargetOrientation, f
 			DeltaBeta = TargetOrientation - Beta;
 		}
 
-		c = Cos(Beta);
-		s = Sin(Beta);
+		auto [s, c] = SinCos<false>(Beta);
 		TestPoint.x = TheCamera.CarZoomValueSmooth * -c +
 			(TheCamera.CarZoomValueSmooth + 7.0f) * -c +
 			TargetCoors.x;
@@ -3333,8 +3332,7 @@ CCam::Process_BehindBoat(const CVector &CameraTarget, float TargetOrientation, f
 		// inlined
 		WellBufferMe(TargetWhenChecksWereOn, &Beta, &BetaSpeed, 0.07f, 0.015f, true);
 
-		s = Sin(Beta);
-		c = Cos(Beta);
+		auto [s, c] = SinCos<false>(Beta);
 		Source = TheCamera.CarZoomValueSmooth * CVector(-c, -s, 0.0f) +
 			(TheCamera.CarZoomValueSmooth+7.0f) * CVector(-c, -s, 0.0f) +
 			TargetCoors;

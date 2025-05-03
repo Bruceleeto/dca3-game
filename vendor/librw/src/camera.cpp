@@ -493,33 +493,7 @@ Camera::frustumTestSphere(const Sphere *s) const
 	static_assert(offsetof (decltype (p[0].plane), distance)
 				 -offsetof (decltype (p[0].plane.normal), z) == sizeof (float));
 
-	asm volatile (R"(
-		frchg
-
-		fmov.s  @%0+,fr0
-		fmov.s  @%1+,fr1
-		fmov.s  @%2+,fr2
-		fmov.s  @%3+,fr3
-
-		fmov.s  @%0+,fr4
-		fmov.s  @%1+,fr5
-		fmov.s  @%2+,fr6
-		fmov.s  @%3+,fr7
-
-		fmov.s  @%0+,fr8
-		fmov.s  @%1+,fr9
-		fmov.s  @%2+,fr10
-		fmov.s  @%3+,fr11
-
-		fmov.s  @%0,fr12
-		fmov.s  @%1,fr13
-		fmov.s  @%2,fr14
-		fmov.s  @%3,fr15
-
-		frchg
-	)" : "+&r" (base_ptr0), "+&r" (base_ptr1), "+&r" (base_ptr2), "+&r" (base_ptr3)
-	:
-	: );
+    mat_load_rows(base_ptr0, base_ptr1, base_ptr2, base_ptr3);
 
 	float dists[4];
 	mat_trans_vec4_nodiv_nomod(sx, sy, sz, sw,
@@ -643,33 +617,7 @@ Camera::frustumTestSphereNear(const Sphere *s) const
 	static_assert(offsetof (decltype (p[0].plane), distance)
 				 -offsetof (decltype (p[0].plane.normal), z) == sizeof (float));
 
-	asm volatile (R"(
-		frchg
-
-		fmov.s  @%0+,fr0
-		fmov.s  @%1+,fr1
-		fmov.s  @%2+,fr2
-		fmov.s  @%3+,fr3
-
-		fmov.s  @%0+,fr4
-		fmov.s  @%1+,fr5
-		fmov.s  @%2+,fr6
-		fmov.s  @%3+,fr7
-
-		fmov.s  @%0+,fr8
-		fmov.s  @%1+,fr9
-		fmov.s  @%2+,fr10
-		fmov.s  @%3+,fr11
-
-		fmov.s  @%0,fr12
-		fmov.s  @%1,fr13
-		fmov.s  @%2,fr14
-		fmov.s  @%3,fr15
-
-		frchg
-	)" : "+&r" (base_ptr0), "+&r" (base_ptr1), "+&r" (base_ptr2), "+&r" (base_ptr3)
-	:
-	: );
+    mat_load_rows(base_ptr0, base_ptr1, base_ptr2, base_ptr3);
 
 	float dists[4];
 	mat_trans_vec4_nodiv_nomod(sx, sy, sz, sw,

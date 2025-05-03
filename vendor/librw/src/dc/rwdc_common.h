@@ -66,9 +66,38 @@ struct quaternion_t {
     float x, y, z, w;
 };
 
-__always_inline __hot constexpr float Sin(float x) { return sinf(x); }
-__always_inline __hot constexpr float Cos(float x) { return cosf(x); }
-__always_inline __hot constexpr auto  SinCos(float x) { return std::pair { Sin(x), Cos(x) }; }
+template<bool BUILTIN=true>
+__always_inline __hot constexpr float Sin(float x) {
+#ifdef DC_SH4
+    if constexpr(!BUILTIN)
+        return fsin(x);
+    else
+#endif
+    return sinf(x);
+}
+
+template<bool BUILTIN=true>
+__always_inline __hot constexpr float Cos(float x) {
+#ifdef DC_SH4
+    if constexpr(!BUILTIN)
+        return fcos(x);
+    else
+#endif
+    return cosf(x);
+}
+
+template<bool BUILTIN=true>
+__always_inline __hot constexpr auto SinCos(float x) {
+#ifdef DC_SH4
+    if constexpr(!BUILTIN) {
+        std::pair<float, float> result;
+        fsincosr(x, &std::get<0>(result), &std::get<1>(result));
+        return result;
+    } else
+#endif
+    return std::pair { Sin(x), Cos(x) };
+}
+
 __always_inline __hot constexpr float Tan(float x) { return tanf(x); }
 __always_inline __hot constexpr float Atan(float x) { return atanf(x); }
 __always_inline __hot constexpr float Atan2(float y, float x) { return atan2f(y, x); }
@@ -78,8 +107,73 @@ __always_inline __hot constexpr float Abs(float x) { return fabsf(x); }
 __always_inline __hot constexpr float Sqrt(float x) { return sqrtf(x); }
 __always_inline __hot constexpr float RecipSqrt(float x, float y) { return x / Sqrt(y); }
 __always_inline __hot constexpr float Pow(float x, float y) { return powf(x, y); }
-__always_inline __hot constexpr float Floor(float x) { return floorf(x); }
-__always_inline __hot constexpr float Ceil(float x) { return ceilf(x); }
+
+template<bool FAST_APPROX=false>
+__always_inline __hot constexpr float Floor(float x) {
+#ifdef DC_SH4
+    if(!std::is_constant_evaluated() && FAST_APPROX) {
+        float output_float;
+        unsigned int scratch_reg;
+        unsigned int scratch_reg2;
+
+        asm volatile (R"(
+            mov     #0x4f, %[scratch]
+            shll16  %[scratch]
+            shll8   %[scratch]
+            lds     %[scratch], fpul
+            mov     #1, %[scratch2]
+            fsts    fpul, %[float_out]
+            fadd    %[floatx], %[float_out]
+            rotr    %[scratch2]
+            ftrc    %[float_out], fpul
+            sts     fpul, %[scratch]
+            add     %[scratch2], %[scratch]
+            lds     %[scratch], fpul
+            float   fpul, %[float_out]
+        )"
+        : [scratch] "=&r" (scratch_reg), [scratch2] "=&r" (scratch_reg2), [float_out] "=&f" (output_float)
+        : [floatx] "f" (x)
+        : "fpul", "t");
+
+        return output_float;
+    } else
+#endif
+    return floorf(x);
+}
+
+template<bool FAST_APPROX=false>
+__always_inline __hot constexpr float Ceil(float x) {
+#ifdef DC_SH4
+    if(!std::is_constant_evaluated() && FAST_APPROX) {
+        float output_float;
+        unsigned int scratch_reg;
+        unsigned int scratch_reg2;
+
+        asm volatile (R"(
+            mov     #0x4f, %[scratch]
+            shll16  %[scratch]
+            shll8   %[scratch]
+            lds     %[scratch], fpul
+            mov     #1, %[scratch2]
+            fsts    fpul, %[float_out]
+            fsub    %[floatx], %[float_out]
+            rotr    %[scratch2]
+            ftrc    %[float_out], fpul
+            sts     fpul, %[scratch]
+            add     %[scratch2], %[scratch]
+            lds     %[scratch], fpul
+            float   fpul, %[float_out]
+            fneg    %[float_out]
+        )"
+        : [scratch] "=&r" (scratch_reg), [scratch2] "=&r" (scratch_reg2), [float_out] "=&f" (output_float)
+        : [floatx] "f" (x)
+        : "fpul", "t");
+
+        return output_float;
+    } else
+#endif
+    return ceilf(x);
+}
 __always_inline __hot constexpr float Fmac(auto a, auto b, auto c) { return a * b + c; }
 __always_inline __hot constexpr float Lerp(float a, float b, float t) { return Fmac(t, (b - a), a); }
 __always_inline __hot constexpr auto Max(auto a, auto b) { return ((a > b)? a : b); }
@@ -94,7 +188,7 @@ __always_inline __hot constexpr float RecipSqrt(float x) {
     return 1.0f / Sqrt(x); 
 }
 
-template<typename T>
+template<typename T, bool FAST_APPROX=true>
 __always_inline __hot constexpr T Clamp(T v, auto low, auto high) {
     return std::clamp(v, static_cast<T>(low), static_cast<T>(high));
 }
@@ -185,108 +279,133 @@ __always_inline __hot constexpr auto Norm(auto value, auto min, auto max) {
         x2 = __x; y2 = __y; z2 = __z; w2 = __w; \
     } while(false)
 
-inline __hot __icache_aligned void mat_load2(const matrix_t *mtx) {
-    asm volatile(
-        R"(
-            fschg
-            fmov.d	@%[mtx],xd0
-            add	    #32,%[mtx]
-            pref	@%[mtx]
-            add	    #-(32-8),%[mtx]
-            fmov.d	@%[mtx]+,xd2
-            fmov.d	@%[mtx]+,xd4
-            fmov.d	@%[mtx]+,xd6
-            fmov.d	@%[mtx]+,xd8
-            fmov.d	@%[mtx]+,xd10
-            fmov.d	@%[mtx]+,xd12
-            fmov.d	@%[mtx]+,xd14
-            fschg
-        )"
-        : [mtx] "+r" (mtx)
-        :
-        :
-    );
+inline __hot __icache_aligned
+void mat_load2(const matrix_t *mtx) {
+    asm volatile(R"(
+        fschg
+        fmov.d	@%[mtx],xd0
+        add	    #32,%[mtx]
+        pref	@%[mtx]
+        add	    #-(32-8),%[mtx]
+        fmov.d	@%[mtx]+,xd2
+        fmov.d	@%[mtx]+,xd4
+        fmov.d	@%[mtx]+,xd6
+        fmov.d	@%[mtx]+,xd8
+        fmov.d	@%[mtx]+,xd10
+        fmov.d	@%[mtx]+,xd12
+        fmov.d	@%[mtx]+,xd14
+        fschg
+    )"
+    : [mtx] "+r" (mtx));
 }
 
-inline __hot __icache_aligned void mat_load_transpose(const matrix_t *mtx) {
-    asm volatile(
-        R"(
-            frchg
+inline __hot __icache_aligned
+void mat_load_transpose(const matrix_t *mtx) {
+    asm volatile(R"(
+        frchg
 
-            fmov.s  @%[mtx]+, fr0
+        fmov.s  @%[mtx]+, fr0
 
-            add     #32, %[mtx]
-            pref    @%[mtx]
-            add     #-(32 - 4), %[mtx]
+        add     #32, %[mtx]
+        pref    @%[mtx]
+        add     #-(32 - 4), %[mtx]
 
-            fmov.s  @%[mtx]+, fr4
-            fmov.s  @%[mtx]+, fr8
-            fmov.s  @%[mtx]+, fr12
+        fmov.s  @%[mtx]+, fr4
+        fmov.s  @%[mtx]+, fr8
+        fmov.s  @%[mtx]+, fr12
 
-            fmov.s  @%[mtx]+, fr1
-            fmov.s  @%[mtx]+, fr5
-            fmov.s  @%[mtx]+, fr9
-            fmov.s  @%[mtx]+, fr13
+        fmov.s  @%[mtx]+, fr1
+        fmov.s  @%[mtx]+, fr5
+        fmov.s  @%[mtx]+, fr9
+        fmov.s  @%[mtx]+, fr13
 
-            fmov.s  @%[mtx]+, fr2
-            fmov.s  @%[mtx]+, fr6
-            fmov.s  @%[mtx]+, fr10
-            fmov.s  @%[mtx]+, fr14
+        fmov.s  @%[mtx]+, fr2
+        fmov.s  @%[mtx]+, fr6
+        fmov.s  @%[mtx]+, fr10
+        fmov.s  @%[mtx]+, fr14
 
-            fmov.s  @%[mtx]+, fr3
-            fmov.s  @%[mtx]+, fr7
-            fmov.s  @%[mtx]+, fr11
-            fmov.s  @%[mtx]+, fr15
+        fmov.s  @%[mtx]+, fr3
+        fmov.s  @%[mtx]+, fr7
+        fmov.s  @%[mtx]+, fr11
+        fmov.s  @%[mtx]+, fr15
 
-            frchg
-        )"
-        : [mtx] "+r" (mtx)
-        :
-        :
-    );
+        frchg
+    )"
+    : [mtx] "+r" (mtx));
 }
 
-inline __hot __icache_aligned void mat_load_3x3_transpose(const matrix_t *mtx) {
-    asm volatile(
-        R"(
-            frchg
+inline __hot __icache_aligned
+void mat_load_rows(const float *r1, const float *r2, const float *r3, const float *r4) {
+    asm volatile (R"(
+		frchg
 
-            fmov.s  @%[mtx]+, fr0
+        pref    @%1
+		fmov.s  @%0+,fr0
+		fmov.s  @%0+,fr4
+		fmov.s  @%0+,fr8
+		fmov.s  @%0, fr12
 
-            add     #32, %[mtx]
-            pref    @%[mtx]
-            add     #-(32 - 4), %[mtx]
+        pref    @%2
+        fmov.s  @%1+,fr1
+		fmov.s  @%1+,fr5
+		fmov.s  @%1+,fr9
+		fmov.s  @%1, fr13
 
-            fmov.s  @%[mtx]+, fr4
-            fmov.s  @%[mtx]+, fr8
-            fldi0   fr12
-            add     #4, %[mtx]
+        pref    @%3
+        fmov.s  @%2+,fr2
+		fmov.s  @%2+,fr6
+		fmov.s  @%2+,fr10
+		fmov.s  @%2,fr14
 
-            fmov.s  @%[mtx]+, fr1
-            fmov.s  @%[mtx]+, fr5
-            fmov.s  @%[mtx]+, fr9
-            fldi0   fr13
-            add     #4, %[mtx]
+        fmov.s  @%3+,fr3
+		fmov.s  @%3+,fr7
+		fmov.s  @%3+,fr11
+		fmov.s  @%3,fr15
 
-            fmov.s  @%[mtx]+, fr2
-            fmov.s  @%[mtx]+, fr6
-            fmov.s  @%[mtx]+, fr10
-            fldi0   fr14
-
-            fldi0  fr3
-            fldi0  fr7
-            fmov   fr3, fr11
-            fldi1  fr15
-
-            frchg
-        )"
-        : [mtx] "+r" (mtx)
-        :
-        :
-    );
+		frchg
+	)"
+    : "+&r" (r1), "+&r" (r2), "+&r" (r3), "+&r" (r4));
 }
 
-inline __hot __icache_aligned void mat_invert_tranpose() {
+inline __hot __icache_aligned
+void mat_load_3x3_transpose(const matrix_t *mtx) {
+    asm volatile(R"(
+        frchg
+
+        fmov.s  @%[mtx]+, fr0
+
+        add     #32, %[mtx]
+        pref    @%[mtx]
+        add     #-(32 - 4), %[mtx]
+
+        fmov.s  @%[mtx]+, fr4
+        fmov.s  @%[mtx]+, fr8
+        fldi0   fr12
+        add     #4, %[mtx]
+
+        fmov.s  @%[mtx]+, fr1
+        fmov.s  @%[mtx]+, fr5
+        fmov.s  @%[mtx]+, fr9
+        fldi0   fr13
+        add     #4, %[mtx]
+
+        fmov.s  @%[mtx]+, fr2
+        fmov.s  @%[mtx]+, fr6
+        fmov.s  @%[mtx]+, fr10
+        fldi0   fr14
+
+        fldi0  fr3
+        fldi0  fr7
+        fmov   fr3, fr11
+        fldi1  fr15
+
+        frchg
+    )"
+    : [mtx] "+r" (mtx));
+}
+
+inline __hot __icache_aligned
+void mat_invert_tranpose() {
 	asm volatile(
 		"frchg\n\t"
 		"fneg	fr12\n\t"
@@ -323,235 +442,249 @@ inline __hot __icache_aligned void mat_invert_tranpose() {
 		:);
 }
 
-inline __hot __icache_aligned void mat_store2(matrix_t *mtx) {
-    asm volatile(
-        R"(
-            fschg
-            add	    #64-8,%[mtx]
-            fmov.d	xd14,@%[mtx]
-            add	    #-32,%[mtx]
-            pref	@%[mtx]
-            add	    #32,%[mtx]
-            fmov.d	xd12,@-%[mtx]
-            fmov.d	xd10,@-%[mtx]
-            fmov.d	xd8,@-%[mtx]
-            fmov.d	xd6,@-%[mtx]
-            fmov.d	xd4,@-%[mtx]
-            fmov.d	xd2,@-%[mtx]
-            fmov.d	xd0,@-%[mtx]
-            fschg
-        )"
-        : [mtx] "+&r" (mtx), "=m" (*mtx)
-        :
-        :
-    );
+inline __hot __icache_aligned
+void mat_store2(matrix_t *mtx) {
+    asm volatile(R"(
+        fschg
+        add	    #64-8,%[mtx]
+        fmov.d	xd14,@%[mtx]
+        add	    #-32,%[mtx]
+        pref	@%[mtx]
+        add	    #32,%[mtx]
+        fmov.d	xd12,@-%[mtx]
+        fmov.d	xd10,@-%[mtx]
+        fmov.d	xd8,@-%[mtx]
+        fmov.d	xd6,@-%[mtx]
+        fmov.d	xd4,@-%[mtx]
+        fmov.d	xd2,@-%[mtx]
+        fmov.d	xd0,@-%[mtx]
+        fschg
+    )"
+    : [mtx] "+&r" (mtx), "=m" (*mtx));
 }
 
-inline __hot __icache_aligned void mat_identity2(void) {
-    asm volatile(
-        R"(
-            frchg
-            fldi1	fr0
-            fschg
-            fldi0	fr1
-            fldi0	fr2
-            fldi0	fr3
-            fldi0	fr4
-            fldi1	fr5
-            fmov	dr2,dr6
-            fmov	dr2,dr8
-            fmov	dr0,dr10
-            fmov	dr2,dr12
-            fmov	dr4,dr14
-            fschg
-            frchg
-        )"
-    );
+inline __hot __icache_aligned
+void mat_identity2(void) {
+    asm volatile(R"(
+        frchg
+        fldi1	fr0
+        fschg
+        fldi0	fr1
+        fldi0	fr2
+        fldi0	fr3
+        fldi0	fr4
+        fldi1	fr5
+        fmov	dr2,dr6
+        fmov	dr2,dr8
+        fmov	dr0,dr10
+        fmov	dr2,dr12
+        fmov	dr4,dr14
+        fschg
+        frchg
+    )");
 }
 
-inline __hot __icache_aligned void mat_set_scale(float x, float y, float z) {
-    asm volatile(
-        R"(
-            frchg
-            fldi0	fr1
-            fschg
-            fldi0	fr2
-            fldi0	fr3
-            fldi0	fr4
-            fmov	dr2, dr6
-            fmov	dr2, dr8
-            fldi0	fr11
-            fmov	dr2, dr12
-            fldi0	fr14
-            fschg
-            fmov.s	@%[x], fr0
-            fmov.s	@%[y], fr5
-            fmov.s	@%[z], fr10
-            fldi1   fr15
-            frchg
-        )"
-        :
-        : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z)
-        :
-    );
+inline __hot __icache_aligned
+void mat_set_scale(float x, float y, float z) {
+    asm volatile(R"(
+        frchg
+        fldi0	fr1
+        fschg
+        fldi0	fr2
+        fldi0	fr3
+        fldi0	fr4
+        fmov	dr2, dr6
+        fmov	dr2, dr8
+        fldi0	fr11
+        fmov	dr2, dr12
+        fldi0	fr14
+        fschg
+        fmov.s	@%[x], fr0
+        fmov.s	@%[y], fr5
+        fmov.s	@%[z], fr10
+        fldi1   fr15
+        frchg
+    )"
+    :
+    : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z));
 }
 
-inline __hot __icache_aligned void mat_set_scale(float s) {
-    asm volatile(
-        R"(
-            frchg
-            fldi0	fr1
-            fschg
-            fldi0	fr2
-            fldi0	fr3
-            fldi0	fr4
-            fmov	dr2, dr6
-            fmov	dr2, dr8
-            fldi0	fr11
-            fmov	dr2, dr12
-            fldi0	fr14
-            fschg
-            fmov.s	@%[s], fr0
-            fmov    fr0, fr5
-            fmov	fr0, fr10
-            fldi1   fr15
-            frchg
-        )"
-        :
-        : [s] "r" (&s)
-        :
-    );
+inline __hot __icache_aligned
+void mat_set_scale(float s) {
+    asm volatile(R"(
+        frchg
+        fldi0	fr1
+        fschg
+        fldi0	fr2
+        fldi0	fr3
+        fldi0	fr4
+        fmov	dr2, dr6
+        fmov	dr2, dr8
+        fldi0	fr11
+        fmov	dr2, dr12
+        fldi0	fr14
+        fschg
+        fmov.s	@%[s], fr0
+        fmov    fr0, fr5
+        fmov	fr0, fr10
+        fldi1   fr15
+        frchg
+    )"
+    :
+    : [s] "r" (&s));
 }
 
-inline __hot __icache_aligned void mat_set_translation(float x, float y, float z) {
-    asm volatile(
-        R"(
-            frchg
-            fldi1	fr0
-            fschg
-            fldi0	fr1
-            fldi0	fr2
-            fldi0	fr3
-            fldi0	fr4
-            fldi1	fr5
-            fmov	dr2,dr6
-            fmov	dr2,dr8
-            fmov	dr0,dr10
-            fschg
-            fmov.s  @%[x], fr12
-            fmov.s  @%[y], fr13
-            fmov.s  @%[z], fr14
-            fldi1   fr15
-            frchg
-        )"
-        :
-        : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z)
-    );
+// Don't multiply anything by fr3, since not loading from vector????
+inline __hot __icache_aligned
+void mat_apply_scale(float x, float y, float z) {
+    asm volatile(R"(
+        fschg
+        fmov	xd0, dr4
+        fmov	xd2, dr6
+        fschg
+
+        frchg
+        fmov.s  @%[x], fr0
+        fmov.s  @%[y], fr1
+        fmov.s  @%[z], fr2
+
+        fmul	fr0, fr4
+        fmul	fr0, fr8
+        fmul	fr0, fr12
+        fmul	fr1, fr5
+        fmul	fr1, fr9
+        fmul	fr1, fr13
+        fmul	fr2, fr6
+        fmul	fr2, fr10
+        fmul	fr2, fr14
+
+        fschg
+        fmov	dr4, xd0
+        fmul	fr3, fr7
+        fmov	dr6, xd2
+        fmul	fr3, fr11
+        fmov	xd4, dr4
+        fmul	fr3, fr15
+        fmov	xd6, dr6
+        fschg
+
+        fmul	fr4, fr0
+
+        fmul	fr5, fr1
+        fmul	fr6, fr2
+        fmul	fr7, fr3
+
+        fschg
+        fmov	xd0, dr4
+        fmov	xd2, dr6
+        fschg
+
+        frchg
+    )"
+    :
+    : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z)
+    : "fr0", "fr1", "fr2");
 }
 
-// no declspec naked, so can't do rts / fschg. instead compiler pads with nop?
-inline __hot void mat_load_3x3(const rw::Matrix* mtx) {
-    __asm__ __volatile__ (
-        R"(
-            fschg
-            frchg
+inline __hot __icache_aligned
+void mat_apply_translation(float x, float y, float z) {
+    asm volatile(R"(
+        fschg
+        fmov	xd12, dr4
+        fmov	xd14, dr6
+        fschg
 
-            fmov        @%[mtx]+, dr0
+        fmov.s  @%[x], fr0
+        fmov.s  @%[y], fr1
+        fmov.s  @%[z], fr2
 
-            fldi0 		fr12
-            fldi0 		fr13
+        fadd	fr0, fr4
+        fadd	fr1, fr5
+        fadd	fr2, fr6
 
-            fmov        @%[mtx]+, dr2
-            fmov        @%[mtx]+, dr4
-            fmov        @%[mtx]+, dr6
-            fmov        @%[mtx]+, dr8
-            fmov        @%[mtx]+, dr10
-
-            fldi0	    fr3
-            fldi0	    fr7
-            fldi0	    fr11
-            fmov        dr12, dr14
-
-            fschg
-            frchg
-        )"
-        : [mtx] "+r" (mtx)
-    );
+        fschg
+        fmov	dr4, xd12
+        fmov	dr6, xd14
+        fschg
+    )"
+    :
+    : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z)
+    : "fr0", "fr1", "fr2", "fr4", "fr5", "fr6", "fr7");
 }
 
-// sets pos.w to 1
-inline __hot void mat_load_4x4(const rw::Matrix* mtx) {
-		__asm__ __volatile__ (
-			R"(
-				fschg
-				frchg
-				fmov        @%[mtx]+, dr0
-
-				fmov        @%[mtx]+, dr2
-				fmov        @%[mtx]+, dr4
-				fmov        @%[mtx]+, dr6
-				fmov        @%[mtx]+, dr8
-				fmov        @%[mtx]+, dr10
-				fmov        @%[mtx]+, dr12
-				fmov        @%[mtx]+, dr14
-				fldi1 	 	fr15
-
-				fschg
-				frchg
-			)"
-			: [mtx] "+r" (mtx)
-		);
-	}
-
-__hot inline void mat_transpose(void) {
-    asm volatile (
-        "frchg\n\t" // fmov for singles only works on front bank
-        // FR0, FR5, FR10, and FR15 are already in place
-        // swap FR1 and FR4
-        "flds FR1, FPUL\n\t"
-        "fmov FR4, FR1\n\t"
-        "fsts FPUL, FR4\n\t"
-        // swap FR2 and FR8
-        "flds FR2, FPUL\n\t"
-        "fmov FR8, FR2\n\t"
-        "fsts FPUL, FR8\n\t"
-        // swap FR3 and FR12
-        "flds FR3, FPUL\n\t"
-        "fmov FR12, FR3\n\t"
-        "fsts FPUL, FR12\n\t"
-        // swap FR6 and FR9
-        "flds FR6, FPUL\n\t"
-        "fmov FR9, FR6\n\t"
-        "fsts FPUL, FR9\n\t"
-        // swap FR7 and FR13
-        "flds FR7, FPUL\n\t"
-        "fmov FR13, FR7\n\t"
-        "fsts FPUL, FR13\n\t"
-        // swap FR11 and FR14
-        "flds FR11, FPUL\n\t"
-        "fmov FR14, FR11\n\t"
-        "fsts FPUL, FR14\n\t"
-        // restore XMTRX to back bank
-        "frchg\n"
-        : // no outputs
-        : // no inputs
-        : "fpul" // clobbers
-    );
+inline __hot __icache_aligned
+void mat_set_translation(float x, float y, float z) {
+    asm volatile(R"(
+        frchg
+        fldi1	fr0
+        fschg
+        fldi0	fr1
+        fldi0	fr2
+        fldi0	fr3
+        fldi0	fr4
+        fldi1	fr5
+        fmov	dr2,dr6
+        fmov	dr2,dr8
+        fmov	dr0,dr10
+        fschg
+        fmov.s  @%[x], fr12
+        fmov.s  @%[y], fr13
+        fmov.s  @%[z], fr14
+        fldi1   fr15
+        frchg
+    )"
+    :
+    : [x] "r" (&x), [y] "r" (&y), [z] "r" (&z));
 }
 
-__hot __icache_aligned inline void mat_copy(matrix_t *dst, const matrix_t *src) {
+inline __hot __icache_aligned
+void mat_transpose(void) {
+    asm volatile (R"(
+        frchg
+
+        flds    fr1, fpul
+        fmov    fr4, fr1
+        fsts    fpul, fr4
+
+        flds    fr2, fpul
+        fmov    fr8, fr2
+        fsts    fpul, fr8
+
+        flds    fr3, fpul
+        fmov    fr12, fr3
+        fsts    fpul, fr12
+
+        flds    fr6, fpul
+        fmov    fr9, fr6
+        fsts    fpul, fr9
+
+        flds    fr7, fpul
+        fmov    fr13, fr7
+        fsts    fpul, fr13
+
+        flds    fr11, fpUL
+        fmov    fr14, fr11
+        fsts    fpul, fr14
+
+        frchg
+    )"
+    :
+    :
+    : "fpul");
+}
+
+__hot __icache_aligned inline
+void mat_copy(matrix_t *dst, const matrix_t *src) {
     asm volatile(R"(
         fschg
 
         pref    @%[dst]
-
         fmov.d  @%[src]+, xd0
         fmov.d  @%[src]+, xd2
         fmov.d  @%[src]+, xd4
         fmov.d  @%[src]+, xd6
     
         pref    @%[src]
-
         add     #32, %[dst]
 
         fmov.d  xd6, @-%[dst]
@@ -568,141 +701,243 @@ __hot __icache_aligned inline void mat_copy(matrix_t *dst, const matrix_t *src) 
         fmov.d  @%[src]+, xd6
 
         add     #32, %[dst]
-
         fmov.d  xd6, @-%[dst]
         fmov.d  xd4, @-%[dst]
         fmov.d  xd2, @-%[dst]
         fmov.d  xd0, @-%[dst]
 
         fschg
-    )": [dst] "+&r" (dst), [src] "+&r" (src), "=m" (*dst)
-      :
-      :);
+    )"
+    : [dst] "+&r" (dst), [src] "+&r" (src), "=m" (*dst));
 }
 
-__hot inline void mat_load_apply(const matrix_t* matrix1, const matrix_t* matrix2) {
+constexpr float fsca_scale = 10430.37835f;
+
+__hot __icache_aligned inline
+void mat_load_apply(const matrix_t* matrix1, const matrix_t* matrix2) {
     unsigned int prefetch_scratch;
 
-    asm volatile (
-        "mov %[bmtrx], %[pref_scratch]\n\t" // (MT)
-        "add #32, %[pref_scratch]\n\t" // offset by 32 (EX - flow dependency, but 'add' is actually parallelized since 'mov Rm, Rn' is 0-cycle)
-        "fschg\n\t" // switch fmov to paired moves (note: only paired moves can access XDn regs) (FE)
-        "pref @%[pref_scratch]\n\t" // Get a head start prefetching the second half of the 64-byte data (LS)
-        // back matrix
-        "fmov.d @%[bmtrx]+, XD0\n\t" // (LS)
-        "fmov.d @%[bmtrx]+, XD2\n\t"
-        "fmov.d @%[bmtrx]+, XD4\n\t"
-        "fmov.d @%[bmtrx]+, XD6\n\t"
-        "pref @%[fmtrx]\n\t" // prefetch fmtrx now while we wait (LS)
-        "fmov.d @%[bmtrx]+, XD8\n\t" // bmtrx prefetch should work for here
-        "fmov.d @%[bmtrx]+, XD10\n\t"
-        "fmov.d @%[bmtrx]+, XD12\n\t"
-        "mov %[fmtrx], %[pref_scratch]\n\t" // (MT)
-        "add #32, %[pref_scratch]\n\t" // store offset by 32 in r0 (EX - flow dependency, but 'add' is actually parallelized since 'mov Rm, Rn' is 0-cycle)
-        "fmov.d @%[bmtrx], XD14\n\t"
-        "pref @%[pref_scratch]\n\t" // Get a head start prefetching the second half of the 64-byte data (LS)
-        // front matrix
-        // interleave loads and matrix multiply 4x4
-        "fmov.d @%[fmtrx]+, DR0\n\t"
-        "fmov.d @%[fmtrx]+, DR2\n\t"
-        "fmov.d @%[fmtrx]+, DR4\n\t" // (LS) want to issue the next one before 'ftrv' for parallel exec
-        "ftrv XMTRX, FV0\n\t" // (FE)
+    asm volatile (R"(
+        mov     %[m1], %[prefscr]
+        add     #32, %[prefscr]
+        fschg
+        pref    @%[prefscr]
 
-        "fmov.d @%[fmtrx]+, DR6\n\t"
-        "fmov.d @%[fmtrx]+, DR8\n\t"
-        "ftrv XMTRX, FV4\n\t"
+        fmov.d  @%[m1]+, xd0
+        fmov.d  @%[m1]+, xd2
+        fmov.d  @%[m1]+, xd4
+        fmov.d  @%[m1]+, xd6
+        pref    @%[m1]
+        fmov.d  @%[m1]+, xd8
+        fmov.d  @%[m1]+, xd10
+        fmov.d  @%[m1]+, xd12
+        mov     %[m2], %[prefscr]
+        add     #32, %[prefscr]
+        fmov.d  @%[m1], xd14
+        pref    @%[prefscr]
 
-        "fmov.d @%[fmtrx]+, DR10\n\t"
-        "fmov.d @%[fmtrx]+, DR12\n\t"
-        "ftrv XMTRX, FV8\n\t"
+        fmov.d  @%[m2]+, dr0
+        fmov.d  @%[m2]+, dr2
+        fmov.d  @%[m2]+, dr4
+        ftrv    xmtrx, fv0
 
-        "fmov.d @%[fmtrx], DR14\n\t" // (LS, but this will stall 'ftrv' for 3 cycles)
-        "fschg\n\t" // switch back to single moves (and avoid stalling 'ftrv') (FE)
-        "ftrv XMTRX, FV12\n\t" // (FE)
-        // Save output in XF regs
-        "frchg\n"
-        : [bmtrx] "+&r" ((unsigned int)matrix1), [fmtrx] "+r" ((unsigned int)matrix2), [pref_scratch] "=&r" (prefetch_scratch) // outputs, "+" means r/w, "&" means it's written to before all inputs are consumed
-        : // no inputs
-        : "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15" // clobbers (GCC doesn't know about back bank, so writing to it isn't clobbered)
-    );
+        fmov.d  @%[m2]+, dr6
+        fmov.d  @%[m2]+, dr8
+        ftrv    xmtrx, fv4
+
+        fmov.d  @%[m2]+, dr10
+        fmov.d  @%[m2]+, dr12
+        ftrv    xmtrx, fv8
+
+        fmov.d  @%[m2], dr14
+        fschg
+        ftrv    xmtrx, fv12
+        frchg
+    )"
+    : [m1] "+&r" (matrix1), [m2] "+r" (matrix2), [prefscr] "=&r" (prefetch_scratch)
+    :
+    : "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15");
 }
 
-__hot inline void mat_apply_rotate_x(float x) {
-    x *= 10430.37835f;
-    asm volatile(
-        "ftrc	%[a], fpul\n\t"
-        "fsca 	fpul, dr4\n\t"
-        "fldi0	fr8\n\t"
-        "fldi0	fr11\n\t"
-        "fmov	fr5, fr10\n\t"
-        "fmov	fr4, fr9\n\t"
-        "fneg	fr9\n\t"
-        "ftrv	xmtrx, fv8\n\t"
-        "fmov	fr4, fr6\n\t"
-        "fldi0	fr7\n\t"
-        "fldi0	fr4\n\t"
-        "ftrv	xmtrx, fv4\n\t"
-        "fschg\n\t"
-        "fmov	dr8, xd8\n\t"
-        "fmov	dr10, xd10\n\t"
-        "fmov	dr4, xd4\n\t"
-        "fmov	dr6, xd6\n\t"
-        "fschg\n"
-        :
-        : [a] "f"(x)
-        : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+__hot __icache_aligned inline void mat_set_rotate_x(float x) {
+    x *= fsca_scale;
+    asm volatile(R"(
+        ftrc    %[x], fpul
+		frchg
+        fldi0   fr1
+		fldi0	fr2
+		fldi0	fr3
+        fldi0	fr7
+		fldi0	fr8
+		fldi0	fr12
+		fldi0	fr13
+		fsca	fpul, dr0
+		fldi0	fr4
+		fldi0	fr11
+		fldi0	fr14
+		fldi1	fr15
+		fmov	fr1, fr5
+		fmov	fr1, fr10
+		fmov	fr0, fr9
+		fmov	fr0, fr6
+        fneg    fr6
+		fldi1	fr0
+		fldi0	fr1
+		frchg
+    )"
+    :
+    : [x] "f" (x)
+    : "fpul");
 }
 
-__hot inline void mat_apply_rotate_y(float y) {
-    y *= 10430.37835f;
-    asm volatile(
-        "ftrc	%[a], fpul\n\t"
-        "fsca   fpul, dr6\n\t"
-        "fldi0	fr9\n\t"
-        "fldi0	fr11\n\t"
-        "fmov	fr6, fr8\n\t"
-        "fmov	fr7, fr10\n\t"
-        "ftrv	xmtrx, fv8\n\t"
-        "fmov	fr7, fr4\n\t"
-        "fldi0	fr5\n\t"
-        "fneg	fr6\n\t"
-        "fldi0	fr7\n\t"
-        "ftrv	xmtrx, fv4\n\t"
-        "fschg\n\t"
-        "fmov	dr8, xd8\n\t"
-        "fmov	dr10, xd10\n\t"
-        "fmov	dr4, xd0\n\t"
-        "fmov	dr6, xd2\n\t"
-        "fschg\n"
-        :
-        : [a] "f"(y)
-        : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+__hot __icache_aligned inline void mat_apply_rotate_x(float x) {
+    x *= fsca_scale;
+    asm volatile(R"(
+        ftrc	%[x], fpul
+        fsca 	fpul, dr4
+        fldi0	fr8
+        fldi0	fr11
+        fmov	fr5, fr10
+        fmov	fr4, fr9
+        fneg	fr9
+        ftrv	xmtrx, fv8
+        fmov	fr4, fr6
+        fldi0	fr7
+        fldi0	fr4
+        ftrv	xmtrx, fv4
+        fschg
+        fmov	dr8, xd8
+        fmov	dr10, xd10
+        fmov	dr4, xd4
+        fmov	dr6, xd6
+        fschg
+    )"
+    :
+    : [x] "f"(x)
+    : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
 }
 
-__hot inline void mat_apply_rotate_z(float z) {
-    z *= 10430.37835f;
-    asm volatile(
-        "ftrc	%[a], fpul\n\t"
-        "fsca   fpul, dr8\n\t"
-        "fldi0	fr10\n\t"
-        "fldi0	fr11\n\t"
-        "fmov	fr8, fr5\n\t"
-        "fneg	fr8\n\t"
-        "ftrv	xmtrx, fv8\n\t"
-        "fmov	fr9, fr4\n\t"
-        "fschg\n\t"
-        "fmov	dr10, dr6\n\t"
-        "ftrv	xmtrx, fv4\n\t"
-        "fmov	dr8, xd4\n\t"
-        "fmov	dr10, xd6\n\t"
-        "fmov	dr4, xd0\n\t"
-        "fmov	dr6, xd2\n\t"
-        "fschg\n"
-        :
-        : [a] "f"(z)
-        : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+
+__hot __icache_aligned inline void mat_set_rotate_y(float y) {
+    y *= fsca_scale;
+    asm volatile(R"(
+        ftrc    %[y], fpul
+        frchg
+        fldi0	fr3
+        fldi1	fr5
+        fldi0	fr6
+        fldi0	fr7
+        fldi0	fr12
+        fldi0	fr13
+        fsca	fpul, dr0
+        fldi0	fr4
+        fldi0	fr9
+        fldi0	fr11
+        fldi0	fr14
+        fldi1	fr15
+        fmov	fr1, fr10
+        fmov	fr0, fr8
+        fneg	fr8
+        fmov	fr0, fr2
+        fmov	fr1, fr0
+        fldi0	fr1
+        frchg
+    )"
+    :
+    : [y] "f" (y)
+    : "fpul");
 }
 
+__hot __icache_aligned inline void mat_apply_rotate_y(float y) {
+    y *= fsca_scale;
+    asm volatile(R"(
+        ftrc	%[y], fpul
+        fsca    fpul, dr6
+        fldi0	fr9
+        fldi0	fr11
+        fmov	fr6, fr8
+        fmov	fr7, fr10
+        ftrv	xmtrx, fv8
+        fmov	fr7, fr4
+        fldi0	fr5
+        fneg	fr6
+        fldi0	fr7
+        ftrv	xmtrx, fv4
+        fschg
+        fmov	dr8, xd8
+        fmov	dr10, xd10
+        fmov	dr4, xd0
+        fmov	dr6, xd2
+        fschg
+    )"
+    :
+    : [y] "f" (y)
+    : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+}
+
+__hot __icache_aligned inline void mat_apply_rotate_z(float z) {
+    z *= fsca_scale;
+    asm volatile(R"(
+        ftrc	%[z], fpul
+        fsca    fpul, dr8
+        fldi0	fr10
+        fldi0	fr11
+        fmov	fr8, fr5
+        fneg	fr8
+        ftrv	xmtrx, fv8
+        fmov	fr9, fr4
+        fschg
+        fmov	dr10, dr6
+        ftrv	xmtrx, fv4
+        fmov	dr8, xd4
+        fmov	dr10, xd6
+        fmov	dr4, xd0
+        fmov	dr6, xd2
+        fschg
+    )"
+    :
+    : [z] "f" (z)
+    : "fpul", "fr5", "fr6", "fr7", "fr8", "fr9", "fr10", "fr11");
+}
+
+__hot __icache_aligned inline void mat_set_rotate_z(float z) {
+    z *= fsca_scale; 
+    asm volatile(R"(
+        ftrc    %[z], fpul
+		frchg
+		fldi0	fr2
+		fldi0	fr3
+		fldi1	fr10
+		fldi0	fr11
+		fsca	fpul, dr4
+		fschg
+		fmov	dr2, dr6
+		fmov	dr2, dr8
+		fmov	dr2, dr12
+		fldi0	fr14
+		fldi1	fr15
+		fschg
+		fmov	fr5, fr0
+		fmov	fr4, fr1
+		fneg	fr1
+		frchg
+    )"
+    :
+    : [z] "f" (z)
+    : "fpul");
+}
+
+__hot __icache_aligned inline void mat_set_rotate(float x, float y, float z) {
+    mat_set_rotate_x(x);
+    mat_apply_rotate_y(y);
+    mat_apply_rotate_z(z);
+}
+
+__hot __icache_aligned inline void mat_apply_rotate(float x, float y, float z) {
+    mat_apply_rotate_x(x);
+    mat_apply_rotate_y(y);
+    mat_apply_rotate_z(z);
+}
 
 //TODO: FIXME FOR VC (AND USE FTRV)
 template<bool FAST_APPROX=false>
@@ -879,23 +1114,6 @@ __always_inline constexpr float fipr2D(float x1, float y1, float x2, float y2) {
         mat_transform(&tmp1233123, &tmp1233123, 1, 0); \
         w_ = tmp1233123.w; \
     } while(false)
-
-inline void mat_load_3x3(const rw::Matrix* mtx) {
-    memcpy(XMTRX, mtx, sizeof(matrix_t));
-    XMTRX[0][3] = 0.0f;
-    XMTRX[1][3] = 0.0f;
-    XMTRX[2][3] = 0.0f;
-
-    XMTRX[3][0] = 0.0f;
-    XMTRX[3][1] = 0.0f;
-    XMTRX[3][2] = 0.0f;
-    XMTRX[3][3] = 0.0f;
-}
-
-inline void mat_load_4x4(const rw::Matrix* mtx) {
-    memcpy(XMTRX, mtx, sizeof(matrix_t));
-    XMTRX[3][3] = 1.0f;
-}
 
 inline void mat_transpose(void) {
     matrix_t tmp;

@@ -811,7 +811,8 @@ struct chunked_vector {
     }
 
     // Iterate over each element and invoke the callback.
-    void forEach(void(*cb)(T&)) {
+    template<typename F>
+    void forEach(F&& cb) {
         for (chunk* curr = first; curr; curr = curr->header.next) {
             for (size_t i = 0; i < curr->header.used; ++i) {
                 cb(curr->items[i]);

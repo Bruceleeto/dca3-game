@@ -410,7 +410,7 @@ Matrix::translate(const V3d *translation, CombineOp op)
     Matrix trans;
     dc::mat_set_translation(translation->x, translation->y, translation->z);
     dc::mat_store2(trans);
-    trans.flags = Matrix::TYPEORTHONORMAL;
+    trans.flags = TYPEORTHONORMAL;
 #endif
 	switch(op){
 	case COMBINEREPLACE:
@@ -439,7 +439,7 @@ Matrix::scale(const V3d *scale, CombineOp op)
     Matrix scl;
     dc::mat_set_scale(scale->x, scale->y, scale->z);
     dc::mat_store2(scl);
-    scl.flags = Matrix::TYPEORTHONORMAL;
+    scl.flags = TYPEORTHONORMAL;
 #endif
 	switch(op){
 	case COMBINEREPLACE:

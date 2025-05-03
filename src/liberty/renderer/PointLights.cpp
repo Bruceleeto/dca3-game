@@ -80,7 +80,7 @@ CPointLights::GenerateLightsAffectingObject(Const CVector *objCoors)
 			distance = dist.Magnitude();
 			if(distance < radius){
 
-				float distNorm = distance/radius;
+				float distNorm = Div<true, false>(distance, radius);
 				if(aLights[i].type == LIGHT_DARKEN){
 					// darken the object the closer it is
 					ret *= distNorm;

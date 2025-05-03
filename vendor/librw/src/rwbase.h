@@ -451,6 +451,9 @@ struct alignas(8) MatrixBase
 		uint32 pad3;
 		float  posw = 1.0f;
 	};
+
+    operator matrix_t *() { return reinterpret_cast<matrix_t *>(this); }
+    operator const matrix_t *() const { return reinterpret_cast<const matrix_t *>(this); }
 };
 
 struct Matrix: public MatrixBase
@@ -463,9 +466,9 @@ struct Matrix: public MatrixBase
 
     Matrix() {}
 
-    Matrix(MatrixBase &&aggregate):
-	    MatrixBase{aggregate}
-    {}
+    Matrix(MatrixBase &&aggregate){
+        *this = aggregate;
+    }
 
     Matrix(const Matrix &rhs) {
         *this = rhs;
@@ -476,8 +479,10 @@ struct Matrix: public MatrixBase
         return *this;
     }
 
-    operator matrix_t *() { return reinterpret_cast<matrix_t *>(this); }
-    operator const matrix_t *() const { return reinterpret_cast<const matrix_t *>(this); }
+    Matrix &operator=(const MatrixBase &rhs) {
+        dc::mat_copy(*this, rhs);
+        return *this;
+    }
 
 	static Matrix *create(void);
 	void destroy(void);
@@ -514,10 +519,12 @@ inline void convMatrix(Matrix *dst, RawMatrix *src){
 
 inline void convMatrix(RawMatrix *dst, Matrix *src){
 	*dst = *(RawMatrix*)src;
+#ifndef DC_SH4
 	dst->rightw = 0.0;
 	dst->upw = 0.0;
 	dst->atw = 0.0;
 	dst->posw = 1.0;
+#endif
 }
 
 struct Line

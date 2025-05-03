@@ -3694,7 +3694,7 @@ CCamera::IsBoxVisible(CVUVECTOR *box, const CMatrix *mat)
 #ifdef GTA_PS2
 	TransformPoints(box, 8, *mat, box);
 #else
-	#ifdef FIX_BUGS
+	#if defined(FIX_BUGS) && !defined(DC_SH4)
 		for (i = 0; i < 8; i++)
 			box[i] = *mat * box[i];
 	#else
