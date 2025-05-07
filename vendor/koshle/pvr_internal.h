@@ -233,7 +233,7 @@ typedef struct {
 
     /* Wait-ready semaphore: this will be signaled whenever the pvr_wait_ready()
        call should be ready to return. */
-    semaphore_t ready_sem;
+    kos::semaphore_t ready_sem;
 
     // Handle for the vblank interrupt
     int     vbl_handle;

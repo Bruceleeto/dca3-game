@@ -24,7 +24,7 @@ void * maple_dev_status(maple_device*) {
 maple_device_t * maple_enum_type(int n, uint32 func) {
     return &dev;
 }
-
+namespace kos {
 int sem_wait_timed(semaphore_t *sem, int timeout) {
     auto count = sem->count.load();
 
@@ -53,6 +53,7 @@ int sem_destroy(semaphore_t *sm) {
 int sem_signal(semaphore_t *sem) {
     sem->count++;
     return 0;
+}
 }
 
 void sq_lock(void *dest) {

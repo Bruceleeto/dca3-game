@@ -32,6 +32,7 @@
 
     \headerfile kos/sem.h
 */
+namespace kos {
 typedef struct semaphore {
     std::atomic<int> initialized;    /**< \brief Are we initialized? */
     std::atomic<int> count;          /**< \brief The semaphore count */
@@ -177,5 +178,7 @@ int sem_signal(semaphore_t *sem);
 */
 int sem_count(semaphore_t *sem);
 
+}
+using namespace kos;
 
 #endif  /* __KOS_SEM_H */
