@@ -450,8 +450,8 @@ RwBool RwIm3DRenderPrimitive(RwPrimitiveType primType);
 
 RwBool RwRenderStateGet(RwRenderState state, void *value)
 {
-	uint32 *uival = (uint32*)value;
-	uint32 fog;
+	uint32_t *uival = (uint32_t*)value;
+	uint32_t fog;
 	switch(state){
 	case rwRENDERSTATETEXTURERASTER: *(void**)value = GetRenderStatePtr(TEXTURERASTER); return true;
 	case rwRENDERSTATETEXTUREADDRESS: *uival = GetRenderState(TEXTUREADDRESS); return true;
@@ -497,8 +497,8 @@ RwBool RwRenderStateGet(RwRenderState state, void *value)
 }
 RwBool RwRenderStateSet(RwRenderState state, void *value)
 {
-	uint32 uival = (uintptr)value;
-	uint32 fog;
+	uint32_t uival = (uintptr_t)value;
+	uint32_t fog;
 	switch(state){
 	case rwRENDERSTATETEXTURERASTER: SetRenderStatePtr(TEXTURERASTER, value); return true;
 	case rwRENDERSTATETEXTUREADDRESS: SetRenderState(TEXTUREADDRESS, uival); return true;
@@ -545,8 +545,8 @@ RwBool RwRenderStateSet(RwRenderState state, void *value)
 static rw::MemoryFunctions gMemfuncs;
 static void *(*real_malloc)(size_t size);
 static void *(*real_realloc)(void *mem, size_t newSize);
-static void *mallocWrap(size_t sz, uint32 hint) { if(sz == 0) return nil; return real_malloc(sz); }
-static void *reallocWrap(void *p, size_t sz, uint32 hint) { return real_realloc(p, sz); }
+static void *mallocWrap(size_t sz, uint32_t hint) { if(sz == 0) return nil; return real_malloc(sz); }
+static void *reallocWrap(void *p, size_t sz, uint32_t hint) { return real_realloc(p, sz); }
 
 
 // WARNING: unused parameters
@@ -832,7 +832,7 @@ RwCamera *RwCameraForAllClumpsNotInFrustum(RwCamera *camera, RwInt32 numClumps, 
 RwBool RpMatFXPluginAttach( void ) { registerMatFXPlugin(); return true; }
 RpAtomic *RpMatFXAtomicEnableEffects( RpAtomic *atomic ) { MatFX::enableEffects(atomic); return atomic; }
 RpMatFXMaterialFlags RpMatFXMaterialGetEffects( const RpMaterial *material ){ return (RpMatFXMaterialFlags)MatFX::getEffects(material); }
-RpMaterial *RpMatFXMaterialSetEffects( RpMaterial *material, RpMatFXMaterialFlags flags ) { MatFX::setEffects(material, (uint32)flags); return material; }
+RpMaterial *RpMatFXMaterialSetEffects( RpMaterial *material, RpMatFXMaterialFlags flags ) { MatFX::setEffects(material, (uint32_t)flags); return material; }
 RpMaterial *RpMatFXMaterialSetupEnvMap( RpMaterial *material, RwTexture *texture, RwFrame *frame, RwBool useFrameBufferAlpha, RwReal coef ) {
 	MatFX *mfx = MatFX::get(material);
 	mfx->setEnvTexture(texture);
