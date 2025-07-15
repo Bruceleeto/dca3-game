@@ -1,6 +1,27 @@
 #pragma once
 
-#if ( (__LONG_MAX__ *2UL+1UL) == 18446744073709551615ULL) && ((__INT_MAX__  *2U +1U) == 4294967295ULL)
+#if defined(_WIN64) && _WIN64 == 1
+    typedef unsigned long long uint64;  /**< \brief 64-bit unsigned integer */
+    typedef unsigned int uint32;       /**< \brief 32-bit unsigned integer */
+    typedef unsigned short uint16;      /**< \brief 16-bit unsigned integer */
+    typedef unsigned char uint8;        /**< \brief 8-bit unsigned integer */
+    typedef long long int64;            /**< \brief 64-bit signed integer */
+    typedef int int32;                 /**< \brief 32-bit signed integer */
+    typedef short int16;                /**< \brief 16-bit signed integer */
+    typedef char int8;                  /**< \brief 8-bit signed integer */ 
+
+    typedef volatile unsigned long long vuint64;  /**< \brief 64-bit unsigned integer */
+    typedef volatile unsigned int vuint32;       /**< \brief 32-bit unsigned integer */
+    typedef volatile unsigned short vuint16;      /**< \brief 16-bit unsigned integer */
+    typedef volatile unsigned char vuint8;        /**< \brief 8-bit unsigned integer */
+    typedef volatile long long vint64;            /**< \brief 64-bit signed integer */
+    typedef volatile int vint32;                 /**< \brief 32-bit signed integer */
+    typedef volatile short vint16;                /**< \brief 16-bit signed integer */
+    typedef volatile char vint8;                  /**< \brief 8-bit signed integer */ 
+
+typedef uint64 ptr_t;
+#define INT32_IS_INT
+#elif (( (__LONG_MAX__ *2UL+1UL) == 18446744073709551615ULL) && ((__INT_MAX__  *2U +1U) == 4294967295ULL))
 typedef unsigned long uint64;  /**< \brief 64-bit unsigned integer */
 typedef unsigned int uint32;       /**< \brief 32-bit unsigned integer */
 typedef unsigned short uint16;      /**< \brief 16-bit unsigned integer */

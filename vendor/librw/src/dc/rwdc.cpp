@@ -4527,6 +4527,10 @@ imageFindRasterFormat(Image *img, int32 type,
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h> // For QueryPerformanceCounter and GetCurrentThreadId
+#ifdef _WIN64
+#include <profileapi.h>
+#include <processthreadsapi.h>
+#endif
 #elif defined(__APPLE__)
 #include <mach/mach_time.h> // For mach_absolute_time
 #include <pthread.h>

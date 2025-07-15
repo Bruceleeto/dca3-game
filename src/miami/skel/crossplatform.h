@@ -17,7 +17,7 @@ enum eWinVersion
 char *_strdate(char *buf);
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
 
 // As long as WITHWINDOWS isn't defined / <Windows.h> isn't included, we only need type definitions so let's include <IntSafe.h>.
 // NOTE: It's perfectly fine to include <Windows.h> here, but it can increase build size and time in *some* conditions, and maybe substantially in future if we'll use crossplatform.h more.
