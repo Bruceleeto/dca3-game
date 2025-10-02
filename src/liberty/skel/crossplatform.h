@@ -13,7 +13,9 @@ enum eWinVersion
     OS_WINXP,
 };
 
-#ifdef _WIN32
+#ifdef _WIN64
+#include <windows.h>
+#elif defined(_WIN32)
 
 // As long as WITHWINDOWS isn't defined / <Windows.h> isn't included, we only need type definitions so let's include <IntSafe.h>.
 // NOTE: It's perfectly fine to include <Windows.h> here, but it can increase build size and time in *some* conditions, and maybe substantially in future if we'll use crossplatform.h more.
