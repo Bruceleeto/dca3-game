@@ -74,7 +74,7 @@ You will also need the following tools installed
 - Open dreamsdk shell
 - type `mkdir miami` (and press enter)
 - type `explorer .` (and press enter)
-- This will open a folder named liberty. Copy your gtavc files in there.
+- This will open a folder named miami. Copy your gtavc files in there.
 - close the folder and the dreamsdk shell and proceed to the next step.
 
 #### Downloading and extracting the prebuilt elf
