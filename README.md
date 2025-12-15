@@ -16,7 +16,7 @@ Follow the instructions in https://colab.research.google.com/drive/147aAqNQHhl-V
 ### For gta:vc
 Follow the instructions in https://colab.research.google.com/drive/17XVOa4CQXtWRtbyIcs2xsduBhAo5jlc6
 
-## Baking the CDI
+## Baking the CDI  (Manual, not recommended for casual users)
 ### Prerequisites
 You need Grand Theft Auto III or Grand Theft Auto: Vice City installed. This version has been tested and works:  https://store.rockstargames.com/game/buy-grand-theft-auto-the-trilogy.
 
