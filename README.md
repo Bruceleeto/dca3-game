@@ -6,6 +6,16 @@ re3 a fully reversed source code for GTA III/VC.
 
 This project was started by [Stefanos Kornilios Mitsis Poiitidis](https://x.com/poiitidis) and uses [KallistiOS](https://kos-docs.dreamcast.wiki/).
 
+## Baking the CDI Using Google Notebook (recommended, thanks to jnmartin64!)
+### Prerequisites
+You need Grand Theft Auto III or Grand Theft Auto: Vice City installed. This version has been tested and works:  https://store.rockstargames.com/game/buy-grand-theft-auto-the-trilogy.
+
+### For gta3
+Follow the instructions in https://colab.research.google.com/drive/147aAqNQHhl-VJI2S5jkSUp7M1bVcy4UO
+
+### For gta:vc
+Follow the instructions in https://colab.research.google.com/drive/17XVOa4CQXtWRtbyIcs2xsduBhAo5jlc6
+
 ## Baking the CDI
 ### Prerequisites
 You need Grand Theft Auto III or Grand Theft Auto: Vice City installed. This version has been tested and works:  https://store.rockstargames.com/game/buy-grand-theft-auto-the-trilogy.
