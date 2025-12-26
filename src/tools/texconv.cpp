@@ -149,34 +149,52 @@ RwTexDictionaryGtaStreamRead(RwStream *stream)
 	return texDict;
 }
 
-RpClump *LoadModelFile(const char *filename)
+std::vector<RpClump *> LoadModelFile(const char *filename)
 {
 	RwStream *stream;
 	RpClump *clump = nullptr;
+	std::vector<RpClump *> rv;
 
 	debug("Loading model file %s\n", filename);
 	stream = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMREAD, filename);
-	if(RwStreamFindChunk(stream, rwID_CLUMP, nil, nil)){
+	RwUInt32 len;
+	while(RwStreamFindChunk(stream, rwID_CLUMP, &len, nil)){
+		auto pos = stream->tell();
 		clump = RpClumpStreamRead(stream);
+		assert(clump);
+		rv.push_back(clump);
+		printf("Loaded clump %p from %s\n", clump, filename);
+		auto newpos = pos + len;
+		stream->seek(0, SEEK_END);
+		auto endpos = stream->tell();
+		if ((newpos + 12) >= endpos)
+		break;
+		stream->seek(newpos, SEEK_SET);
+		uint32_t chunkid;
+		stream->read32(&chunkid, 4);
+		if (chunkid != rwID_CLUMP)
+			break;
+		stream->seek(newpos, SEEK_SET);
 	}
 	RwStreamClose(stream, nil);
-	assert(clump);
-	return clump;
+	return rv;
 }
 
-void StoreModelFile(const char *filename, RpClump *clump)
+void StoreModelFile(const char *filename, const std::vector<RpClump *>& clumps)
 {
 	RwStream *stream;
 
 	debug("Storing model file %s\n", filename);
 	stream = RwStreamOpen(rwSTREAMFILENAME, rwSTREAMWRITE, filename);
 
-	// on write it includes rwCLUMP
-	auto ok = RpClumpStreamWrite(clump, stream);
-	assert(ok);
+	for (auto& clump : clumps) {
+		assert(clump);
+		// on write it includes rwCLUMP
+		auto ok = RpClumpStreamWrite(clump, stream);
+		assert(ok);
+	}
 		
 	RwStreamClose(stream, nil);
-	assert(clump);
 }
 
 
@@ -387,11 +405,14 @@ int main(int argc, const char** argv) {
 	} else if (strstr(argv[1], ".dff") || strstr(argv[1], ".DFF")) {
 		rw::Texture::setLoadTextures(false);
 		rw::Texture::setCreateDummies(true);
-		auto clump = LoadModelFile(argv[1]);
-		FORLIST(lnk, clump->atomics) {
-			rw::Atomic::fromClump(lnk)->instance();
+		auto clumps = LoadModelFile(argv[1]);
+		for (auto& clump : clumps) {
+			FORLIST(lnk, clump->atomics) {
+				printf("Instancing geometry... %p %s\n", rw::Atomic::fromClump(lnk), GetFrameNodeName(RpAtomicGetFrame(rw::Atomic::fromClump(lnk))));
+				rw::Atomic::fromClump(lnk)->instance();
+			}
 		}
-		StoreModelFile(argv[2], clump);
+		StoreModelFile(argv[2], clumps);
 	} else {
 		printf("Invalid format: %s\n", argv[1]);
 		return 1;
