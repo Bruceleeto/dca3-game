@@ -4338,7 +4338,9 @@ rasterCreate(Raster* raster)
 	// assert(raster->depth == 16);
 	if (raster->depth != 16) {
 		// TODO: stop this from happening
-		errorf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
+		if (raster->depth != 0) {
+			errorf("rasterCreate: Usupported raster depth %d: this raster will be corrupted\n", raster->depth);
+		}
 		raster->depth = 16;
 	}
 
@@ -4358,9 +4360,11 @@ rasterCreate(Raster* raster)
 	} else if (rasterFmt == Raster::C4444) {
 		natras->raster->pvr_flags |= PVR_TXRFMT_ARGB4444;
 	} else {
-		// TODO: stop this from happening
-		printf("rasterCreate: Usupported raster rasterFmt %X: this raster will be corrupted\n", rasterFmt);
-		// assert(false && "unsupported rasterFmt");
+		if (rasterFmt != 0) {
+			// TODO: stop this from happening
+			printf("rasterCreate: Usupported raster rasterFmt %X: this raster will be corrupted\n", rasterFmt);
+			// assert(false && "unsupported rasterFmt");
+		}
 	}
 	
 
