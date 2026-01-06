@@ -104,6 +104,8 @@ OBJS_TEXCONV += \
 OBJS_O3 = \
 	../vendor/librw/src/dc/rwdc.o \
 	../src/liberty/core/World.o \
+	../src/liberty/core/Zones.o \
+	../src/liberty/core/ZoneCull.o \
 	../src/liberty/collision/Collision.o \
 	../src/liberty/math/math.o \
 	../src/liberty/math/Matrix.o \
@@ -111,11 +113,22 @@ OBJS_O3 = \
 	../src/liberty/math/Rect.o \
 	../src/liberty/math/Vector.o \
 	../vendor/librw/src/base.o \
-	../src/liberty/renderer/Shadows.o
-
-OBJS_NO_FAST_MATH = \
+	../src/liberty/renderer/Shadows.o \
+	../src/liberty/renderer/Renderer.o \
+	../src/liberty/animation/FrameUpdate.o \
+	../src/liberty/animation/RpAnimblend.o \
+	../src/liberty/control/PathFind.o \
 	../src/liberty/core/Cam.o \
-	../src/liberty/core/Camera.o
+	../src/liberty/peds/Ped.o \
+	../src/liberty/peds/PedAI.o \
+	../src/liberty/vehicles/Automobile.o
+
+# ICE list with with -O3
+OBJS_O2 = \
+	../src/liberty/animation/AnimBlendNode.o
+
+# ICE list with -ffast-math
+OBJS_NO_FAST_MATH =
 
 KOS_CPPFLAGS += -fbuiltin -ffast-math -ffp-contract=fast \
 	-mfsrra -mfsca
@@ -168,6 +181,9 @@ clean:
 
 $(OBJS_O3): %.o: %.cpp
 	kos-c++ $(CXXFLAGS) $(CPPFLAGS) -O3 -c $< -o $@
+
+$(OBJS_O2): %.o: %.cpp
+	kos-c++ $(CXXFLAGS) $(CPPFLAGS) -O2 -c $< -o $@
 
 $(OBJS_NO_FAST_MATH): %.o: %.cpp
 	kos-c++ $(CXXFLAGS) $(CPPFLAGS) -O3 -c $< -o $@ -fno-fast-math

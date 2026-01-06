@@ -238,8 +238,8 @@ inline V2d neg(const V2d &a) { return makeV2d(-a.x, -a.y); }
 inline V2d add(const V2d &a, const V2d &b) { return makeV2d(a.x+b.x, a.y+b.y); }
 inline V2d sub(const V2d &a, const V2d &b) { return makeV2d(a.x-b.x, a.y-b.y); }
 inline V2d scale(const V2d &a, float32 r) { return makeV2d(a.x*r, a.y*r); }
-inline float32 length(const V2d &v) { return sqrtf(v.x*v.x + v.y*v.y); }
-inline V2d normalize(const V2d &v) { return scale(v, 1.0f/length(v)); }
+inline float32 length(const V2d &v) { return dc::Sqrt(v.x*v.x + v.y*v.y); }
+inline V2d normalize(const V2d &v) { return scale(v, dc::RecipSqrt(v.x*v.x + v.y*v.y)); }
 
 struct V3d
 {
@@ -265,10 +265,22 @@ inline float32 length(const V3d &v) {
 	return len;
 #endif
 }
-inline V3d normalize(const V3d &v) { return scale(v, 1.0f/length(v)); }
-inline V3d setlength(const V3d &v, float32 l) { return scale(v, l/length(v)); }
-V3d cross(const V3d &a, const V3d &b);
-inline __attribute__((always_inline)) float32 dot(const V3d &a, const V3d &b) {
+inline V3d normalize(const V3d &v) {
+    float invLen; 
+#ifndef DC_SH4
+    invLen = 1.0f / length(v);
+#else
+    invLen = dc::RecipSqrt(fipr_magnitude_sqr(v.x, v.y, v.z, 0.0f));
+#endif
+    return scale(v, invLen); 
+}
+inline V3d setlength(const V3d &v, float32 l) { return scale(v, dc::Div<true, false>(l, length(v))); }
+inline V3d cross(const V3d &a, const V3d &b) {
+    return makeV3d(a.y*b.z - a.z*b.y,
+        a.z*b.x - a.x*b.z,
+        a.x*b.y - a.y*b.x);
+}
+inline float32 dot(const V3d &a, const V3d &b) {
 #ifdef DC_SH4
 	return fipr(a.x, a.y, a.z, 0.0f, b.x, b.y, b.z, 0.0f);
 #else
@@ -329,19 +341,40 @@ inline float32 length(const Quat &q) {
 #ifndef DC_SH4
 	return sqrtf(q.w*q.w + q.x*q.x + q.y*q.y + q.z*q.z);
 #else
-	return dc::Sqrt(fipr_magnitude_sqr(q.x, q.y, q.z, q.w));
+	return dc::Sqrt(fipr_magnitude_sqr(q.x, q.y, q.z, 0.0f));
 #endif
 }
-inline Quat normalize(const Quat &q) { return scale(q, 1.0f/length(q)); }
+inline Quat normalize(const Quat &q) {
+    float invLen; 
+#ifndef DC_SH4
+    invLen = 1.0f / length(q);
+#else
+    invLen = dc::RecipSqrt(fipr_magnitude_sqr(q.x, q.y, q.z, 0.0f));
+#endif
+    return scale(q, invLen);
+}
 inline Quat conj(const Quat &q) { return makeQuat(q.w, -q.x, -q.y, -q.z); }
-Quat mult(const Quat &q, const Quat &p);
+inline Quat mult(const Quat &q, const Quat &p) {
+#ifndef DC_SH4
+	return makeQuat(q.w*p.w - q.x*p.x - q.y*p.y - q.z*p.z,
+	                q.w*p.x + q.x*p.w + q.y*p.z - q.z*p.y,
+	                q.w*p.y + q.y*p.w + q.z*p.x - q.x*p.z,
+	                q.w*p.z + q.z*p.w + q.x*p.y - q.y*p.x);
+#else
+    Quat o;
+    dc::quat_mult(reinterpret_cast<dc::quaternion_t *>(&o),
+	              reinterpret_cast<const dc::quaternion_t &>(q),
+                  reinterpret_cast<const dc::quaternion_t &>(p));
+	return o;
+#endif
+}
 inline V3d rotate(const V3d &v, const Quat &q) { return mult(mult(q, makeQuat(0.0f, v)), conj(q)).vec(); }
 Quat lerp(const Quat &q, const Quat &p, float32 r);
 Quat slerp(const Quat &q, const Quat &p, float32 a);
 
-struct __attribute__((aligned(8))) RawMatrix 
+struct alignas(8) RawMatrixBase
 {
-	V3d right;
+    V3d right;
 	float32 rightw;
 	V3d up;
 	float32 upw;
@@ -349,6 +382,32 @@ struct __attribute__((aligned(8))) RawMatrix
 	float32 atw;
 	V3d pos;
 	float32 posw;
+};
+
+struct RawMatrix: public RawMatrixBase
+{
+    RawMatrix() {}
+
+    RawMatrix(RawMatrixBase &&aggregate):
+	    RawMatrixBase{aggregate}
+    {}
+
+    RawMatrix(const RawMatrix &rhs) {
+        *this = rhs;
+    }
+
+    operator matrix_t *() {
+        return reinterpret_cast<matrix_t *>(this);
+    }
+
+    operator const matrix_t *() const {
+        return reinterpret_cast<const matrix_t *>(this);
+    }
+
+    RawMatrix &operator=(const RawMatrix &rhs) {
+        dc::mat_copy(*this, rhs);
+        return *this;
+    }
 
 	// NB: this is dst = src2*src1, i.e. src1 is applied first, then src2
 	static void mult(RawMatrix *dst, RawMatrix *src1, RawMatrix *src2);
@@ -356,7 +415,7 @@ struct __attribute__((aligned(8))) RawMatrix
 	static void setIdentity(RawMatrix *dst);
 };
 
-struct Matrix
+struct alignas(8) MatrixBase
 {
 	enum Type {
 		TYPENORMAL	= 1,
@@ -365,22 +424,65 @@ struct Matrix
 		TYPEMASK = 3
 	};
 	enum Flags {
-		IDENTITY = 0x20000
+		IDENTITY = 0x4,
+        IDENTITY_OLD = 0x20000
 	};
+
+	V3d right;
+	union {
+		struct {
+			uint32_t flags: 3 = TYPEORTHONORMAL|IDENTITY;
+			uint32_t pad0: 29 = 0;
+		};
+		float rightw;
+	};
+	V3d up;
+	union {
+		uint32 pad1;
+		float  upw = 0.0f;
+	};
+	V3d at;
+	union {
+		uint32 pad2;
+		float  atw = 0.0f;
+	};
+	V3d pos;
+	union {
+		uint32 pad3;
+		float  posw = 1.0f;
+	};
+
+    operator matrix_t *() { return reinterpret_cast<matrix_t *>(this); }
+    operator const matrix_t *() const { return reinterpret_cast<const matrix_t *>(this); }
+};
+
+struct Matrix: public MatrixBase
+{
 	struct Tolerance {
 		float32 normal;
 		float32 orthogonal;
 		float32 identity;
 	};
 
-	V3d right;
-	uint32 flags;
-	V3d up;
-	uint32 pad1;
-	V3d at;
-	uint32 pad2;
-	V3d pos;
-	uint32 pad3;
+    Matrix() {}
+
+    Matrix(MatrixBase &&aggregate){
+        *this = aggregate;
+    }
+
+    Matrix(const Matrix &rhs) {
+        *this = rhs;
+    }
+
+    Matrix &operator=(const RawMatrix &rhs) {
+        dc::mat_copy(*this, rhs);
+        return *this;
+    }
+
+    Matrix &operator=(const MatrixBase &rhs) {
+        dc::mat_copy(*this, rhs);
+        return *this;
+    }
 
 	static Matrix *create(void);
 	void destroy(void);
@@ -417,10 +519,12 @@ inline void convMatrix(Matrix *dst, RawMatrix *src){
 
 inline void convMatrix(RawMatrix *dst, Matrix *src){
 	*dst = *(RawMatrix*)src;
+#ifndef DC_SH4
 	dst->rightw = 0.0;
 	dst->upw = 0.0;
 	dst->atw = 0.0;
 	dst->posw = 1.0;
+#endif
 }
 
 struct Line

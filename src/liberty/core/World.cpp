@@ -1215,6 +1215,9 @@ CWorld::FindObjectsIntersectingAngledCollisionBox(const CColBox &boundingBox, co
 	const int32 nStartY = Max(GetSectorIndexY(fStartY), 0);
 	const int32 nEndX = Min(GetSectorIndexX(fEndX), NUMSECTORS_X - 1);
 	const int32 nEndY = Min(GetSectorIndexY(fEndY), NUMSECTORS_Y - 1);
+#ifdef DC_SH4
+    mat_load_transpose(matrix);
+#endif
 	for(int32 y = nStartY; y <= nEndY; y++) {
 		for(int32 x = nStartX; x <= nEndX; x++) {
 			CSector *pSector = GetSector(x, y);
@@ -1268,14 +1271,19 @@ CWorld::FindObjectsIntersectingAngledCollisionBoxSectorList(CPtrList &list, cons
                                                             int16 *nEntitiesFound, int16 maxEntitiesToFind,
                                                             CEntity **aEntities)
 {
-	for(CPtrNode *pNode = list.first; pNode; pNode = pNode->next) {
+    for(CPtrNode *pNode = list.first; pNode; pNode = pNode->next) {
 		CEntity *pEntity = (CEntity *)pNode->item;
 		if(pEntity->m_scanCode != GetCurrentScanCode()) {
 			pEntity->m_scanCode = GetCurrentScanCode();
 			CColSphere sphere;
 			CVector vecDistance = pEntity->GetPosition() - position;
 			sphere.radius = pEntity->GetBoundRadius();
+#ifndef DC_SH4
 			sphere.center = Multiply3x3(vecDistance, matrix);
+#else   // Transposed matrix was already loaded by the callee, so no need to reload!
+            mat_trans_normal3_nomod(vecDistance.x, vecDistance.y, vecDistance.z,
+                                    sphere.center.x, sphere.center.y, sphere.center.z);
+#endif
 			if(CCollision::TestSphereBox(sphere, boundingBox) && *nEntitiesFound < maxEntitiesToFind) {
 				if(aEntities) aEntities[*nEntitiesFound] = pEntity;
 				++*nEntitiesFound;
@@ -1444,13 +1452,27 @@ CWorld::CallOffChaseForAreaSectorListVehicles(CPtrList &list, float x1, float y1
 				pVehicle->AutoPilot.m_nTimeTempAction = CTimer::GetTimeInMilliseconds() + 2000;
 				CColModel *pColModel = pVehicle->GetColModel();
 				bool bInsideSphere = false;
+#ifdef DC_SH4
+                mat_load2(pVehicle->GetMatrix());
+#endif
 				for(int32 i = 0; i < pColModel->numSpheres; i++) {
+#ifndef DC_SH4
 					CVector pos = pVehicle->GetMatrix() * pColModel->spheres[i].center;
-					float fRadius = pColModel->spheres[i].radius;
+#else
+                    CVector pos;
+                    auto &center = pColModel->spheres[i].center;
+                    mat_trans_single3_nodiv_nomod(center.x, center.y, center.z,
+                                                  pos.x, pos.y, pos.z);
+#endif
+                    float fRadius = pColModel->spheres[i].radius;
 					if(pos.x + fRadius > x1 && pos.x - fRadius < x2 && pos.y + fRadius > y1 &&
-					   pos.y - fRadius < y2)
+					    pos.y - fRadius < y2) {
 						bInsideSphere = true;
 					// Maybe break the loop when bInsideSphere is set to true?
+#ifdef DC_SH4       // Don't see why not!
+                        break;
+#endif
+                    }
 				}
 				if(bInsideSphere) {
 					if(pVehicle->GetPosition().x <= (x1 + x2) * 0.5f)

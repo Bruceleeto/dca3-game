@@ -39,7 +39,7 @@ CAnimBlendNode::Update(CVector &trans, CQuaternion &rot, float weight)
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
 		float kfAdt = player->GetNextTimeDelta();
-		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
+		float t = kfAdt == 0.0f ? 0.0f : dc::Div<true, false>(kfAdt - remainingTime, kfAdt);
 		if(player->type & CAnimBlendSequence::KF_TRANS){
 			auto kfdAt = player->GetNextTranslationDelta();
 			auto kfBt = player->GetPrevTranslation();
@@ -153,7 +153,7 @@ CAnimBlendNode::CalcDeltas(void)
 	if(cos > 1.0f)
 		cos = 1.0f;
 	theta = Acos(cos);
-	invSin = theta == 0.0f ?  0.0f : 1.0f/Sin(theta);
+	invSin = theta == 0.0f ?  0.0f : dc::Invert<true, false>(Sin(theta));
 }
 
 void
@@ -164,7 +164,7 @@ CAnimBlendNode::GetCurrentTranslation(CVector &trans, float weight)
 	float blend = association->GetBlendAmount(weight);
 	if(blend > 0.0f){
 		auto kfAdt = player->GetNextTimeDelta();
-		float t = kfAdt == 0.0f ? 0.0f : (kfAdt - remainingTime)/kfAdt;
+		float t = kfAdt == 0.0f ? 0.0f : dc::Div<true, false>(kfAdt - remainingTime, kfAdt);
 		if(player->type & CAnimBlendSequence::KF_TRANS){
 			auto kfdAt = player->GetNextTranslationDelta();
 			auto kfBt = player->GetPrevTranslation();

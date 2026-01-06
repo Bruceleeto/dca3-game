@@ -54,21 +54,29 @@ CMatrix::Detach(void)
 void
 CMatrix::Update(void)
 {
+#ifndef DC_SH4
 	GetRight() = m_attachment->right;
 	GetForward() = m_attachment->up;
 	GetUp() = m_attachment->at;
 	GetPosition() = m_attachment->pos;
+#else
+    mat_copy(*this, *m_attachment);
+#endif
 }
 
 void
 CMatrix::UpdateRW(void)
 {
 	if (m_attachment) {
+#ifndef DC_SH4
 		m_attachment->right = GetRight();
 		m_attachment->up = GetForward();
 		m_attachment->at = GetUp();
 		m_attachment->pos = GetPosition();
 		RwMatrixUpdate(m_attachment);
+#else
+        mat_copy(*m_attachment, *this);
+#endif
 	}
 }
 
@@ -76,8 +84,10 @@ void
 CMatrix::operator=(CMatrix const &rhs)
 {
 	mat_copy(*this, rhs);
+#ifndef DC_SH4
 	if (m_attachment)
 		UpdateRW();
+#endif
 }
 
 void
@@ -99,6 +109,7 @@ CMatrix::operator+=(CMatrix const &rhs)
 void
 CMatrix::SetUnity(void)
 {
+#ifndef DC_SH4
 	rx = 1.0f;
 	ry = 0.0f;
 	rz = 0.0f;
@@ -111,6 +122,10 @@ CMatrix::SetUnity(void)
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    dc::mat_identity2();
+    dc::mat_store2(*this);
+#endif
 }
 
 void
@@ -130,6 +145,7 @@ CMatrix::ResetOrientation(void)
 void
 CMatrix::SetScale(float s)
 {
+#ifndef DC_SH4
 	rx = s;
 	ry = 0.0f;
 	rz = 0.0f;
@@ -145,11 +161,16 @@ CMatrix::SetScale(float s)
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    mat_set_scale(s);
+    mat_store2(*this);
+#endif
 }
 
 void
 CMatrix::SetTranslate(float x, float y, float z)
 {
+#ifndef DC_SH4
 	rx = 1.0f;
 	ry = 0.0f;
 	rz = 0.0f;
@@ -165,6 +186,10 @@ CMatrix::SetTranslate(float x, float y, float z)
 	px = x;
 	py = y;
 	pz = z;
+#else
+    mat_set_translation(x, y, z);
+    mat_store2(*this);
+#endif
 }
 
 void
@@ -224,34 +249,52 @@ CMatrix::SetRotateZOnly(float angle)
 void
 CMatrix::SetRotateX(float angle)
 {
+#ifndef DC_SH4
 	SetRotateXOnly(angle);
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    dc::mat_identity2();
+    dc::mat_apply_rotate_x(angle);
+    dc::mat_store2(*this);
+#endif
 }
-
 
 void
 CMatrix::SetRotateY(float angle)
 {
+#ifndef DC_SH4
 	SetRotateYOnly(angle);
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    dc::mat_identity2();
+    dc::mat_apply_rotate_y(angle);
+    dc::mat_store2(*this);
+#endif
 }
 
 void
 CMatrix::SetRotateZ(float angle)
 {
+#ifndef DC_SH4
 	SetRotateZOnly(angle);
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    dc::mat_identity2();
+    dc::mat_apply_rotate_z(angle);
+    dc::mat_store2(*this);
+#endif
 }
 
 void
 CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 {
+#if 1
 	auto [sX, cX] = SinCos(xAngle);
 	auto [sY, cY] = SinCos(yAngle);
 	auto [sZ, cZ] = SinCos(zAngle);
@@ -271,15 +314,19 @@ CMatrix::SetRotate(float xAngle, float yAngle, float zAngle)
 	px = 0.0f;
 	py = 0.0f;
 	pz = 0.0f;
+#else
+    dc::mat_set_rotate(xAngle, yAngle, zAngle);
+    dc::mat_store2(*this);
+#endif
 }
 
 void
 CMatrix::RotateX(float x)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
-       dc::mat_load2(reinterpret_cast<matrix_t *>(this));
-       mat_rotate_x(x);
-       dc::mat_store2(reinterpret_cast<matrix_t *>(this));
+#if 0// this is bugged and does not yield correct results
+    dc::mat_set_rotate_x(x);
+    mat_apply(*this);
+    dc::mat_store2(*this);
 #else
 	auto [s, c] = SinCos(x);
 
@@ -306,10 +353,10 @@ CMatrix::RotateX(float x)
 void
 CMatrix::RotateY(float y)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
-       dc::mat_load2(reinterpret_cast<matrix_t *>(this));
-       mat_rotate_y(y);
-       dc::mat_store2(reinterpret_cast<matrix_t *>(this));
+#if 0 // this is bugged and does not yield correct results
+    dc::mat_set_rotate_y(y);
+    mat_apply(*this);
+    dc::mat_store2(*this);
 #else
 	auto [s, c] = SinCos(y);
 
@@ -336,10 +383,10 @@ CMatrix::RotateY(float y)
 void
 CMatrix::RotateZ(float z)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
-       dc::mat_load2(reinterpret_cast<matrix_t *>(this));
-       mat_rotate_z(z);
-       dc::mat_store2(reinterpret_cast<matrix_t *>(this));
+#if 0// this is bugged and does not yield correct results
+       dc::mat_set_rotate_z(z);
+       mat_apply(*this);
+       dc::mat_store2(*this);
 #else	
 	auto [s, c] = SinCos(z);
 
@@ -366,10 +413,10 @@ CMatrix::RotateZ(float z)
 void
 CMatrix::Rotate(float x, float y, float z)
 {
-#if 0 && defined(DC_SH4) // this is bugged and does not yield correct results
-       dc::mat_load2(reinterpret_cast<matrix_t *>(this));
-       mat_rotate(x, y, z);
-       dc::mat_store2(reinterpret_cast<matrix_t *>(this));
+#if 0 // this is bugged and does not yield correct results
+    dc::mat_set_rotate(x, y, z);
+    mat_apply(*this);
+    dc::mat_store2(*this);
 #else
 	auto [sX, cX] = SinCos(x);
 	auto [sY, cY] = SinCos(y);

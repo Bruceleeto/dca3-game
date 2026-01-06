@@ -1,5 +1,7 @@
 #pragma once
 
+#include "maths.h"
+
 class CVector : public RwV3d
 {
 public:
@@ -68,9 +70,16 @@ __always_inline float Heading(void) const { return Atan2(-x, y); }
 	}
 
 	const CVector &operator/=(float right) {
+#ifndef DC_SH4
 		x /= right;
 		y /= right;
 		z /= right;
+#else
+        right = dc::Invert<true, true>(right);
+        x *= right;
+        y *= right;
+        z *= right;
+#endif
 		return *this;
 	}
 
@@ -111,7 +120,12 @@ inline CVector operator*(float left, const CVector &right)
 
 inline CVector operator/(const CVector &left, float right)
 {
+#ifndef DC_SH4
 	return CVector(left.x / right, left.y / right, left.z / right);
+#else
+    right = dc::Invert<true, true>(right);
+    return CVector(left.x * right, left.y * right, left.z * right);
+#endif
 }
 
 inline float

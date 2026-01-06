@@ -1315,8 +1315,9 @@ CalcNewDelta(RwV2d *a, RwV2d *b)
 #define TOINT(x) ((int)(x))
 #endif
 
+template<typename F>
 void
-CRenderer::ScanSectorPoly(RwV2d *poly, int32 numVertices, void (*scanfunc)(CPtrList *))
+CRenderer::ScanSectorPoly(RwV2d *poly, int32 numVertices, F&& scanfunc)
 {
 	float miny, maxy;
 	int y, yend;

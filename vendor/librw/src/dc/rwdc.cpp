@@ -563,7 +563,7 @@ Camera* rwdcCam;
 
 void beginUpdate(Camera* cam)  {
 	rwdcCam = cam;
-	float view[16], proj[16];
+	alignas(8) float view[16], proj[16];
 
 	// View Matrix
 	Matrix inv;
@@ -586,7 +586,7 @@ void beginUpdate(Camera* cam)  {
 	view[13] =  -inv.pos.y;
 	view[14] =  inv.pos.z;
 	view[15] =  1.0f;
-	memcpy4(&cam->devView, view, sizeof(RawMatrix));
+	mat_copy(cam->devView, reinterpret_cast<const matrix_t *>(view));
 //	d3ddevice->SetTransform(D3DTS_VIEW, (D3DMATRIX*)view);
 
 	// Projection Matrix
@@ -620,8 +620,8 @@ void beginUpdate(Camera* cam)  {
 		proj[15] = 1.0f;
 	}
 	proj[14] = -cam->nearPlane*proj[10];
-	memcpy4(&cam->devProj, proj, sizeof(RawMatrix));
-	
+    mat_copy(cam->devProj, reinterpret_cast<const matrix_t *>(proj));
+
 	DCE_MatrixViewport(0, 0, cam->frameBuffer->width * VIDEO_MODE_SCALE_X, cam->frameBuffer->height);
 	
 	mat_load_apply((matrix_t*)&DCE_MAT_SCREENVIEW, (matrix_t*)&cam->devProj);
@@ -811,7 +811,8 @@ struct chunked_vector {
     }
 
     // Iterate over each element and invoke the callback.
-    void forEach(void(*cb)(T&)) {
+    template<typename F>
+    void forEach(F&& cb) {
         for (chunk* curr = first; curr; curr = curr->header.next) {
             for (size_t i = 0; i < curr->header.used; ++i) {
                 cb(curr->items[i]);
@@ -944,8 +945,6 @@ void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 		auto addr1 = (pvr_ptr_t)&emu_vram[addr64b];
 		auto addr2 = (pvr_ptr_t)&emu_vram[addr64b + 640 * 2];
 	#endif
-
-
 
 		PVR_SET(PVR_TEXTURE_MODULO, 640/32);
 
@@ -1666,13 +1665,13 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		switch(primType) {
 			case PRIMTYPETRILIST:
 				pvrHeaderSubmit();
-				dcache_pref_block(vtx);
+				__builtin_prefetch(vtx);
 				for(int i = 0; i < numVertices; i += 3) [[likely]] {
-					dcache_pref_block(&vtx[i + 1]);
+					__builtin_prefetch(&vtx[i + 1]);
 					pvrVertexSubmit(vtx[i + 0], PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[i + 2]);
+					__builtin_prefetch(&vtx[i + 2]);
 					pvrVertexSubmit(vtx[i + 1], PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[i + 3]);
+					__builtin_prefetch(&vtx[i + 3]);
 					pvrVertexSubmit(vtx[i + 2], PVR_CMD_VERTEX_EOL);
 				}
 			break;
@@ -1680,14 +1679,11 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 				pvrHeaderSubmit();
 				const auto *vtxA = vtx + 0;
 				const auto *vtxB = vtx + 1;
-				dcache_pref_block(vtxA);
+				__builtin_prefetch(vtxA);
 				for(int i = 2; i < numVertices; ++i) [[likely]] {
 					const auto *vtxC = vtx + i;
-					dcache_pref_block(vtxB);
 					pvrVertexSubmit(*vtxA, PVR_CMD_VERTEX);
-					dcache_pref_block(vtxC);
 					pvrVertexSubmit(*vtxB, PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[i]);
 					pvrVertexSubmit(*vtxC, PVR_CMD_VERTEX_EOL);
 					vtxB = vtxC;
 				}
@@ -1787,13 +1783,13 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 		switch(primType) {
 			case PRIMTYPETRILIST:
 				pvrHeaderSubmit();
-				dcache_pref_block(vtx);
+				__builtin_prefetch(vtx);
 				for(int i = 0; i < numIndices; i += 3) [[likely]] {
-					dcache_pref_block(&vtx[idx[i + 1]]);
+					__builtin_prefetch(&vtx[idx[i + 1]]);
 					pvrVertexSubmit(vtx[idx[i + 0]], PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[idx[i + 2]]);
+					__builtin_prefetch(&vtx[idx[i + 2]]);
 					pvrVertexSubmit(vtx[idx[i + 1]], PVR_CMD_VERTEX);
-					dcache_pref_block(&vtx[idx[i + 3]]);
+					__builtin_prefetch(&vtx[idx[i + 3]]);
 					pvrVertexSubmit(vtx[idx[i + 2]], PVR_CMD_VERTEX_EOL);
 				}
 			break;
@@ -1830,15 +1826,21 @@ void im3DTransform(void *vertices, int32 numVertices, Matrix *worldMat, uint32 f
 		worldMat = &ident;
 	}
 	
-	rw::RawMatrix mtx, proj, world, worldview;
 	rw::Camera *cam = engine->currentCamera;
-
-	rw::convMatrix(&world, worldMat);
+#ifndef DC_SH4
+    rw::RawMatrix mtx, proj, world, worldview;
+    rw::convMatrix(&world, worldMat);
 	rw::RawMatrix::mult(&worldview, &world, &cam->devView);
 	rw::RawMatrix::mult(&proj, &worldview, &cam->devProj);
 	rw::RawMatrix::mult(&mtx, &proj, (RawMatrix*)&DCE_MAT_SCREENVIEW);
 	// mat_load2(&DCE_MAT_SCREENVIEW);     // ~11 cycles.
 	mat_load2(( matrix_t*)&mtx.right);  // Number of cycles: ~32.
+#else
+    mat_load_apply(&DCE_MAT_SCREENVIEW, cam->devProj);
+    mat_apply(cam->devView);
+    mat_apply(*worldMat);
+#endif
+
     if (im3dVertices) {
 		free(im3dVertices);
 	}
@@ -2136,39 +2138,36 @@ static_assert(sizeof(MeshletInfo) == 40); // or 32 if !skin
 
  inline __attribute__((always_inline))  void setLights(Atomic *atomic, WorldLights *lightData, UniformObject &uniformObject)
 {
-	int n = 0;
+    int i = 0;
 
 	uniformObject.ambLight = lightData->ambient;
 
 	if (lightData->numDirectionals) {
 		Matrix mat;
 		Matrix matsrc = *atomic->getFrame()->getLTM();
-		matsrc.pos = V3d {0,0,0};
+		matsrc.pos = V3d {0.0f, 0.0f, 0.0f};
+        matsrc.posw = 0.0f;
 		Matrix::invert(&mat, &matsrc);
-		
-		n = 0;
-		for(int i = 0; i < lightData->numDirectionals && i < MAX_LIGHTS; i++){
+		mat_load2(mat);
+
+		for(; i < lightData->numDirectionals && i < MAX_LIGHTS; i++){
 			Light *l = lightData->directionals[i];
-			uniformObject.col[n] = scale(l->color, 255);
+			uniformObject.col[i] = scale(l->color, 255);
 			V3d at = l->getFrame()->getLTM()->at;
 
 			V3d dir;
 
-			V3d::transformVectors(&dir, &at, 1, &mat);
+			mat_trans_normal3_nomod(at.x, at.y, at.z,
+                                    dir.x, dir.y, dir.z);
 
-			uniformObject.dir[n>>2][0][n&3] = -dir.x / 127.0f;
-			uniformObject.dir[n>>2][1][n&3] = -dir.y / 127.0f;
-			uniformObject.dir[n>>2][2][n&3] = -dir.z / 127.0f;
-			uniformObject.dir[n>>2][3][n&3] = 0;
-
-			n++;
-			if(n >= MAX_LIGHTS)
-				goto out;
+			uniformObject.dir[i>>2][0][i&3] = -dir.x / 127.0f;
+			uniformObject.dir[i>>2][1][i&3] = -dir.y / 127.0f;
+			uniformObject.dir[i>>2][2][i&3] = -dir.z / 127.0f;
+			uniformObject.dir[i>>2][3][i&3] = 0;
 		}
 	}
 
-out:
-	uniformObject.lightCount = n;
+	uniformObject.lightCount = i;
 }
 
 
@@ -2835,7 +2834,7 @@ void* interpolateAndSubmit(void* dst, const void* src1, const void* src2, uint32
 	float y = v1->o_r + t * (v2->o_r - v1->o_r);
 	float w = v1->o_g + t * (v2->o_g - v1->o_g);
 
-	w = frsqrt(w * w);
+	w = Invert<true, false>(w);
 
 	v->x = x * w;
 	v->y = y * w;
@@ -3209,15 +3208,14 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		auto skinningIndexData = (int16_t*)skinIndexes;
 		auto skinningWeightData = (uint8_t*)skinWeights;
 
-		if (!matrix0Identity) {
-			mat_load_4x4(&skinMatrices[0]);
-			if (small_xyz) {
-				mat_apply(&DCE_MESHLET_MAT_DECODE);
-			}
-		} else {
-			if (small_xyz) {
-				mat_load2(&DCE_MESHLET_MAT_DECODE);
-			}
+		if constexpr (!matrix0Identity) {
+			if (!small_xyz)
+                mat_load2(skinMatrices[0]);
+			else 
+                mat_load_apply(skinMatrices[0], &DCE_MESHLET_MAT_DECODE);
+			
+		} else if constexpr (small_xyz) {
+			mat_load2(&DCE_MESHLET_MAT_DECODE);
 		}
 
 		for(;;) {
@@ -3227,7 +3225,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				int count = *skinningIndexData++;
 				uint8_t* dstVertexBytes = dest + *skinningIndexData++;
 
-				if (matrix0Identity && !small_xyz) {
+				if constexpr (matrix0Identity && !small_xyz) {
 					do {
 						const V3d* srcVtx = (const V3d*)(srcVtxBytes);
 						srcVtxBytes += vertexSize;
@@ -3246,11 +3244,8 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 						srcVtxBytes += vertexSize;
 						V3d* dstVertex = (V3d*)(dstVertexBytes);
 						dstVertexBytes += 64;
-						float x, y, z, w;
-						mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
-						dstVertex->x = x;
-						dstVertex->y = y;
-						dstVertex->z = z;
+						mat_trans_single3_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z,
+                                                      dstVertex->x, dstVertex->y, dstVertex->z);
 					} while(--count != 0);
 				}
 			} else if (!(flags & 0x80)) {
@@ -3280,10 +3275,10 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				break;
 			}
 
-			mat_load_4x4(currentMatrix);
-			if (small_xyz){
-				mat_apply(&DCE_MESHLET_MAT_DECODE);
-			}
+			if constexpr(!small_xyz)
+                mat_load2(*currentMatrix);
+            else
+				mat_load_apply(*currentMatrix, &DCE_MESHLET_MAT_DECODE);
 
 			do {
 				auto srcOffset = *skinningIndexData++;
@@ -3297,9 +3292,9 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 					srcVtx = &tmpSrc;
 				}
 				auto dstVtx = (V3d*)(dest + dstOffset);
-				float x, y, z, w;
-				mat_trans_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, x, y, z, w);
-				V3d tmp = { x, y, z };
+				V3d tmp;
+				mat_trans_single3_nodiv_nomod(srcVtx->x, srcVtx->y, srcVtx->z, 
+                                              tmp.x, tmp.y, tmp.z);
 				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
 				*dstVtx = add(*dstVtx, tmp);
 			} while (--count != 0);
@@ -3312,8 +3307,8 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 		auto skinningIndexData = (int16_t*)skinIndexes;
 		auto skinningWeightData = (uint8_t*)skinWeights;
 
-		if (!matrix0Identity) {
-			mat_load_3x3(&skinMatrices[0]);
+		if constexpr(!matrix0Identity) {
+			mat_load2(skinMatrices[0]);
 		}
 
 		for(;;) {
@@ -3323,7 +3318,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				int count = *skinningIndexData++;
 				uint8_t* dstNormalBytes = destNormal + *skinningIndexData++;
 
-				if (matrix0Identity) {
+				if constexpr (matrix0Identity) {
 					do {
 						V3d srcNormal = { static_cast<float32>(srcNormalBytes[0]), static_cast<float32>(srcNormalBytes[1]), static_cast<float32>(srcNormalBytes[2]) };
 						
@@ -3339,9 +3334,9 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 						srcNormalBytes += vertexSize;
 						V3d* dstNormal = (V3d*)(dstNormalBytes);
 						dstNormalBytes += 64;
-						float x, y, z, w;
-						mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, x, y, z, w);
-						*dstNormal = { x, y, z };
+						float x, y, z;
+						mat_trans_normal3_nomod(srcNormal.x, srcNormal.y, srcNormal.z,
+                                                dstNormal->x, dstNormal->y, dstNormal->z);
 					} while(--count != 0);
 				}
 			} else if (!(flags & 0x80)) {
@@ -3371,7 +3366,7 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				break;
 			}
 
-			mat_load_3x3(currentMatrix);
+			mat_load2(*currentMatrix);
 
 			do {
 				auto srcOffset = *skinningIndexData++;
@@ -3383,8 +3378,8 @@ void tnlMeshletSkinVertices(uint8_t *OCR, uint8_t *OCR_normal, const uint8_t* ve
 				auto dstNormal = (V3d*)(destNormal + dstOffset);
 
 				V3d tmp;
-				float w;
-				mat_trans_nodiv_nomod_zerow(srcNormal.x, srcNormal.y, srcNormal.z, tmp.x, tmp.y, tmp.z, w);
+				mat_trans_normal3_nomod(srcNormal.x, srcNormal.y, srcNormal.z,
+                                        tmp.x, tmp.y, tmp.z);
 				tmp = scale(tmp, *skinningWeightData++ / 255.0f);
 				*dstNormal = add(*dstNormal, tmp);
 			} while (--count != 0);
@@ -3498,22 +3493,20 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 
 	if(hier){
 		Matrix *invMats = (Matrix*)skin->inverseMatrices;
-		Matrix tmp;
 
 		assert(skin->numBones == hier->numNodes);
 		if(hier->flags & HAnimHierarchy::LOCALSPACEMATRICES){
 			for(i = 0; i < hier->numNodes; i++){
-				invMats[i].flags = 0;
-				Matrix::mult(m, &invMats[i], &hier->matrices[i]);
+				mat_mult(*m, invMats[i], hier->matrices[i]);
 				m++;
 			}
 		}else{
 			Matrix invAtmMat;
 			Matrix::invert(&invAtmMat, a->getFrame()->getLTM());
 			for(i = 0; i < hier->numNodes; i++){
-				invMats[i].flags = 0;
-				Matrix::mult(&tmp, &hier->matrices[i], &invAtmMat);
-				Matrix::mult(m, &invMats[i], &tmp);
+				mat_load_apply(invAtmMat, hier->matrices[i]);
+				mat_apply(invMats[i]);
+                mat_store2(*m);
 				m++;
 			}
 		}
@@ -3530,12 +3523,12 @@ uploadSkinMatrices(Atomic *a, Matrix* skinMatrices)
 	return skinMatrices[0].identityError() < 0.01f;
 }
 
-static RawMatrix normal2texcoord = {
+static RawMatrix normal2texcoord = {{
 	{ 0.5f / 127,  0.0f, 0.0f }, 0.0f,
 	{ 0.0f, -0.5f / 127, 0.0f }, 0.0f,
 	{ 0.0f,  0.0f, 1.0f }, 0.0f,
 	{ 0.5f,  0.5f, 0.0f }, 1.0f
-};
+}};
 
 void
 uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
@@ -3547,13 +3540,13 @@ uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
 	RawMatrix *envMtx = (RawMatrix*)envMatrix;
 	{
 
-		RawMatrix invMtx;
+		//RawMatrix invMtx;
 		Matrix::invert(&invMat, frame->getLTM());
-		convMatrix(&invMtx, &invMat);
-		invMtx.pos.set(0.0f, 0.0f, 0.0f);
+		//convMatrix(&invMtx, &invMat);
+		//invMtx.pos.set(0.0f, 0.0f, 0.0f);
 		float uscale = fabs(normal2texcoord.right.x);
 		normal2texcoord.right.x = MatFX::envMapFlipU ? -uscale : uscale;
-		
+#if 0
 		RawMatrix tmpMtx;
 
 		RawMatrix::mult(&tmpMtx, &invMtx, &normal2texcoord);
@@ -3563,6 +3556,11 @@ uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
 		world->upw = 0;
 		world->atw = 0;
 		RawMatrix::mult(envMtx, world, &tmpMtx);
+#else
+        mat_load_apply(normal2texcoord, invMat);
+        mat_apply(*world);
+        mat_store2(envMatrix);
+#endif
 	}
 }
 
@@ -3812,12 +3810,9 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 	ac->skinMatrix0Identity = skinMatrix0Identity;
 
 	lightingCB(atomic, ac->uniform);
-
-	rw::RawMatrix world;
-	rw::convMatrix(&world, atomic->getFrame()->getLTM());
 	
 	mat_load_apply((matrix_t*)&cam->devProjScreen, (matrix_t*)&cam->devView);
-	mat_apply((matrix_t*)&world);
+	mat_apply(*atomic->getFrame()->getLTM());
 	mat_store2((matrix_t*)&atomicContexts.back().mtx);
 
 	auto meshes = geo->meshHeader->getMeshes();
@@ -3841,7 +3836,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			matfxContextPointer = &matfxContexts.back();
 			// N.B. world here gets converted to a 3x3 matrix
 			// 		this is fine, as we only use it for env mapping from now on
-			uploadEnvMatrix(matfx->fx[0].env.frame, &world, &matfxContexts.back().mtx);
+			uploadEnvMatrix(matfx->fx[0].env.frame, reinterpret_cast<rw::RawMatrix*>(atomic->getFrame()->getLTM()), &matfxContexts.back().mtx);
 			matfxContextPointer->coefficient = matfxCoefficient;
 			
 			pvr_poly_cxt_t cxt;
@@ -6254,6 +6249,18 @@ writeNativeSkin(Stream *stream, int32 len, void *object, int32 offset)
 	Skin *skin = *PLUGINOFFSET(Skin*, object, offset);
 
 	stream->write8(&skin->numBones, 4);
+
+	for(int32 i = 0; i < skin->numBones; i++){
+		Matrix &m = *reinterpret_cast<Matrix *>(
+			&skin->inverseMatrices[i * 16]);
+
+		if(m.flags & MatrixBase::IDENTITY_OLD)
+			m.flags |= MatrixBase::IDENTITY;
+		m.pad0 = 0;
+		m.upw = 0.0f;
+		m.atw = 0.0f;
+		m.posw = 1.0f;
+	}
 
 	stream->write32(skin->inverseMatrices, skin->numBones*64);
 	return stream;

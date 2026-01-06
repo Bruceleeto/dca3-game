@@ -90,7 +90,8 @@ public:
 	static void ConstructRenderList(void);
 	static void ScanWorld(void);
 	static void RequestObjectsInFrustum(void);
-	static void ScanSectorPoly(RwV2d *poly, int32 numVertices, void (*scanfunc)(CPtrList *));
+    template<typename F>
+	static void ScanSectorPoly(RwV2d *poly, int32 numVertices, F &&scanfunc);
 	static void ScanBigBuildingList(CPtrList &list);
 	static void ScanSectorList(CPtrList *lists);
 	static void ScanSectorList_Priority(CPtrList *lists);

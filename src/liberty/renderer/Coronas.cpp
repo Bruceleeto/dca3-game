@@ -300,9 +300,9 @@ CCoronas::Render(void)
 
 
 			if(aCoronas[i].fadeAlpha && spriteCoors.z < aCoronas[i].drawDist){
-				float recipz = 1.0f/spriteCoors.z;
+				float recipz = dc::Invert<true, false>(spriteCoors.z);
 				float fadeDistance = aCoronas[i].drawDist / 2.0f;
-				float distanceFade = spriteCoors.z < fadeDistance ? 1.0f : 1.0f - (spriteCoors.z - fadeDistance)/fadeDistance;
+				float distanceFade = spriteCoors.z < fadeDistance ? 1.0f : 1.0f - dc::Div<true, false>((spriteCoors.z - fadeDistance), fadeDistance);
 				int totalFade = aCoronas[i].fadeAlpha * distanceFade;
 
 				if(aCoronas[i].LOScheck)
@@ -313,6 +313,7 @@ CCoronas::Render(void)
 				// render corona itself
 				if(aCoronas[i].texture){
 					float fogscale = CWeather::Foggyness*Min(spriteCoors.z, 40.0f)/40.0f + 1.0f;
+                    float invFogScale = dc::Invert<true, false>(fogscale);
 					if(CCoronas::aCoronas[i].id == SUN_CORE)
 						spriteCoors.z = 0.95f * RwCameraGetFarClipPlane(Scene.camera);
 					RwRenderStateSet(rwRENDERSTATETEXTURERASTER, RwTextureGetRaster(aCoronas[i].texture));
@@ -328,9 +329,9 @@ CCoronas::Render(void)
 						CSprite::RenderOneXLUSprite(spriteCoors.x, spriteCoors.y, spriteCoors.z,
 							spritew * aCoronas[i].size * wscale,
 							spriteh * aCoronas[i].size * fogscale * hscale,
-							CCoronas::aCoronas[i].red / fogscale,
-							CCoronas::aCoronas[i].green / fogscale,
-							CCoronas::aCoronas[i].blue / fogscale,
+							CCoronas::aCoronas[i].red * invFogScale,
+							CCoronas::aCoronas[i].green * invFogScale,
+							CCoronas::aCoronas[i].blue * invFogScale,
 							totalFade,
 							recipz,
 							255);
@@ -339,9 +340,9 @@ CCoronas::Render(void)
 							spriteCoors.x, spriteCoors.y, spriteCoors.z,
 							spritew * aCoronas[i].size * fogscale,
 							spriteh * aCoronas[i].size * fogscale,
-							CCoronas::aCoronas[i].red / fogscale,
-							CCoronas::aCoronas[i].green / fogscale,
-							CCoronas::aCoronas[i].blue / fogscale,
+							CCoronas::aCoronas[i].red * invFogScale,
+							CCoronas::aCoronas[i].green * invFogScale,
+							CCoronas::aCoronas[i].blue * invFogScale,
 							totalFade,
 							recipz,
 							20.0f * recipz,
@@ -365,7 +366,7 @@ CCoronas::Render(void)
 							(spriteCoors.x - (screenw/2)) * flare->position + (screenw/2),
 							(spriteCoors.y - (screenh/2)) * flare->position + (screenh/2),
 							spriteCoors.z,
-							4.0f*flare->size * spritew/spriteh,
+							4.0f*flare->size * dc::Div<true, false>(spritew, spriteh),
 							4.0f*flare->size,
 							(flare->red * aCoronas[i].red)>>8,
 							(flare->green * aCoronas[i].green)>>8,
@@ -480,9 +481,9 @@ CCoronas::RenderReflections(void)
 					drawDist = Min(drawDist, 55.0f);
 					if(spriteCoors.z < drawDist){
 						float fadeDistance = drawDist / 2.0f;
-						float distanceFade = spriteCoors.z < fadeDistance ? 1.0f : 1.0f - (spriteCoors.z - fadeDistance)/fadeDistance;
+						float distanceFade = spriteCoors.z < fadeDistance ? 1.0f : 1.0f - Div<true, false>((spriteCoors.z - fadeDistance), fadeDistance);
 						distanceFade = Clamp(distanceFade, 0.0f, 1.0f);
-						float recipz = 1.0f/RwCameraGetNearClipPlane(Scene.camera);
+						float recipz = dc::Invert<true, false>(RwCameraGetNearClipPlane(Scene.camera));
 						float heightFade = (20.0f - aCoronas[i].heightAboveRoad)/20.0f;
 						int intensity = distanceFade*heightFade * 230.0 * CWeather::WetRoads;
 
@@ -606,7 +607,9 @@ CEntity::ProcessLightsForEntity(void)
 	flashTimer1 = 0;
 	flashTimer2 = 0;
 	flashTimer3 = 0;
-
+#ifdef DC_SH4
+    dc:mat_load2(GetMatrix());
+#endif
 	n = CModelInfo::GetModelInfo(GetModelIndex())->GetNum2dEffects();
 	for(i = 0; i < n; i++, flashTimer1 += 0x80, flashTimer2 += 0x100, flashTimer3 += 0x200){
 		effect = CModelInfo::GetModelInfo(GetModelIndex())->Get2dEffect(i);
@@ -614,8 +617,12 @@ CEntity::ProcessLightsForEntity(void)
 		if(effect->type != EFFECT_LIGHT)
 			continue;
 
+#ifndef DC_SH4
 		pos = GetMatrix() * effect->pos;
-
+#else
+        mat_trans_single3_nodiv_nomod(effect->pos.x, effect->pos.y, effect->pos.z,
+                                      pos.x, pos.y, pos.z);
+#endif
 		lightOn = false;
 		lightFlickering = false;
 		switch(effect->light.lightType){
