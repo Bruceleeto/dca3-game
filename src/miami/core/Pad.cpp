@@ -3881,36 +3881,49 @@ bool CPad::CollectPickupJustDown(void)
 	return false;
 }
 
-bool CPad::DuckJustDown(void)
+bool CPad::DuckJustDown(void) 
 {
-	if (ArePlayerControlsDisabled())
+	if (ArePlayerControlsDisabled()) {
+		duckFrameCounter = 0;
 		return false;
+	}
+
 #ifdef RW_DC
-	switch (CPad::GetPad(0)->Mode)
-	{
-		case 0:	//Xbox Mode
-			if (CPad::GetPad(0)->IsDualAnalog)
-			{
-				return !!(NewState.X&& !OldState.X);
-			}
-			else
-			{
-				return !!(NewState.X&& !OldState.X);
-			}
-		case 1:	//PS2 Mode
-			if (CPad::GetPad(0)->IsDualAnalog)
-			{
-				return !!(NewState.X&& !OldState.X);
-			}
-			else
-			{
-				return !!(NewState.X&& !OldState.X);
-			}
+	bool buttonPressed = false;
+	switch (CPad::GetPad(0)->Mode) {
+		case 0: // Xbox Mode
+		buttonPressed = NewState.X;
+			break;
+		case 1: // PS2 Mode
+			buttonPressed = NewState.X;
+			break;
+	}
+
+	if (buttonPressed) {
+		duckFrameCounter++;
+		if (duckFrameCounter >= DUCK_DELAY_FRAMES && !isDucking) {
+			isDucking = true;
+			return true; // Trigger ducking after delay
+		}
+	} else {
+		duckFrameCounter = 0;
+		isDucking = false;
 	}
 
 	return false;
 #else
-	return !!(NewState.LeftShock && !OldState.LeftShock);
+	bool buttonPressed = NewState.Square;
+	if (buttonPressed) {
+		duckFrameCounter++;
+		if (duckFrameCounter >= DUCK_DELAY_FRAMES && !isDucking) {
+			isDucking = true;
+			return true;
+		}
+	} else {
+		duckFrameCounter = 0;
+		isDucking = false;
+	}
+	return false;
 #endif
 }
 

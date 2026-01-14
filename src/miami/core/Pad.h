@@ -173,11 +173,26 @@ public:
 	uint32 CameraJustUpTime;
 	uint32 CameraLastPressed;
 	bool CameraIsDoublePressed;
+	static const int DUCK_DELAY_FRAMES = 30; // 1 second at 30 FPS
+	int duckFrameCounter;					// Frames the duck button has been held
+	bool isDucking;							// Tracks if duck action is active
 
 #ifdef DETECT_PAD_INPUT_SWITCH
-	static bool IsAffectedByController;
+    static bool IsAffectedByController;
 #endif
-	CPad() { }
+    
+    CPad() : duckFrameCounter(0), isDucking(false), // New variables initialized
+			SteeringLeftRightBuffer{0}, DrunkDrivingBufferUsed(0), Phase(0), Mode(0), 
+			ShakeDur(0), DisablePlayerControls(0), ShakeFreq(0), iCurrHornHistory(0), 
+			JustOutOfFrontend(0), bApplyBrakes(0), LastTimeTouched(0), AverageWeapon(0), 
+			AverageEntries(0), IsKeyboardMouse(false), IsDualAnalog(false), 
+			CameraJustDown(false), CameraJustUp(false), CameraJustUpTime(0), 
+			CameraLastPressed(0), CameraIsDoublePressed(false) {
+		Clear(false);
+		memset(bHornHistory, 0, sizeof(bHornHistory));
+		memset(CheatString, 0, sizeof(CheatString));
+	}
+
 	~CPad() { }
 
 	static bool bDisplayNoControllerMessage;
