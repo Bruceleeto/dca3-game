@@ -544,30 +544,37 @@ size_t alloc_count_continuous() {
     return largest_block;
 }
 
-pvr_ptr_t pvr_mem_malloc(size_t size) {
-    return (pvr_ptr_t)alloc_malloc(nullptr, size);
-}
+extern "C" {
 
-void pvr_mem_free(pvr_ptr_t chunk) {
-    alloc_free((void*) chunk);
-}
+    pvr_ptr_t pvr_mem_malloc(size_t size) {
+        return (pvr_ptr_t)alloc_malloc(nullptr, size);
+    }
 
-uint32_t pvr_mem_available(void) {
-    return alloc_count_free();
-}
+    void pvr_mem_free(pvr_ptr_t chunk) {
+        alloc_free((void*) chunk);
+    }
 
-void pvr_mem_reset(void) {
-    alloc_shutdown();
-    if (pvr_state.valid) {
-        assert((pvr_state.texture_base & 31) == 0);
-        alloc_init((void*)(PVR_RAM_INT_BASE + pvr_state.texture_base), PVR_RAM_SIZE - pvr_state.texture_base);
+    size_t pvr_mem_available(void) {
+        return alloc_count_free();
+    }
+
+    static pvr_ptr_t pvr_mem_base = NULL;
+    void pvr_mem_initialize(pvr_ptr_t pvr_texture_base) {
+        pvr_mem_base = pvr_texture_base;
+    }
+
+    void pvr_mem_reset(void) {
+        alloc_shutdown();
+        if (pvr_mem_base != NULL) {
+            alloc_init((void*)pvr_mem_base, PVR_RAM_INT_TOP - (uintptr_t)pvr_mem_base);
+        }
+    }
+
+    void pvr_mem_print_list(void) {
+        // not supported yet
+    }
+
+    void pvr_mem_stats(void) {
+        // not supported yet
     }
 }
-
-// void pvr_mem_print_list(void) {
-    
-// }
-
-// void pvr_mem_stats(void) {
-
-// }

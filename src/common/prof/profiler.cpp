@@ -19,6 +19,8 @@
 #include <kos/thread.h>
 #include <dc/perfctr.h>
 
+#include <kos/dbglog.h>
+
 perf_cntr_event_t profilerEvent = PMCR_PARALLEL_INSTRUCTION_ISSUED_MODE;
 // perf_cntr_event_t profilerMode = PMCR_PIPELINE_FREEZE_BY_DCACHE_MISS_MODE;
 
@@ -225,14 +227,8 @@ static void prof_thd_timer_hnd(irq_context_t *context) {
 
     // replicate thd timer behaviour
     {
-        /* Get the system time */
-        uint64_t now = timer_ms_gettime64();
-
         (void)context;
-
-        //printf("timer woke at %d\n", (uint32_t)now);
-
-        thd_schedule(0, now);
+        thd_schedule(false);
         timer_primary_wakeup(PROFILER_RECORDING ? 1 : 10);
     }
 }

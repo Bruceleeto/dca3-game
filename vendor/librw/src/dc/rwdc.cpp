@@ -923,6 +923,112 @@ static pvr_init_params_t pvr_params = {
 	.autosort_disabled = true
 };
 
+typedef struct {
+    int     list_type;          /**< \brief Primitive list
+                                     \see   pvr_lists */
+    struct {
+        int     alpha;          /**< \brief Enable or disable alpha outside modifier
+                                     \see   pvr_alpha_switch */
+        int     shading;        /**< \brief Shading type
+                                     \see   pvr_shading_types */
+        int     fog_type;       /**< \brief Fog type outside modifier
+                                     \see   pvr_fog_types */
+        int     culling;        /**< \brief Culling mode
+                                     \see   pvr_cull_modes */
+        int     color_clamp;    /**< \brief Color clamp enable/disable outside modifier
+                                     \see   pvr_colclamp_switch */
+        int     clip_mode;      /**< \brief Clipping mode
+                                     \see   pvr_clip_modes */
+        int     modifier_mode;  /**< \brief Modifier mode */
+        int     specular;       /**< \brief Offset color enable/disable outside modifier
+                                     \see   pvr_offset_switch */
+        int     alpha2;         /**< \brief Enable/disable alpha inside modifier
+                                     \see   pvr_alpha_switch */
+        int     fog_type2;      /**< \brief Fog type inside modifier
+                                     \see   pvr_fog_types */
+        int     color_clamp2;   /**< \brief Color clamp enable/disable inside modifier
+                                     \see   pvr_colclamp_switch */
+    } gen;                      /**< \brief General parameters */
+    struct {
+        int     src;            /**< \brief Source blending mode outside modifier
+                                     \see   pvr_blend_modes */
+        int     dst;            /**< \brief Dest blending mode outside modifier
+                                     \see   pvr_blend_modes */
+        int     src_enable;     /**< \brief Source blending enable outside modifier
+                                     \see   pvr_blend_switch */
+        int     dst_enable;     /**< \brief Dest blending enable outside modifier
+                                     \see   pvr_blend_switch */
+        int     src2;           /**< \brief Source blending mode inside modifier
+                                     \see   pvr_blend_modes */
+        int     dst2;           /**< \brief Dest blending mode inside modifier
+                                     \see   pvr_blend_modes */
+        int     src_enable2;    /**< \brief Source blending mode inside modifier
+                                     \see   pvr_blend_switch */
+        int     dst_enable2;    /**< \brief Dest blending mode inside modifier
+                                     \see   pvr_blend_switch */
+    } blend;                    /**< \brief Blending parameters */
+    struct {
+        int     color;          /**< \brief Color format in vertex
+                                     \see   pvr_color_fmts */
+        int     uv;             /**< \brief U/V data format in vertex
+                                     \see   pvr_uv_fmts */
+        int     modifier;       /**< \brief Enable or disable modifier effect
+                                     \see   pvr_mod_switch */
+    } fmt;                      /**< \brief Format control */
+    struct {
+        int     comparison;     /**< \brief Depth comparison mode
+                                     \see pvr_depth_modes */
+        int     write;          /**< \brief Enable or disable depth writes
+                                     \see pvr_depth_switch */
+    } depth;                    /**< \brief Depth comparison/write modes */
+    struct {
+        int     enable;         /**< \brief Enable/disable texturing
+                                     \see   pvr_txr_switch */
+        int     filter;         /**< \brief Filtering mode
+                                     \see   pvr_filter_modes */
+        int     mipmap;         /**< \brief Enable/disable mipmaps
+                                     \see   pvr_mip_switch */
+        int     mipmap_bias;    /**< \brief Mipmap bias
+                                     \see   pvr_mip_bias */
+        int     uv_flip;        /**< \brief Enable/disable U/V flipping
+                                     \see   pvr_uv_flip */
+        int     uv_clamp;       /**< \brief Enable/disable U/V clamping
+                                     \see   pvr_uv_clamp */
+        int     alpha;          /**< \brief Enable/disable texture alpha
+                                     \see   pvr_txralpha_switch */
+        int     env;            /**< \brief Texture color contribution
+                                     \see   pvr_txrenv_modes */
+        int     width;          /**< \brief Texture width (requires a power of 2) */
+        int     height;         /**< \brief Texture height (requires a power of 2) */
+        int     format;         /**< \brief Texture format
+                                     \see   pvr_txr_fmts */
+        pvr_ptr_t base;         /**< \brief Texture pointer */
+    } txr;                      /**< \brief Texturing params outside modifier */
+    struct {
+        int     enable;         /**< \brief Enable/disable texturing
+                                     \see   pvr_txr_switch */
+        int     filter;         /**< \brief Filtering mode
+                                     \see   pvr_filter_modes */
+        int     mipmap;         /**< \brief Enable/disable mipmaps
+                                     \see   pvr_mip_switch */
+        int     mipmap_bias;    /**< \brief Mipmap bias
+                                     \see   pvr_mip_bias */
+        int     uv_flip;        /**< \brief Enable/disable U/V flipping
+                                     \see   pvr_uv_flip */
+        int     uv_clamp;       /**< \brief Enable/disable U/V clamping
+                                     \see   pvr_uv_clamp */
+        int     alpha;          /**< \brief Enable/disable texture alpha
+                                     \see   pvr_txralpha_switch */
+        int     env;            /**< \brief Texture color contribution
+                                     \see   pvr_txrenv_modes */
+        int     width;          /**< \brief Texture width (requires a power of 2) */
+        int     height;         /**< \brief Texture height (requires a power of 2) */
+        int     format;         /**< \brief Texture format
+                                     \see   pvr_txr_fmts */
+        pvr_ptr_t base;         /**< \brief Texture pointer */
+    } txr2;                     /**< \brief Texturing params inside modifier */
+} rwdc_pvr_poly_cxt_t;
+
 void dcMotionBlur_v1(uint8_t a, uint8_t r, uint8_t g, uint8_t b) {
 	// not supported on 24 bpp
 	if (videoModes[VIDEO_MODE].depth == 24) {
@@ -1564,7 +1670,7 @@ int32 pvrFormatForRaster(Raster *r) {
 	return natras->raster->pvr_flags;
 }
 
-void pvrTexAddress(pvr_poly_cxt_t *cxt, Texture::Addressing u, Texture::Addressing v) {
+void pvrTexAddress(rwdc_pvr_poly_cxt_t *cxt, Texture::Addressing u, Texture::Addressing v) {
 	switch(u) {
 		case Texture::WRAP: cxt->txr.uv_flip |= PVR_UVFLIP_NONE; break;
 		case Texture::MIRROR: cxt->txr.uv_flip |= PVR_UVFLIP_U; break;
@@ -1599,14 +1705,14 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 						current_raster->height,
 						pvrTexturePointer(current_raster), 
 						PVR_FILTER_BILINEAR);
-		pvrTexAddress(&cxt, addressingU, addressingV);
+		pvrTexAddress((rwdc_pvr_poly_cxt_t *)&cxt, addressingU, addressingV);
 	} else { 
 		pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
 	}
 
 	if (blendEnabled) [[likely]] {
-		cxt.blend.src = srcBlend;
-		cxt.blend.dst = dstBlend;
+		cxt.blend.src = (decltype(cxt.blend.src))srcBlend;
+		cxt.blend.dst = (decltype(cxt.blend.src))dstBlend;
 	} else {
 		// non blended sprites are also submitted in TR lists
 		// so we need to reset the blend mode
@@ -1614,11 +1720,11 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		cxt.blend.dst = PVR_BLEND_ZERO;
 	}
 
-	cxt.gen.culling      = cullModePvr;
-	cxt.depth.comparison = zFunction;
-	cxt.depth.write      = zWrite;
+	cxt.gen.culling      = (decltype(cxt.gen.culling))cullModePvr;
+	cxt.depth.comparison = (decltype(cxt.depth.comparison))zFunction;
+	cxt.depth.write      = (decltype(cxt.depth.write))zWrite;
 
-	cxt.gen.fog_type = fogFuncPvr;
+	cxt.gen.fog_type = (decltype(cxt.gen.fog_type))fogFuncPvr;
 
 	pvr_poly_hdr_t hdr;
 	pvr_poly_compile(&hdr, &cxt);
@@ -1649,7 +1755,7 @@ void im2DRenderPrimitive(PrimitiveType primType, void *vertices, int32_t numVert
 		auto pvrVertexSubmit = [](const Im2DVertex &gtaVert, unsigned flags) 
 		__attribute__((always_inline)) 
 		{
-			auto *pvrVert  = pvr_dr_target(drState); 
+			auto *pvrVert  = (pvr_vertex_t*)pvr_dr_target(drState); 
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
 			pvrVert->y	   = gtaVert.y;
@@ -1720,14 +1826,14 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 						current_raster->height,
 						pvrTexturePointer(current_raster), 
 						PVR_FILTER_BILINEAR);
-		pvrTexAddress(&cxt, addressingU, addressingV);
+		pvrTexAddress((rwdc_pvr_poly_cxt_t*)&cxt, addressingU, addressingV);
 	} else { 
 		pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
 	}
 
 	if (blendEnabled) [[likely]] {
-		cxt.blend.src = srcBlend;
-		cxt.blend.dst = dstBlend;
+		cxt.blend.src = (decltype(cxt.blend.src))srcBlend;
+		cxt.blend.dst = (decltype(cxt.blend.dst))dstBlend;
 	} else {
 		// non blended sprites are also submitted in TR lists
 		// so we need to reset the blend mode
@@ -1735,11 +1841,11 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 		cxt.blend.dst = PVR_BLEND_ZERO;
 	}
 
-	cxt.gen.culling      = cullModePvr;
-	cxt.depth.comparison = zFunction;
-	cxt.depth.write      = zWrite;
+	cxt.gen.culling      = (decltype(cxt.gen.culling))cullModePvr;
+	cxt.depth.comparison = (decltype(cxt.depth.comparison))zFunction;
+	cxt.depth.write      = (decltype(cxt.depth.write))zWrite;
 
-	cxt.gen.fog_type = fogFuncPvr;
+	cxt.gen.fog_type = (decltype(cxt.gen.fog_type))fogFuncPvr;
 
 	pvr_poly_hdr_t hdr;
 	pvr_poly_compile(&hdr, &cxt);
@@ -1770,7 +1876,7 @@ void im2DRenderIndexedPrimitive(PrimitiveType primType, void *vertices, int32 nu
 		auto pvrVertexSubmit = [](const Im2DVertex &gtaVert, unsigned flags) 
 		__attribute__((always_inline)) 
 		{
-			auto *pvrVert  = pvr_dr_target(drState); 
+			auto *pvrVert  = (pvr_vertex_t*)pvr_dr_target(drState); 
 			pvrVert->flags = flags;
 			pvrVert->x 	   = gtaVert.x * VIDEO_MODE_SCALE_X;
 			pvrVert->y	   = gtaVert.y;
@@ -1885,20 +1991,20 @@ void im3DRenderIndexedPrimitive(PrimitiveType primType,
 						current_raster->height,
 						pvrTexturePointer(current_raster), 
 						PVR_FILTER_BILINEAR);
-		pvrTexAddress(&cxt, addressingU, addressingV);
+		pvrTexAddress((rwdc_pvr_poly_cxt_t*)&cxt, addressingU, addressingV);
 	} else pvr_poly_cxt_col(&cxt, blendEnabled? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY);		
 
 	if (blendEnabled) [[likely]] {
-		cxt.blend.src = srcBlend;
-		cxt.blend.dst = dstBlend;
+		cxt.blend.src = (decltype(cxt.blend.src))srcBlend;
+		cxt.blend.dst = (decltype(cxt.blend.src))dstBlend;
 	}
 
-	cxt.gen.culling      = cullModePvr;
-	cxt.depth.comparison = zFunction;
-	cxt.depth.write      = zWrite;
+	cxt.gen.culling      = (decltype(cxt.gen.culling))cullModePvr;
+	cxt.depth.comparison = (decltype(cxt.depth.comparison))zFunction;
+	cxt.depth.write      = (decltype(cxt.depth.write))zWrite;
 
 
-	cxt.gen.fog_type = fogFuncPvr;
+	cxt.gen.fog_type = (decltype(cxt.gen.fog_type ))fogFuncPvr;
 
 	pvr_poly_hdr_t hdr;
 	pvr_poly_compile(&hdr, &cxt);
@@ -3571,7 +3677,7 @@ uploadEnvMatrix(Frame *frame, RawMatrix *world, matrix_t* envMatrix)
 // Will rewrite later on to be more optimized
 
 /* Compile a polygon context into a polygon header */
-inline void pvr_poly_compile_fast(pvr_poly_hdr_t *dst, pvr_poly_cxt_t *src) {
+inline void pvr_poly_compile_fast(pvr_poly_hdr_t *dst, rwdc_pvr_poly_cxt_t *src) {
     int u, v;
     uint32  txr_base;
 
@@ -3632,9 +3738,9 @@ inline void pvr_poly_compile_fast(pvr_poly_hdr_t *dst, pvr_poly_cxt_t *src) {
 
         /* Convert the texture address */
 		#if defined(DC_SIM)
-		txr_base = (ptr_t)src->txr.base - (ptr_t)emu_vram;
+		txr_base = (uintptr_t)src->txr.base - (uintptr_t)emu_vram;
 		#else
-        txr_base = (ptr_t)src->txr.base;
+        txr_base = (uintptr_t)src->txr.base;
 		#endif
         txr_base = (txr_base & 0x00fffff8) >> 3;
         dst->mode3 |= txr_base;
@@ -3643,7 +3749,7 @@ inline void pvr_poly_compile_fast(pvr_poly_hdr_t *dst, pvr_poly_cxt_t *src) {
 
 /* Create a colored polygon context with parameters similar to
    the old "ta" function `ta_poly_hdr_col' */
-void pvr_poly_cxt_col_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
+void pvr_poly_cxt_col_fast(pvr_poly_hdr_t *hdr, int list,
 				int fmt_color,
 				// isMatFX ? PVR_BLEND_SRCALPHA : doBlend ? srcBlend : PVR_BLEND_ONE,
 					int blend_src,
@@ -3659,11 +3765,11 @@ void pvr_poly_cxt_col_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
 					int gen_fog_type
 				) {
     int alpha;
-	pvr_poly_cxt_t cxt;
-	pvr_poly_cxt_t *dst = &cxt;
+	rwdc_pvr_poly_cxt_t cxt;
+	rwdc_pvr_poly_cxt_t *dst = &cxt;
 
     /* Start off blank */
-    memset(dst, 0, sizeof(pvr_poly_cxt_t));
+    memset(dst, 0, sizeof(rwdc_pvr_poly_cxt_t));
 
     /* Fill in a few values */
     dst->list_type = list;
@@ -3696,7 +3802,7 @@ void pvr_poly_cxt_col_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
 
 /* Create a textured polygon context with parameters similar to
    the old "ta" function `ta_poly_hdr_txr' */
-void pvr_poly_cxt_txr_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
+void pvr_poly_cxt_txr_fast(pvr_poly_hdr_t *hdr, int list,
                       int textureformat, int tw, int th, pvr_ptr_t textureaddr,
                       int filtering,
 					// pvrTexAddress(&cxt, meshes[n].material->texture->getAddressU(), meshes[n].material->texture->getAddressV()),
@@ -3723,11 +3829,11 @@ void pvr_poly_cxt_txr_fast(pvr_poly_hdr_t *hdr, pvr_list_t list,
 					  ) {
     int alpha;
 
-	pvr_poly_cxt_t cxt;
-	pvr_poly_cxt_t *dst = &cxt;
+	rwdc_pvr_poly_cxt_t cxt;
+	rwdc_pvr_poly_cxt_t *dst = &cxt;
 
     /* Start off blank */
-    memset(dst, 0, sizeof(pvr_poly_cxt_t));
+    memset(dst, 0, sizeof(rwdc_pvr_poly_cxt_t));
 
     /* Fill in a few values */
     dst->list_type = list;
@@ -3849,7 +3955,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			auto matfxTexture = matfx->fx[0].env.tex;
 
 			pvr_poly_cxt_txr(&cxt, PVR_LIST_TR_POLY, pvrFormatForRaster(matfxTexture->raster), matfxTexture->raster->width, matfxTexture->raster->height, pvrTexturePointer(matfxTexture->raster), PVR_FILTER_BILINEAR);
-			pvrTexAddress(&cxt, matfxTexture->getAddressU(), matfxTexture->getAddressV());
+			pvrTexAddress((rwdc_pvr_poly_cxt_t*)&cxt, matfxTexture->getAddressU(), matfxTexture->getAddressV());
 			cxt.fmt.uv = PVR_UVFMT_16BIT;
 
 			cxt.txr.alpha = PVR_TXRALPHA_DISABLE;
@@ -3859,9 +3965,9 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			cxt.blend.src = PVR_BLEND_SRCALPHA;
 			cxt.blend.dst = PVR_BLEND_ONE;
 
-			cxt.depth.comparison = zFunction;
-			cxt.depth.write 	 = zWrite;
-			cxt.gen.culling = cullModePvr;
+			cxt.depth.comparison = (decltype(cxt.depth.comparison))zFunction;
+			cxt.depth.write 	 = (decltype(cxt.depth.write))zWrite;
+			cxt.gen.culling = (decltype(cxt.gen.culling))cullModePvr;
 
 			pvr_poly_hdr_t hdr;
 			pvr_poly_compile(&hdr, &cxt);
@@ -3871,7 +3977,7 @@ void defaultRenderCB(ObjPipeline *pipe, Atomic *atomic) {
 			matfxContextPointer->hdr_mode3 = hdr.mode3;
 		}
 
-		pvr_poly_cxt_t cxt;
+		rwdc_pvr_poly_cxt_t cxt;
 		int pvrList;
 		if (doBlend || matfxContextPointer) {
 			if (doAlphaTest && !doBlendMaterial) {
