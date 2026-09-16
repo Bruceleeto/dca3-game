@@ -174,7 +174,7 @@ $(OBJS_NO_FAST_MATH): %.o: %.cpp
 
 $(TARGET): $(OBJS)
 	kos-c++ -o $(TARGET) $(OBJS) -Wl,--gc-sections -Wl,--as-needed -Wl,-Map,output.map \
-		-flto=auto $(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 
+		-flto=auto $(if $(WITH_IDE),-lkosfat) $(if $(WITH_SD),-lkosfat) -Wl,--build-id=sha1 -lpthread
 	@echo && echo && echo "*** Build Completed Successfully ($(TARGET)) ***" && echo && echo
 
 run: $(TARGET)
