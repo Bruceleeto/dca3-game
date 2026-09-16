@@ -559,14 +559,16 @@ extern "C" {
     }
 
     static pvr_ptr_t pvr_mem_base = NULL;
-    void pvr_mem_initialize(pvr_ptr_t pvr_texture_base) {
+    static size_t pvr_mem_size = 0;
+    void pvr_mem_initialize(pvr_ptr_t pvr_texture_base, size_t available_memory) {
         pvr_mem_base = pvr_texture_base;
+        pvr_mem_size = available_memory;
     }
 
     void pvr_mem_reset(void) {
         alloc_shutdown();
         if (pvr_mem_base != NULL) {
-            alloc_init((void*)pvr_mem_base, PVR_RAM_INT_TOP - (uintptr_t)pvr_mem_base);
+            alloc_init((void*)pvr_mem_base, pvr_mem_size);
         }
     }
 
