@@ -74,7 +74,7 @@ int aica_play_chn(int chn, int size, uint32_t aica_buffer, int fmt, int vol, int
     chan->freq = freq;
     chan->vol = vol;
     chan->pan = pan;
-	chan->version = ++chn_version[chn];
+	// chan->version = ++chn_version[chn];
 	snd_sh4_to_aica(tmp, cmd->size);
     return chn;
 }
@@ -368,7 +368,7 @@ cSampleManager::Initialise(void)
 					if (channels[i].ch != -1) {
 						assert(channels[i].nSfx != -1);
 
-						uint32_t channel_version = g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, version));
+						uint32_t channel_version = 0; // g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, version));
 
 						if (chn_version[channels[i].ch] != channel_version) {
 							syncf("Stream version missmatch, skipping update. expected %d got %d\n", chn_version[channels[i].ch], channel_version);
@@ -378,7 +378,7 @@ cSampleManager::Initialise(void)
 						uint16_t channel_pos = (g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, pos)) & 0xffff);
 						// verbosef("Channel %d pos: %d\n", i, channel_pos);
 						if (!channels[i].loop) {
-							auto channel_looped = g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, looped));
+							auto channel_looped = 0; // g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(channels[i].ch) + offsetof(aica_channel_t, looped));
 							// the looped flag is set even for one shots and is a reliable way to know if the channel has finished playing
 							if (channel_looped) {
 								debugf("Auto stopping channel: %d -> %d\n", i, channels[i].ch);
@@ -401,7 +401,7 @@ cSampleManager::Initialise(void)
 				{
 					std::lock_guard<std::mutex> lk(streams[i].mtx);
 					if (streams[i].playing) {
-						uint32_t channel_version = g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(streams[i].mapped_ch[0]) + offsetof(aica_channel_t, version));
+						uint32_t channel_version = 0; // g2_read_32(SPU_RAM_UNCACHED_BASE + AICA_CHANNEL(streams[i].mapped_ch[0]) + offsetof(aica_channel_t, version));
 
 						if (chn_version[streams[i].mapped_ch[0]] != channel_version) {
 							syncf("Stream version missmatch, skipping update. expected %d got %d\n", chn_version[streams[i].mapped_ch[0]], channel_version);
