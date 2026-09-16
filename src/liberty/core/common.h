@@ -88,6 +88,7 @@
 
 #if defined(RW_DC) && !defined(DC_SIM)
 // mainline KOS no longer provides these (were in arch/types.h)
+#define __ARCH_TYPES_H
 typedef unsigned long long uint64;
 typedef unsigned long uint32;
 typedef unsigned short uint16;
