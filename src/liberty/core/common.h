@@ -86,6 +86,17 @@
 // Use this to add const that wasn't there in the original code
 #define Const const
 
+#if defined(RW_DC) && !defined(DC_SIM)
+// mainline KOS no longer provides these (were in arch/types.h)
+typedef unsigned long long uint64;
+typedef unsigned long uint32;
+typedef unsigned short uint16;
+typedef unsigned char uint8;
+typedef long long int64;
+typedef long int32;
+typedef short int16;
+typedef char int8;
+#endif
 #ifndef RW_DC
 typedef uint8_t uint8;
 typedef int8_t int8;
