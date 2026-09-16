@@ -360,7 +360,7 @@ namespace mINI
 #ifdef DC_SH4
 			{
 				vmu_pkg_t vmu_pkg;
-				if(vmu_pkg_parse(reinterpret_cast<uint8*>(const_cast<int8*>(fileContents.c_str())), &vmu_pkg) != 0) {
+				if(vmu_pkg_parse(reinterpret_cast<uint8*>(const_cast<int8*>(fileContents.c_str())), fileContents.size(), &vmu_pkg) != 0) {
 					// If we failed to parse, we assume it's raw with no VMS header.
 					start_offt = 0;
 				} else {
